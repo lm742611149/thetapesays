@@ -36,6 +36,7 @@ const day = (s: string | null) => s ?? null;
 <Base
 	title="Positions"
 	description="The trade log behind the site: the rules written down first, every open position with its stop, and every closed trade including the losers."
+	noindex={!verified}
 >
 	<div class="wrap page">
 		{!verified && (
