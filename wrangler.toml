@@ -1,11 +1,17 @@
-# Cloudflare Pages project config. The Git integration reads this on build, so
-# the analytics binding lives in the repo rather than only in the dashboard.
+# Cloudflare Pages project config.
 name = "thetapesays"
 compatibility_date = "2026-09-18"
 pages_build_output_dir = "dist"
 
-# Usage events from functions/api/beacon.js. Analytics Engine is append-only and
-# free at this volume; query it with the SQL API (see scripts/analytics.sh).
-[[analytics_engine_datasets]]
-binding = "ANALYTICS"
-dataset = "tapesays_events"
+# Usage events from functions/api/beacon.js.
+#
+# DISABLED until Analytics Engine is switched on for the account — a Pages
+# build fails outright on a binding to a product that isn't enabled, which
+# takes the whole site's deploy down with it. Enable it at
+#   dash.cloudflare.com -> Workers & Pages -> Analytics Engine
+# then uncomment. Until then beacon.js sees no binding and returns 204, so the
+# client-side tracking runs harmlessly and simply records nothing.
+#
+# [[analytics_engine_datasets]]
+# binding = "ANALYTICS"
+# dataset = "tapesays_events"
