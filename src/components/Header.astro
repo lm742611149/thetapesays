@@ -1,11 +1,16 @@
 ---
 import { SITE_TITLE, X_URL } from '../consts';
+import trades from '../data/trades.json';
+
 const path = Astro.url.pathname;
+// the trade log stays out of the nav until its prices have been reconciled
+// against the exchange record (trades.json -> verified)
 const nav = [
 	['/btc/', 'Markets'],
 	['/events/', 'News'],
 	['/research/', 'Research'],
 	['/data/', 'Data'],
+	...((trades as any).verified ? [['/positions/', 'Positions']] : []),
 ];
 const on = (href: string) => path === href || (href !== '/' && path.startsWith(href));
 ---

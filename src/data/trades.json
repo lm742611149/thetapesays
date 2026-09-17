@@ -1,5 +1,7 @@
 {
 	"_comment": "VERIFY BEFORE PUBLISHING. Entries below come from the T2 signal log; confirm every price and date against the exchange record.",
+	"verified": false,
+	"since": "2026-09-11",
 	"rules": [
 		"Spot only. No leverage, no perpetuals, no margin.",
 		"Entries and exits fire on a daily close, never intraday.",
@@ -8,7 +10,13 @@
 		"Every fill gets posted, including the ones that lose. Especially those."
 	],
 	"open": [
-		{ "sym": "SOL", "entry": null, "stop": 96.6, "opened": null, "note": "stop level is live; entry pending verification" }
+		{
+			"sym": "SOL",
+			"entry": null,
+			"stop": 96.6,
+			"opened": null,
+			"note": "stop level is live; entry pending verification"
+		}
 	],
 	"closed": [
 		{
