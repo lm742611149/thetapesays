@@ -1,0 +1,330 @@
+/* ============================================================
+   The Tape Says — design tokens
+   Terminal palette: near-black ground, one amber accent,
+   red/green reserved exclusively for price direction.
+   ============================================================ */
+:root {
+	--bg: #08090b;
+	--bg-raised: #0f1116;
+	/* translucent so the candle backdrop reads through the page */
+	--bg-panel: rgba(18, 21, 27, 0.78);
+	--bg-panel-solid: #12151b;
+	--bg-hover: rgba(24, 28, 36, 0.86);
+	--line: #1d2128;
+	--line-bright: #2a2f39;
+
+	--fg: #e9ecf1;
+	--fg-dim: #9aa2af;
+	--fg-mute: #646c7a;
+
+	--up: #26d07c;
+	--up-bg: rgba(38, 208, 124, 0.1);
+	--down: #f6465d;
+	--down-bg: rgba(246, 70, 93, 0.1);
+	--accent: #f0b90b;
+	--accent-dim: rgba(240, 185, 11, 0.12);
+
+	--max: 1180px;
+	--radius: 10px;
+	--gut: 20px;
+	/* comfortable tap target on touch devices */
+	--tap: 44px;
+
+	color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html {
+	background: var(--bg);
+	scroll-behavior: smooth;
+	/* a single overflowing child shouldn't let the whole page pan sideways */
+	overflow-x: hidden;
+}
+
+body {
+	margin: 0;
+	overflow-x: clip;
+	background: var(--bg);
+	color: var(--fg);
+	font-family: var(--font-body), system-ui, sans-serif;
+	font-size: 17px;
+	-webkit-text-size-adjust: 100%;
+	line-height: 1.68;
+	-webkit-font-smoothing: antialiased;
+	/* Faint grid, the way a terminal background reads. */
+	background-image:
+		linear-gradient(rgba(255, 255, 255, 0.012) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(255, 255, 255, 0.012) 1px, transparent 1px);
+	background-size: 44px 44px;
+	/* the candle backdrop sits behind this, so the page itself can't be opaque */
+	background-color: transparent;
+}
+
+h1,
+h2,
+h3,
+h4 {
+	font-family: var(--font-display), system-ui, sans-serif;
+	font-weight: 600;
+	letter-spacing: -0.022em;
+	line-height: 1.14;
+	margin: 0 0 0.5em;
+	color: #fff;
+}
+
+h1 {
+	font-size: clamp(2rem, 5vw, 3.1rem);
+}
+h2 {
+	font-size: clamp(1.4rem, 3vw, 1.9rem);
+}
+h3 {
+	font-size: 1.15rem;
+}
+
+p {
+	margin: 0 0 1.15em;
+}
+
+a {
+	color: var(--fg);
+	text-decoration-color: var(--line-bright);
+	text-underline-offset: 3px;
+	transition: color 0.14s ease, text-decoration-color 0.14s ease;
+}
+a:hover {
+	color: var(--accent);
+	text-decoration-color: var(--accent);
+}
+
+code,
+kbd,
+pre,
+.mono,
+.num {
+	font-family: var(--font-mono), ui-monospace, monospace;
+	font-variant-numeric: tabular-nums;
+	font-feature-settings: 'tnum' 1, 'zero' 1;
+}
+
+code {
+	background: var(--bg-panel);
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	padding: 0.12em 0.4em;
+	font-size: 0.87em;
+}
+
+pre {
+	background: var(--bg-raised);
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+	padding: 16px 18px;
+	overflow-x: auto;
+	font-size: 0.9rem;
+	line-height: 1.6;
+}
+pre code {
+	background: none;
+	border: 0;
+	padding: 0;
+	font-size: inherit;
+}
+
+hr {
+	border: 0;
+	border-top: 1px solid var(--line);
+	margin: 2.5rem 0;
+}
+
+table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.96rem;
+	margin: 0 0 1.5em;
+}
+th,
+td {
+	text-align: left;
+	padding: 9px 12px;
+	border-bottom: 1px solid var(--line);
+}
+th {
+	font-family: var(--font-mono), monospace;
+	font-size: 0.78rem;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--fg-mute);
+	font-weight: 500;
+	border-bottom-color: var(--line-bright);
+}
+td:not(:first-child),
+th:not(:first-child) {
+	font-variant-numeric: tabular-nums;
+}
+
+blockquote {
+	margin: 1.5em 0;
+	padding: 2px 0 2px 18px;
+	border-left: 2px solid var(--accent);
+	color: var(--fg-dim);
+}
+
+/* ---------- layout primitives ---------- */
+.wrap {
+	max-width: var(--max);
+	margin: 0 auto;
+	padding: 0 var(--gut);
+}
+
+.rule {
+	border-top: 1px solid var(--line);
+}
+
+/* Small uppercase mono label — the workhorse of the whole design. */
+.label {
+	font-family: var(--font-mono), monospace;
+	font-size: 0.74rem;
+	text-transform: uppercase;
+	letter-spacing: 0.12em;
+	color: var(--fg-mute);
+	font-weight: 500;
+}
+
+.panel {
+	background: var(--bg-panel);
+	backdrop-filter: blur(3px);
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+}
+
+.up {
+	color: var(--up);
+}
+.down {
+	color: var(--down);
+}
+
+/* Live dot */
+.pulse {
+	display: inline-block;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--up);
+	box-shadow: 0 0 0 0 rgba(38, 208, 124, 0.6);
+	animation: pulse 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes pulse {
+	0% {
+		box-shadow: 0 0 0 0 rgba(38, 208, 124, 0.55);
+	}
+	70% {
+		box-shadow: 0 0 0 7px rgba(38, 208, 124, 0);
+	}
+	100% {
+		box-shadow: 0 0 0 0 rgba(38, 208, 124, 0);
+	}
+}
+
+/* Value flash when a quote updates */
+.flash-up {
+	animation: flashUp 0.55s ease-out;
+}
+.flash-down {
+	animation: flashDown 0.55s ease-out;
+}
+@keyframes flashUp {
+	0% {
+		background: var(--up-bg);
+	}
+	100% {
+		background: transparent;
+	}
+}
+@keyframes flashDown {
+	0% {
+		background: var(--down-bg);
+	}
+	100% {
+		background: transparent;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.001ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.001ms !important;
+		scroll-behavior: auto !important;
+	}
+}
+
+::selection {
+	background: var(--accent);
+	color: #000;
+}
+
+:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+	border-radius: 3px;
+}
+
+/* ---------- entrance + count-up ---------- */
+[data-reveal] {
+	opacity: 0;
+	transform: translateY(14px);
+	transition: opacity 0.55s cubic-bezier(0.2, 0.7, 0.3, 1), transform 0.55s cubic-bezier(0.2, 0.7, 0.3, 1);
+	transition-delay: var(--rd, 0ms);
+}
+[data-reveal].in {
+	opacity: 1;
+	transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+	[data-reveal] {
+		opacity: 1;
+		transform: none;
+		transition: none;
+	}
+}
+
+/* ---------- responsive scale ---------- */
+@media (max-width: 760px) {
+	:root {
+		--gut: 15px;
+	}
+	body {
+		font-size: 16px;
+	}
+	h1 {
+		font-size: clamp(1.85rem, 8vw, 2.4rem);
+	}
+	h2 {
+		font-size: clamp(1.25rem, 5.4vw, 1.5rem);
+	}
+	table {
+		font-size: 0.9rem;
+	}
+	pre {
+		font-size: 0.8rem;
+		padding: 13px 14px;
+	}
+}
+
+/* Hover styling is meaningless on touch; keep pressed states instead so
+   nothing sticks in a hovered look after a tap. */
+@media (hover: none) {
+	a:hover,
+	a:active {
+		color: var(--accent);
+	}
+}

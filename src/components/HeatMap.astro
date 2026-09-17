@@ -1,0 +1,200 @@
+---
+/**
+ * Monthly returns, year x month. Diverging scale: one hue each side of a
+ * neutral midpoint, never a rainbow. Cells carry a hover tooltip and a title,
+ * and the legend states the scale.
+ */
+interface Cell { y: number; m: number; r: number }
+interface Props { cells: Cell[] }
+const { cells } = Astro.props;
+
+const MON = ['J','F','M','A','M','J','J','A','S','O','N','D'];
+const years = [...new Set(cells.map((c) => c.y))].sort();
+const grid = new Map(cells.map((c) => [`${c.y}-${c.m}`, c.r]));
+
+/** Clamp at +/-40% so one 2017-style month doesn't flatten every other cell. */
+const CAP = 40;
+function color(r: number) {
+	const t = Math.max(-1, Math.min(1, r / CAP));
+	if (Math.abs(t) < 0.02) return 'rgba(120,128,142,0.16)';
+	const a = 0.16 + Math.abs(t) * 0.74;
+	return t > 0 ? `rgba(38,208,124,${a.toFixed(3)})` : `rgba(246,70,93,${a.toFixed(3)})`;
+}
+
+const rowTotal = (y: number) => {
+	const rs = cells.filter((c) => c.y === y);
+	return rs.reduce((acc, c) => acc * (1 + c.r / 100), 1);
+};
+---
+
+<figure class="hm">
+	<div class="scroll">
+		<table>
+			<thead>
+				<tr>
+					<th class="yh"></th>
+					{MON.map((m, i) => <th class="mh" title={`month ${i + 1}`}>{m}</th>)}
+					<th class="yr">year</th>
+				</tr>
+			</thead>
+			<tbody>
+				{years.map((y) => (
+					<tr>
+						<th class="yh">{y}</th>
+						{MON.map((_, i) => {
+							const r = grid.get(`${y}-${i}`);
+							return (
+								<td>
+									{r === undefined ? (
+										<span class="cell void" />
+									) : (
+										<span
+											class="cell"
+											style={`background:${color(r)}`}
+											data-tip={`${y}-${String(i + 1).padStart(2, '0')} · ${r > 0 ? '+' : ''}${r}%`}
+											tabindex="0"
+										>
+											{Math.abs(r) >= 20 ? Math.round(r) : ''}
+										</span>
+									)}
+								</td>
+							);
+						})}
+						{(() => {
+							const t = (rowTotal(y) - 1) * 100;
+							return (
+								<td class="yr">
+									<span class={t >= 0 ? 'up' : 'down'}>
+										{t >= 0 ? '+' : ''}
+										{t.toFixed(0)}%
+									</span>
+								</td>
+							);
+						})()}
+					</tr>
+				))}
+			</tbody>
+		</table>
+	</div>
+	<figcaption>
+		<span class="lg">
+			<i style="background:rgba(246,70,93,0.9)"></i>
+			<i style="background:rgba(246,70,93,0.45)"></i>
+			<i style="background:rgba(120,128,142,0.16)"></i>
+			<i style="background:rgba(38,208,124,0.45)"></i>
+			<i style="background:rgba(38,208,124,0.9)"></i>
+		</span>
+		<span class="cap">−40% to +40%, month-on-month close. Year column compounds the months.</span>
+	</figcaption>
+	<div class="tip" hidden></div>
+</figure>
+
+<style>
+	.hm { margin: 0; position: relative; }
+	.scroll { overflow-x: auto; }
+	table { border-collapse: separate; border-spacing: 3px; margin: 0; min-width: 440px; width: 100%; }
+	th, td { padding: 0; border: 0; }
+	.yh {
+		font-family: var(--font-mono), monospace;
+		font-size: 0.76rem;
+		color: var(--fg-mute);
+		font-weight: 500;
+		text-align: right;
+		padding-right: 8px;
+		width: 42px;
+		letter-spacing: 0;
+		text-transform: none;
+		border: 0;
+	}
+	.mh {
+		font-family: var(--font-mono), monospace;
+		font-size: 0.7rem;
+		color: #4c5462;
+		font-weight: 500;
+		text-align: center;
+		padding-bottom: 3px;
+		border: 0;
+		text-transform: none;
+		letter-spacing: 0;
+	}
+	.cell {
+		display: block;
+		height: 30px;
+		border-radius: 3px;
+		font-family: var(--font-mono), monospace;
+		font-size: 0.68rem;
+		font-weight: 700;
+		color: #fff;
+		display: grid;
+		place-items: center;
+		cursor: default;
+		transition: transform 0.12s ease, box-shadow 0.12s ease;
+	}
+	.cell:hover, .cell:focus-visible {
+		transform: scale(1.14);
+		box-shadow: 0 0 0 1.5px var(--fg);
+		outline: none;
+	}
+	.void { background: repeating-linear-gradient(45deg, #101319 0 4px, #0c0f14 4px 8px); }
+	.yr {
+		font-family: var(--font-mono), monospace;
+		font-size: 0.78rem;
+		text-align: right;
+		padding-left: 10px;
+		border: 0;
+		color: var(--fg-mute);
+		font-weight: 500;
+		text-transform: none;
+		letter-spacing: 0;
+		white-space: nowrap;
+	}
+	figcaption {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		margin-top: 14px;
+		flex-wrap: wrap;
+	}
+	.lg { display: inline-flex; gap: 2px; }
+	.lg i { width: 17px; height: 9px; border-radius: 2px; }
+	.cap { font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--fg-mute); }
+	.tip {
+		position: fixed;
+		pointer-events: none;
+		background: #050608e6;
+		border: 1px solid var(--line-bright);
+		border-radius: 5px;
+		padding: 5px 9px;
+		font-family: var(--font-mono), monospace;
+		font-size: 0.68rem;
+		color: #fff;
+		white-space: nowrap;
+		transform: translate(-50%, -140%);
+		z-index: 30;
+	}
+</style>
+
+<script>
+	for (const fig of document.querySelectorAll<HTMLElement>('.hm')) {
+		const tip = fig.querySelector<HTMLElement>('.tip')!;
+		const show = (el: HTMLElement) => {
+			const t = el.dataset.tip;
+			if (!t) return;
+			const r = el.getBoundingClientRect();
+			tip.textContent = t;
+			tip.hidden = false;
+			tip.style.left = `${r.left + r.width / 2}px`;
+			tip.style.top = `${r.top}px`;
+		};
+		fig.addEventListener('pointerover', (e) => {
+			const el = (e.target as HTMLElement).closest<HTMLElement>('.cell[data-tip]');
+			if (el) show(el);
+		});
+		fig.addEventListener('focusin', (e) => {
+			const el = (e.target as HTMLElement).closest<HTMLElement>('.cell[data-tip]');
+			if (el) show(el);
+		});
+		fig.addEventListener('pointerleave', () => (tip.hidden = true));
+		fig.addEventListener('focusout', () => (tip.hidden = true));
+	}
+</script>

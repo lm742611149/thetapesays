@@ -1,0 +1,210 @@
+---
+/**
+ * Open interest across the same venues as the funding board. Fetched in the
+ * browser for the same reason funding is: it moves intraday, and a number
+ * cached at build time would be wrong by the time anyone read it.
+ */
+import Busy from './Busy.astro';
+const COINS = ['BTC', 'ETH', 'SOL', 'BNB'];
+---
+
+<div class="oib" data-oi-board>
+	<Busy />
+	<div class="head">
+		<div class="tabs" role="tablist" aria-label="Symbol">
+			{COINS.map((c, i) => (
+				<button class:list={['tab', { on: i === 0 }]} data-osym={c} role="tab">{c}</button>
+			))}
+		</div>
+		<div class="tot" data-tot hidden>
+			<span class="label">total</span>
+			<b data-tot-v>—</b>
+			<span class="sr" data-tot-r></span>
+		</div>
+	</div>
+
+	<div class="tw">
+		<table>
+			<thead>
+				<tr>
+					<th>Venue</th>
+					<th class="r">Open interest</th>
+					<th class="r">Notional</th>
+					<th>Share</th>
+				</tr>
+			</thead>
+			<tbody data-orows>
+				<tr><td colspan="4" class="loading">loading…</td></tr>
+			</tbody>
+		</table>
+	</div>
+
+	<p class="note">
+		Open interest is the number of contracts still open — <b>size, not activity</b>. Rising OI with
+		rising price means new money is coming in long; rising OI into a falling price means shorts are
+		building; a sharp drop in OI without much price movement is positions being closed, which is
+		what a liquidation cascade looks like after the fact. Every venue publishes this in its own unit
+		— coins, contracts, or notional — so all of it is normalised to coins here and valued at one
+		common mark, otherwise the comparison measures basis instead of size.
+	</p>
+</div>
+
+<style>
+	.oib { display: block; position: relative; }
+	.head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+	.tabs { display: inline-flex; gap: 2px; background: #0b0e13; border: 1px solid var(--line); border-radius: 7px; padding: 3px; }
+	.tab {
+		appearance: none; border: 0; background: none; cursor: pointer;
+		font-family: var(--font-mono), monospace; font-size: 0.75rem; font-weight: 500;
+		color: var(--fg-mute); padding: 5px 12px; border-radius: 5px;
+		transition: background 0.14s, color 0.14s;
+	}
+	.tab:hover { color: var(--fg); background: var(--bg-hover); }
+	.tab.on { background: var(--accent); color: #0a0a0a; font-weight: 700; }
+
+	.tot { display: inline-flex; align-items: baseline; gap: 8px; font-family: var(--font-mono), monospace; }
+	.tot b { font-size: 1.05rem; color: var(--accent); font-weight: 700; }
+	.sr { font-size: 0.68rem; color: var(--fg-mute); }
+
+	.tw { overflow-x: auto; }
+	table { margin: 0; min-width: 460px; }
+	.r { text-align: right; }
+	.loading { color: var(--fg-mute); font-family: var(--font-mono), monospace; font-size: 0.8rem; }
+	tbody :global(tr) { transition: background 0.12s ease; }
+	tbody :global(tr:hover) { background: var(--bg-hover); }
+	tbody :global(.v) { font-family: var(--font-mono), monospace; font-weight: 700; color: #fff; }
+	tbody :global(.m) { font-family: var(--font-mono), monospace; font-variant-numeric: tabular-nums; }
+	tbody :global(.dim) { color: var(--fg-mute); }
+	tbody :global(.lead td) { box-shadow: inset 2px 0 0 var(--accent); }
+
+	/* share cell: a bar that reads left-to-right at the venue's own weight */
+	tbody :global(.shr) { display: flex; align-items: center; gap: 8px; min-width: 150px; }
+	tbody :global(.shr .track) { flex: 1; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+	tbody :global(.shr .fill) { display: block; height: 100%; background: var(--accent); opacity: 0.75; border-radius: 3px; }
+	tbody :global(.shr b) { font-family: var(--font-mono), monospace; font-size: 0.76rem; width: 42px; text-align: right; color: var(--fg-dim); }
+
+	.note { margin: 13px 0 0; font-size: 0.82rem; line-height: 1.62; color: var(--fg-mute); max-width: 78ch; }
+	.note b { color: var(--fg-dim); }
+	@media (max-width: 620px) { table { min-width: 380px; } tbody :global(.shr) { min-width: 96px; } }
+</style>
+
+<script>
+	import { withBusy } from '../lib/busy';
+	const root = document.querySelector<HTMLElement>('[data-oi-board]');
+	if (root) {
+		const body = root.querySelector<HTMLElement>('[data-orows]')!;
+		const tot = root.querySelector<HTMLElement>('[data-tot]')!;
+		let sym = 'BTC';
+
+		const num = (v: number, d = 0) =>
+			v.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+		const usd = (b: number) => (b >= 1 ? `$${b.toFixed(2)}B` : `$${(b * 1000).toFixed(0)}M`);
+
+		function render(d: any) {
+			const rows = d?.rows ?? [];
+			if (!rows.length) {
+				body.innerHTML = '<tr><td colspan="4" class="loading">feed unavailable</td></tr>';
+				tot.hidden = true;
+				return;
+			}
+			body.innerHTML = rows
+				.map(
+					(r: any, i: number) => `<tr class="${i === 0 ? 'lead' : ''}">
+						<td class="v">${r.venue}</td>
+						<td class="r m">${num(r.coins, r.coins < 1000 ? 1 : 0)} <span class="dim">${d.sym}</span></td>
+						<td class="r m">${r.usdB !== null ? usd(r.usdB) : '—'}</td>
+						<td><span class="shr"><span class="track"><i class="fill" style="width:${r.share}%"></i></span><b>${r.share}%</b></span></td>
+					</tr>`,
+				)
+				.join('');
+			tot.hidden = false;
+			tot.querySelector('[data-tot-v]')!.textContent = d.totalUsdB !== null ? usd(d.totalUsdB) : '—';
+			tot.querySelector('[data-tot-r]')!.textContent =
+				`${num(d.totalCoins, 0)} ${d.sym} across ${d.venues} venues`;
+		}
+
+		/**
+		 * Same fallback shape as the funding board: the edge route doesn't exist
+		 * under `astro dev` and some networks block individual exchanges, so each
+		 * venue is asked directly and whatever answers gets shown.
+		 */
+		async function direct() {
+			const jobs: [string, () => Promise<number>][] = [
+				['Binance', async () =>
+					+(await (await fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${sym}USDT`)).json()).openInterest],
+				['OKX', async () =>
+					+(await (await fetch(`https://www.okx.com/api/v5/public/open-interest?instType=SWAP&instId=${sym}-USDT-SWAP`)).json()).data[0].oiCcy],
+				['Bybit', async () =>
+					+(await (await fetch(`https://api.bybit.com/v5/market/open-interest?category=linear&symbol=${sym}USDT&intervalTime=5min&limit=1`)).json()).result.list[0].openInterest],
+				['Bitget', async () =>
+					+(await (await fetch(`https://api.bitget.com/api/v2/mix/market/open-interest?symbol=${sym}USDT&productType=usdt-futures`)).json()).data.openInterestList[0].size],
+				['Gate', async () => {
+					const d = await (await fetch(`https://api.gateio.ws/api/v4/futures/usdt/contracts/${sym}_USDT`)).json();
+					return +d.position_size * (+d.quanto_multiplier || 1);
+				}],
+				['Hyperliquid', async () => {
+					const d = await (await fetch('https://api.hyperliquid.xyz/info', {
+						method: 'POST',
+						headers: { 'content-type': 'application/json' },
+						body: JSON.stringify({ type: 'metaAndAssetCtxs' }),
+					})).json();
+					const i = d[0].universe.findIndex((u: any) => u.name === sym);
+					if (i < 0) throw new Error('not listed');
+					return +d[1][i].openInterest;
+				}],
+			];
+			const price = await fetch(`https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${sym}USDT`)
+				.then((r) => r.json())
+				.then((d) => +d.markPrice)
+				.catch(() => null);
+
+			const settled = await Promise.allSettled(jobs.map(([, fn]) => fn()));
+			const rows: any[] = [];
+			settled.forEach((res, i) => {
+				if (res.status !== 'fulfilled' || !Number.isFinite(res.value)) return;
+				rows.push({
+					venue: jobs[i][0],
+					coins: +res.value.toFixed(1),
+					usdB: price ? +((res.value * price) / 1e9).toFixed(3) : null,
+				});
+			});
+			rows.sort((a, b) => b.coins - a.coins);
+			const total = rows.reduce((s, r) => s + r.coins, 0);
+			for (const r of rows) r.share = total > 0 ? +((r.coins / total) * 100).toFixed(1) : 0;
+			return {
+				sym,
+				rows,
+				totalCoins: +total.toFixed(1),
+				totalUsdB: price ? +((total * price) / 1e9).toFixed(2) : null,
+				venues: rows.length,
+			};
+		}
+
+		async function load(veil = false) {
+			await withBusy(veil ? root : null, async () => {
+			let d: any = null;
+			try {
+				const r = await fetch(`/api/oi?sym=${sym}`).catch(() => null);
+				if (r?.ok) d = await r.json();
+				if (!d?.rows?.length) d = await direct();
+			} catch {
+				d = null;
+			}
+			render(d);
+			});
+		}
+
+		root.querySelectorAll<HTMLElement>('[data-osym]').forEach((b) =>
+			b.addEventListener('click', () => {
+				sym = b.dataset.osym!;
+				root.querySelectorAll('[data-osym]').forEach((o) => o.classList.toggle('on', o === b));
+				load(true);
+			}),
+		);
+
+		load(true);
+		// background refreshes stay silent — the veil is for switches a person made
+		setInterval(() => load(), 45000);
+		document.addEventListener('visibilitychange', () => !document.hidden && load());
+	}
+</script>

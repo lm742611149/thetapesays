@@ -1,0 +1,41 @@
+{
+	"stablecoins": {
+		"asOf": "2026-09-17",
+		"source": "DefiLlama",
+		"totalB": 304.2,
+		"chains": [
+			{ "name": "Ethereum", "b": 146.43, "pct": 48.14 },
+			{ "name": "Tron", "b": 94.07, "pct": 30.92 },
+			{ "name": "Solana", "b": 15.34, "pct": 5.04 },
+			{ "name": "BSC", "b": 13.79, "pct": 4.53 },
+			{ "name": "Hyperliquid L1", "b": 6.83, "pct": 2.24 },
+			{ "name": "Base", "b": 4.94, "pct": 1.62 },
+			{ "name": "Arbitrum", "b": 3.77, "pct": 1.24 },
+			{ "name": "Polygon", "b": 2.94, "pct": 0.97 },
+			{ "name": "Avalanche", "b": 1.39, "pct": 0.46 }
+		]
+	},
+	"fundingHistory": {
+		"asOf": "2026-09-16",
+		"source": "Binance BTCUSDT perpetual, all 7,689 settlements",
+		"rows": [
+			{ "year": "2020", "apr": 17.19, "neg": 14.3 },
+			{ "year": "2021", "apr": 30.61, "neg": 7.3 },
+			{ "year": "2022", "apr": 4.16, "neg": 22.1 },
+			{ "year": "2023", "apr": 7.87, "neg": 10.1 },
+			{ "year": "2024", "apr": 11.92, "neg": 8.4 },
+			{ "year": "2025", "apr": 5.13, "neg": 12.9 },
+			{ "year": "2026", "apr": 2.82, "neg": 27.0 }
+		]
+	},
+	"coveredCall": {
+		"asOf": "2026-09-17",
+		"source": "Binance BTCUSDT 1d, 2019-09-01 to 2026-09-16 (2,573 bars)",
+		"hold": 7.9,
+		"rows": [
+			{ "strike": "+5%", "prem": "1.8%/mo", "assigned": "38 / 85", "end": 0.29 },
+			{ "strike": "+10%", "prem": "2.5%/mo", "assigned": "29 / 85", "end": 2.4 },
+			{ "strike": "+3%", "prem": "1.2%/mo", "assigned": "39 / 85", "end": 0.08 }
+		]
+	}
+}

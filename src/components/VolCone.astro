@@ -1,0 +1,73 @@
+---
+/** Realised-vol cone: historical min/p25/median/p75/max per window, with today marked. */
+interface Row { w: number; now: number; min: number; p25: number; med: number; p75: number; max: number }
+interface Props { rows: Row[] }
+const { rows } = Astro.props;
+const W = 760, H = 220, PL = 40, PR = 40, PT = 14, PB = 28;
+const hi = Math.max(...rows.map((r) => Math.max(r.max, r.now))) * 1.05;
+const lo = 0;
+const X = (i: number) => PL + ((i + 0.5) / rows.length) * (W - PL - PR);
+const Y = (v: number) => PT + (1 - (v - lo) / (hi - lo)) * (H - PT - PB);
+const band = (key: 'min' | 'p25' | 'med' | 'p75' | 'max') =>
+	rows.map((r, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(r[key]).toFixed(1)}`).join(' ');
+const envelope =
+	`${band('max')} L ${X(rows.length - 1).toFixed(1)} ${Y(rows.at(-1)!.min).toFixed(1)} ` +
+	rows.slice().reverse().map((r, k) => `L ${X(rows.length - 1 - k).toFixed(1)} ${Y(r.min).toFixed(1)}`).join(' ') + ' Z';
+const inner =
+	`${band('p75')} ` +
+	rows.slice().reverse().map((r, k) => `L ${X(rows.length - 1 - k).toFixed(1)} ${Y(r.p25).toFixed(1)}`).join(' ') + ' Z';
+---
+
+<figure class="cone">
+	<svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Realised volatility cone">
+		{[0, 0.25, 0.5, 0.75, 1].map((f) => {
+			const v = lo + (hi - lo) * f;
+			return (
+				<>
+					<line class="g" x1={PL} y1={Y(v).toFixed(1)} x2={W - PR} y2={Y(v).toFixed(1)} />
+					<text class="ax" x={PL - 8} y={(Y(v) + 3.4).toFixed(1)} text-anchor="end">{v.toFixed(0)}%</text>
+				</>
+			);
+		})}
+		<path class="env" d={envelope} />
+		<path class="inn" d={inner} />
+		<path class="med" d={band('med')} />
+		{rows.map((r, i) => (
+			<>
+				<line class="tick" x1={X(i)} y1={Y(r.min)} x2={X(i)} y2={Y(r.max)} />
+				<circle class="now" cx={X(i)} cy={Y(r.now)} r="4.5" />
+				<text class="lbl" x={X(i)} y={H - 9} text-anchor="middle">{r.w}d</text>
+				<text class="val" x={X(i)} y={(Y(r.now) - 11).toFixed(1)} text-anchor="middle">{r.now.toFixed(0)}</text>
+			</>
+		))}
+	</svg>
+	<figcaption>
+		<span><i class="sw env"></i>min–max</span>
+		<span><i class="sw inn"></i>25–75%</span>
+		<span><i class="sw med"></i>median</span>
+		<span><i class="sw dot"></i>today</span>
+	</figcaption>
+</figure>
+
+<style>
+	.cone { margin: 0; }
+	svg { width: 100%; height: auto; display: block; overflow: visible; }
+	.g { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
+	.ax, .lbl, .val { font-family: var(--font-mono), monospace; fill: #59606e; font-size: 10px; }
+	.val { fill: var(--accent); font-weight: 700; font-size: 10.5px; }
+	path.env { fill: rgba(122, 162, 255, 0.07); stroke: none; }
+	path.inn { fill: rgba(122, 162, 255, 0.16); stroke: none; }
+	path.med { fill: none; stroke: #7aa2ff; stroke-width: 1.8; stroke-linejoin: round; }
+	.tick { stroke: rgba(122, 162, 255, 0.3); stroke-width: 1; }
+	.now { fill: var(--accent); stroke: var(--bg-panel); stroke-width: 2; }
+	figcaption {
+		display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px;
+		font-family: var(--font-mono), monospace; font-size: 0.68rem; color: var(--fg-mute);
+	}
+	figcaption span { display: inline-flex; align-items: center; gap: 6px; }
+	.sw { width: 12px; height: 8px; border-radius: 2px; display: inline-block; }
+	.sw.env { background: rgba(122, 162, 255, 0.18); }
+	.sw.inn { background: rgba(122, 162, 255, 0.4); }
+	.sw.med { height: 2px; background: #7aa2ff; }
+	.sw.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+</style>

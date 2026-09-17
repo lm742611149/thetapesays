@@ -1,0 +1,154 @@
+---
+/**
+ * Bitcoin network state. Every tile is a reading off the chain itself rather
+ * than off an exchange, so this is the one block on the page that keeps working
+ * when every venue is down.
+ *
+ * Fetched in the browser: hashrate and mempool move within a block, and a
+ * figure baked in at build time would be stale before anyone read it.
+ */
+import Busy from './Busy.astro';
+
+const TILES = [
+	{ k: 'hashrate', label: '24h hashrate', sub: 'sub-hashrate' },
+	{ k: 'difficulty', label: 'Difficulty', sub: 'sub-difficulty' },
+	{ k: 'height', label: 'Block height', sub: 'sub-height' },
+	{ k: 'mempool', label: 'Mempool', sub: 'sub-mempool' },
+	{ k: 'supply', label: 'Circulating', sub: 'sub-supply' },
+	{ k: 'dominance', label: 'BTC dominance', sub: 'sub-dominance' },
+];
+---
+
+<div class="oc" data-onchain>
+	<Busy />
+	<div class="tiles">
+		{TILES.map((t) => (
+			<div class="tile">
+				<i class="label">{t.label}</i>
+				<b class="v" data-oc={t.k}>—</b>
+				<span class="s" data-oc={t.sub}></span>
+			</div>
+		))}
+	</div>
+	<p class="src">
+		Chain state from Blockchair, refreshed every two minutes · <span data-oc-stamp>—</span>
+	</p>
+</div>
+
+<style>
+	.oc { position: relative; }
+	.tiles {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 1px;
+		background: var(--line);
+		border: 1px solid var(--line);
+		border-radius: var(--radius);
+		overflow: hidden;
+	}
+	.tile {
+		background: var(--bg-panel);
+		padding: 14px 16px 15px;
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		min-width: 0;
+	}
+	.tile i { font-size: 0.62rem; }
+	.v {
+		font-family: var(--font-mono), monospace;
+		font-size: 1.32rem;
+		font-weight: 700;
+		color: #fff;
+		line-height: 1.1;
+		letter-spacing: -0.02em;
+		font-variant-numeric: tabular-nums;
+	}
+	.s {
+		font-family: var(--font-mono), monospace;
+		font-size: 0.66rem;
+		color: var(--fg-mute);
+		min-height: 1em;
+	}
+	.s :global(.up) { color: var(--up); }
+	.s :global(.down) { color: var(--down); }
+	.src {
+		margin: 10px 0 0;
+		font-family: var(--font-mono), monospace;
+		font-size: 0.66rem;
+		color: var(--fg-mute);
+	}
+	@media (max-width: 720px) {
+		.tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	}
+	@media (max-width: 420px) {
+		.tiles { grid-template-columns: minmax(0, 1fr); }
+		.v { font-size: 1.18rem; }
+	}
+</style>
+
+<script>
+	import { withBusy } from '../lib/busy';
+	import { derive, STATS_URL } from '../../functions/_lib/onchain.js';
+
+	const root = document.querySelector<HTMLElement>('[data-onchain]');
+	if (root) {
+		const q = (k: string) => root.querySelector<HTMLElement>(`[data-oc="${k}"]`);
+		const n = (v: number, d = 0) =>
+			v.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+		const day = (t: number | string) =>
+			new Date(t).toISOString().slice(0, 10);
+		const sign = (v: number, d = 2) => `${v >= 0 ? '+' : ''}${v.toFixed(d)}%`;
+
+		function paint(d: any) {
+			const c = d.chain;
+			q('hashrate')!.textContent = `${n(c.hashrateEh, 0)} EH/s`;
+			q('sub-hashrate')!.textContent = `${n(d.miner.minedBtcDay, 1)} BTC mined per day`;
+
+			q('difficulty')!.textContent = `${(c.difficulty / 1e12).toFixed(2)}T`;
+			if (c.retargetPct != null) {
+				const cls = c.retargetPct >= 0 ? 'up' : 'down';
+				q('sub-difficulty')!.innerHTML =
+					`<span class="${cls}">${sign(c.retargetPct)}</span> est. ${day(c.retargetAt)}`;
+			}
+
+			q('height')!.textContent = n(c.height);
+			q('sub-height')!.textContent =
+				`halving in ${n(c.blocksToHalving)} blocks · ~${day(c.halvingAt)}`;
+
+			q('mempool')!.textContent = `${n(c.mempoolTx)} tx`;
+			q('sub-mempool')!.textContent = `${c.mempoolMb.toFixed(1)} MB · ${c.feeSatVb} sat/vB`;
+
+			q('supply')!.textContent = `${n(c.circulating)}`;
+			q('sub-supply')!.textContent = `${((c.circulating / 21e6) * 100).toFixed(2)}% of 21M mined`;
+
+			q('dominance')!.textContent = `${c.dominance.toFixed(1)}%`;
+			q('sub-dominance')!.textContent = `${n(c.txDay)} tx in 24h · ${n(c.nodes)} nodes`;
+
+			root!.querySelector('[data-oc-stamp]')!.textContent =
+				new Date(d.ts).toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
+			// the miner block reads the same document rather than fetching twice
+			(window as any).__onchain = d;
+			window.dispatchEvent(new CustomEvent('onchain', { detail: d }));
+		}
+
+		async function load(veil = false) {
+			await withBusy(veil ? root : null, async () => {
+				try {
+					const r = await fetch('/api/onchain').catch(() => null);
+					if (r?.ok) return paint(await r.json());
+					// edge function unavailable (or local dev) — derive it here
+					const s = (await (await fetch(STATS_URL)).json()).data;
+					paint(derive(s));
+				} catch {
+					root!.querySelector('[data-oc-stamp]')!.textContent = 'chain feed unavailable';
+				}
+			});
+		}
+
+		load(true);
+		// background refreshes stay silent — the veil is for switches a person made
+		setInterval(() => load(), 120000);
+		document.addEventListener('visibilitychange', () => !document.hidden && load());
+	}
+</script>

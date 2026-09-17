@@ -1,0 +1,239 @@
+---
+/**
+ * Funding across venues with a live countdown to each settlement.
+ * Everything is fetched client-side because the countdown makes a cached
+ * server render wrong within seconds.
+ */
+import Busy from './Busy.astro';
+const COINS = ['BTC', 'ETH', 'SOL', 'BNB'];
+---
+
+<div class="fb" data-funding-board>
+	<Busy />
+	<div class="head">
+		<div class="tabs" role="tablist" aria-label="Symbol">
+			{COINS.map((c, i) => (
+				<button class:list={['tab', { on: i === 0 }]} data-fsym={c} role="tab">{c}</button>
+			))}
+		</div>
+		<div class="spread" data-spread hidden>
+			<span class="label">spread</span>
+			<b data-spread-v>—</b>
+			<span class="sr" data-spread-r></span>
+		</div>
+	</div>
+
+	<div class="tw">
+		<table>
+			<thead>
+				<tr>
+					<th>Venue</th>
+					<th class="r">Rate</th>
+					<th class="r">Annualised</th>
+					<th class="r hide-s">Every</th>
+					<th class="r">Next</th>
+				</tr>
+			</thead>
+			<tbody data-frows>
+				<tr><td colspan="5" class="loading">loading…</td></tr>
+			</tbody>
+		</table>
+	</div>
+
+	<p class="note">
+		Positive means longs pay shorts. <b>Compare the annualised column, not the raw rate</b> —
+		Hyperliquid settles hourly and the rest every eight hours, so the same headline number is
+		worth eight times as much there. Spread is the gap between the best and worst venue on an
+		annualised basis, before fees and before the margin you'd need on both legs.
+	</p>
+</div>
+
+<style>
+	.fb { display: block; position: relative; }
+	.head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+	.tabs { display: inline-flex; gap: 2px; background: #0b0e13; border: 1px solid var(--line); border-radius: 7px; padding: 3px; }
+	.tab {
+		appearance: none; border: 0; background: none; cursor: pointer;
+		font-family: var(--font-mono), monospace; font-size: 0.75rem; font-weight: 500;
+		color: var(--fg-mute); padding: 5px 12px; border-radius: 5px;
+		transition: background 0.14s, color 0.14s;
+	}
+	.tab:hover { color: var(--fg); background: var(--bg-hover); }
+	.tab.on { background: var(--accent); color: #0a0a0a; font-weight: 700; }
+
+	.spread {
+		display: inline-flex; align-items: baseline; gap: 8px;
+		font-family: var(--font-mono), monospace;
+	}
+	.spread b { font-size: 1.05rem; color: var(--accent); font-weight: 700; }
+	.sr { font-size: 0.68rem; color: var(--fg-mute); }
+
+	.tw { overflow-x: auto; }
+	table { margin: 0; min-width: 440px; }
+	.r { text-align: right; }
+	.loading { color: var(--fg-mute); font-family: var(--font-mono), monospace; font-size: 0.8rem; }
+	tbody :global(tr) { transition: background 0.12s ease; }
+	tbody :global(tr:hover) { background: var(--bg-hover); }
+	tbody :global(.v) { font-family: var(--font-mono), monospace; font-weight: 700; color: #fff; }
+	tbody :global(.m) { font-family: var(--font-mono), monospace; font-variant-numeric: tabular-nums; }
+	tbody :global(.dim) { color: var(--fg-mute); }
+	tbody :global(.cd) { font-variant-numeric: tabular-nums; }
+	tbody :global(.soon) { color: var(--accent); }
+	tbody :global(.best td) { box-shadow: inset 2px 0 0 var(--up); }
+	tbody :global(.worst td) { box-shadow: inset 2px 0 0 var(--down); }
+
+	.note { margin: 13px 0 0; font-size: 0.82rem; line-height: 1.62; color: var(--fg-mute); max-width: 78ch; }
+	.note b { color: var(--fg-dim); }
+	@media (max-width: 620px) { .hide-s { display: none; } table { min-width: 340px; } }
+</style>
+
+<script>
+	import { withBusy } from '../lib/busy';
+	const root = document.querySelector<HTMLElement>('[data-funding-board]');
+	if (root) {
+		const body = root.querySelector<HTMLElement>('[data-frows]')!;
+		const spread = root.querySelector<HTMLElement>('[data-spread]')!;
+		let sym = 'BTC';
+		let rows: any[] = [];
+
+		const pct = (v: number, d = 4) => `${v >= 0 ? '+' : ''}${v.toFixed(d)}%`;
+		const cls = (v: number) => (v >= 0 ? 'up' : 'down');
+
+		function countdown(ms: number) {
+			if (!Number.isFinite(ms) || ms < 0) return '—';
+			const s = Math.floor(ms / 1000);
+			const h = Math.floor(s / 3600);
+			const m = Math.floor((s % 3600) / 60);
+			const sec = s % 60;
+			return h > 0
+				? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+				: `${m}:${String(sec).padStart(2, '0')}`;
+		}
+
+		function paintClocks() {
+			const now = Date.now();
+			for (const el of body.querySelectorAll<HTMLElement>('[data-next]')) {
+				const left = Number(el.dataset.next) - now;
+				el.textContent = countdown(left);
+				el.classList.toggle('soon', left > 0 && left < 600000);
+			}
+		}
+
+		function render() {
+			if (!rows.length) {
+				body.innerHTML = '<tr><td colspan="5" class="loading">feed unavailable</td></tr>';
+				return;
+			}
+			body.innerHTML = rows
+				.map((r, i) => {
+					const rank = i === 0 ? 'best' : i === rows.length - 1 ? 'worst' : '';
+					return `<tr class="${rank}">
+						<td class="v">${r.venue}</td>
+						<td class="r m ${cls(r.rate)}">${pct(r.rate)}</td>
+						<td class="r m ${cls(r.apr)}"><b>${pct(r.apr, 2)}</b></td>
+						<td class="r m dim hide-s">${r.hours}h</td>
+						<td class="r m cd" data-next="${r.next}">—</td>
+					</tr>`;
+				})
+				.join('');
+			paintClocks();
+		}
+
+		/**
+		 * Straight-to-venue fallback. The edge route doesn't exist under
+		 * `astro dev`, and some networks block individual exchanges, so each
+		 * venue is fetched independently and whatever answers gets shown.
+		 */
+		async function direct() {
+			const perYear = (h: number) => (24 / h) * 365;
+			const jobs: [string, number, () => Promise<any>][] = [
+				['Binance', 8, async () => {
+					const d = await (await fetch(`https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${sym}USDT`)).json();
+					return { rate: +d.lastFundingRate, next: +d.nextFundingTime };
+				}],
+				['OKX', 8, async () => {
+					const d = (await (await fetch(`https://www.okx.com/api/v5/public/funding-rate?instId=${sym}-USDT-SWAP`)).json()).data[0];
+					return { rate: +d.fundingRate, next: +d.fundingTime };
+				}],
+				['Bybit', 8, async () => {
+					const d = (await (await fetch(`https://api.bybit.com/v5/market/tickers?category=linear&symbol=${sym}USDT`)).json()).result.list[0];
+					return { rate: +d.fundingRate, next: +d.nextFundingTime };
+				}],
+				['Bitget', 8, async () => {
+					const d = (await (await fetch(`https://api.bitget.com/api/v2/mix/market/current-fund-rate?symbol=${sym}USDT&productType=usdt-futures`)).json()).data[0];
+					return { rate: +d.fundingRate, next: +d.nextUpdate, hours: +(d.fundingRateInterval || 8) };
+				}],
+				['Gate', 8, async () => {
+					const d = await (await fetch(`https://api.gateio.ws/api/v4/futures/usdt/contracts/${sym}_USDT`)).json();
+					return { rate: +d.funding_rate, next: +d.funding_next_apply * 1000, hours: (+d.funding_interval || 28800) / 3600 };
+				}],
+				['Hyperliquid', 1, async () => {
+					const d = await (await fetch('https://api.hyperliquid.xyz/info', {
+						method: 'POST',
+						headers: { 'content-type': 'application/json' },
+						body: JSON.stringify({ type: 'metaAndAssetCtxs' }),
+					})).json();
+					const i = d[0].universe.findIndex((u: any) => u.name === sym);
+					if (i < 0) throw new Error('not listed');
+					return { rate: +d[1][i].funding, next: Math.ceil(Date.now() / 3600000) * 3600000 };
+				}],
+			];
+			const settled = await Promise.allSettled(jobs.map(([, , fn]) => fn()));
+			const out: any[] = [];
+			settled.forEach((res, i) => {
+				if (res.status !== 'fulfilled') return;
+				const [venue, defHours] = jobs[i];
+				const hours = res.value.hours ?? defHours;
+				out.push({
+					venue,
+					hours,
+					rate: res.value.rate * 100,
+					apr: res.value.rate * perYear(hours) * 100,
+					next: res.value.next,
+				});
+			});
+			out.sort((a, b) => b.apr - a.apr);
+			return {
+				rows: out,
+				spread: out.length > 1
+					? { apr: out[0].apr - out[out.length - 1].apr, top: out[0], bottom: out[out.length - 1] }
+					: null,
+			};
+		}
+
+		async function load(veil = false) {
+			await withBusy(veil ? root : null, async () => {
+			try {
+				let d: any = null;
+				const r = await fetch(`/api/funding-all?sym=${sym}`).catch(() => null);
+				if (r?.ok) d = await r.json();
+				if (!d?.rows?.length) d = await direct();
+				rows = d.rows ?? [];
+				if (d.spread) {
+					spread.hidden = false;
+					spread.querySelector('[data-spread-v]')!.textContent = `${d.spread.apr.toFixed(2)}%`;
+					spread.querySelector('[data-spread-r]')!.textContent =
+						`${d.spread.top.venue} → ${d.spread.bottom.venue}`;
+				}
+			} catch {
+				rows = [];
+			}
+			render();
+			});
+		}
+
+		root.querySelectorAll<HTMLElement>('[data-fsym]').forEach((b) =>
+			b.addEventListener('click', () => {
+				sym = b.dataset.fsym!;
+				root.querySelectorAll('[data-fsym]').forEach((o) => o.classList.toggle('on', o === b));
+				load(true);
+			}),
+		);
+
+		load(true);
+		// background refreshes stay silent — the veil is for switches a person made
+		setInterval(() => load(), 30000);
+		setInterval(paintClocks, 1000);
+		document.addEventListener('visibilitychange', () => !document.hidden && load());
+	}
+</script>

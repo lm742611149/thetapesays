@@ -1,0 +1,423 @@
+---
+/**
+ * Candlestick + volume pane with two moving averages, a symbol switcher and a
+ * range switcher. Rendered client-side so switching is instant; the server ships
+ * the data inline and a skeleton so there is no layout shift.
+ */
+import Busy from './Busy.astro';
+interface Props {
+	charts: Record<string, number[][]>;
+	initial?: string;
+}
+const { charts, initial = 'BTC' } = Astro.props;
+const symbols = Object.keys(charts);
+const RANGES = [
+	['30', '30D'],
+	['90', '90D'],
+	['180', '6M'],
+	['365', '1Y'],
+];
+---
+
+<div class="cp" data-cp data-initial={initial}>
+	<div class="cp-head">
+		<div class="tabs syms" role="tablist" aria-label="Symbol">
+			{symbols.map((s) => (
+				<button class:list={['tab', { on: s === initial }]} data-cpsym={s} role="tab"
+					aria-selected={s === initial ? 'true' : 'false'}>{s}</button>
+			))}
+		</div>
+		<div class="tabs ranges" role="tablist" aria-label="Range">
+			{RANGES.map(([v, t]) => (
+				<button class:list={['tab', { on: v === '365' }]} data-range={v} role="tab"
+					aria-selected={v === '365' ? 'true' : 'false'}>{t}</button>
+			))}
+		</div>
+	</div>
+
+	<div class="ohlc" data-ohlc>
+		<span class="o-sym" data-o-sym>{initial}</span>
+		<span><i>O</i><b data-o="o">—</b></span>
+		<span><i>H</i><b data-o="h">—</b></span>
+		<span><i>L</i><b data-o="l">—</b></span>
+		<span><i>C</i><b data-o="c">—</b></span>
+		<span class="o-chg" data-o="chg">—</span>
+		<span class="o-ma"><i>VOL</i><b data-o="vol">—</b></span>
+	</div>
+
+	<div class="plot" data-plot></div>
+	<div class="tip" data-tip hidden></div>
+	<script type="application/json" data-charts set:html={JSON.stringify(charts)} />
+	<Busy />
+</div>
+
+<style>
+	.cp { position: relative; }
+	.cp-head {
+		display: flex; align-items: center; justify-content: space-between;
+		gap: 12px; flex-wrap: wrap; margin-bottom: 10px;
+	}
+	.tabs { display: inline-flex; gap: 2px; background: #0b0e13; border: 1px solid var(--line); border-radius: 8px; padding: 3px; }
+	.tab {
+		appearance: none; border: 0; background: none; cursor: pointer;
+		font-family: var(--font-mono), monospace; font-size: 0.78rem; font-weight: 500;
+		color: var(--fg-mute); padding: 6px 12px; border-radius: 5px;
+		transition: background 0.14s ease, color 0.14s ease;
+	}
+	.tab:hover { color: var(--fg); background: var(--bg-hover); }
+	.tab.on { background: var(--accent); color: #0a0a0a; font-weight: 700; }
+	.ranges .tab { padding: 6px 10px; font-size: 0.74rem; }
+	.tabs.loading { opacity: 0.55; pointer-events: none; }
+	.tabs.loading::after {
+		content: '';
+		width: 10px; height: 10px; align-self: center; margin: 0 6px;
+		border: 1.5px solid var(--line-bright); border-top-color: var(--accent);
+		border-radius: 50%; animation: spin 0.7s linear infinite;
+	}
+	@keyframes spin { to { transform: rotate(360deg); } }
+
+	.ohlc {
+		display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+		font-family: var(--font-mono), monospace; font-size: 0.76rem;
+		color: var(--fg-mute); margin-bottom: 8px; min-height: 20px;
+	}
+	.ohlc span { display: inline-flex; align-items: baseline; gap: 5px; }
+	.ohlc i { font-style: normal; color: #59606e; font-size: 0.7rem; }
+	.ohlc b { color: var(--fg); font-weight: 500; font-variant-numeric: tabular-nums; }
+	.o-sym { font-weight: 700; color: #fff !important; font-size: 0.88rem; letter-spacing: 0.02em; }
+	.o-ma b { color: var(--fg-dim); }
+	@media (max-width: 760px) {
+		.cp-head { gap: 8px; }
+		/* let the symbol row scroll rather than wrap into two lines */
+		.tabs.syms {
+			overflow-x: auto;
+			scrollbar-width: none;
+			max-width: 100%;
+			-webkit-overflow-scrolling: touch;
+		}
+		.tabs.syms::-webkit-scrollbar { display: none; }
+		.tab { padding: 7px 10px; }
+		.ranges .tab { padding: 7px 9px; }
+		.ohlc { gap: 10px; font-size: 0.72rem; }
+	}
+	@media (max-width: 620px) { .o-ma { display: none; } }
+	@media (max-width: 480px) {
+		.ohlc span:nth-child(2), .ohlc span:nth-child(4) { display: none; }
+	}
+
+	.plot { width: 100%; }
+	.plot :global(svg) { width: 100%; height: auto; display: block; overflow: visible; }
+	.plot :global(.grid) { stroke: var(--line); stroke-width: 1; }
+	.plot :global(.axlbl) { font-family: var(--font-mono), monospace; font-size: 10px; fill: #59606e; }
+	.plot :global(.cross) { stroke: var(--line-bright); stroke-width: 1; stroke-dasharray: 3 3; }
+	.plot :global(.grid) { stroke-dasharray: 2 4; opacity: 0.7; }
+	.plot :global(.mid) { text-anchor: middle; }
+	.plot :global(.lastline) { stroke-width: 1; stroke-dasharray: 4 4; opacity: 0.55; }
+	.plot :global(.pxtag) {
+		font-family: var(--font-mono), monospace; font-size: 10.5px;
+		font-weight: 700; fill: #08090b;
+	}
+	.plot :global(.xtreme) {
+		font-family: var(--font-mono), monospace; font-size: 9.5px;
+		fill: var(--fg-mute); text-anchor: middle;
+	}
+	.plot :global(.crosstag) { fill: var(--line-bright); }
+	.plot :global(.crosstxt) {
+		font-family: var(--font-mono), monospace; font-size: 10.5px;
+		font-weight: 700; fill: #fff;
+	}
+	.plot :global(.volpane) { opacity: 0.85; }
+	.plot :global(.pxline) {
+		stroke-dasharray: 4200;
+		animation: cdraw 1.5s cubic-bezier(0.3, 0.7, 0.3, 1) both;
+	}
+	@keyframes cdraw { from { stroke-dashoffset: 4200; } to { stroke-dashoffset: 0; } }
+	.plot :global(.enter) { animation: cin 0.5s cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+	@keyframes cin { from { opacity: 0; transform: translateY(6px); } }
+
+	.legend2 {
+		display: flex; gap: 14px; margin-top: 8px;
+		font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--fg-mute);
+	}
+	.legend2 span { display: inline-flex; align-items: center; gap: 6px; }
+	.legend2 i { width: 14px; height: 2px; border-radius: 1px; }
+
+	.tip {
+		position: absolute; pointer-events: none; z-index: 5;
+		background: #05060880; backdrop-filter: blur(10px);
+		border: 1px solid var(--line-bright); border-radius: 6px;
+		padding: 7px 10px; font-family: var(--font-mono), monospace;
+		font-size: 0.7rem; line-height: 1.55; white-space: nowrap;
+		transform: translate(-50%, -112%);
+	}
+	.tip b { color: #fff; }
+	@media (prefers-reduced-motion: reduce) {
+		.plot :global(.enter), .plot :global(.pxline) { animation: none; stroke-dasharray: none; }
+	}
+</style>
+
+<script>
+	import { withBusy } from '../lib/busy';
+	type Bar = [number, number, number, number, number, number];
+
+	for (const root of document.querySelectorAll<HTMLElement>('[data-cp]')) {
+		const raw = root.querySelector<HTMLElement>('[data-charts]')!.textContent!;
+		const DATA: Record<string, Bar[]> = JSON.parse(raw);
+		const plot = root.querySelector<HTMLElement>('[data-plot]')!;
+		const tip = root.querySelector<HTMLElement>('[data-tip]')!;
+		let sym = root.dataset.initial || Object.keys(DATA)[0];
+		let range = 365;
+		let view: Bar[] = [];
+		let geom: any = null;
+
+		const UP = '#26d07c', DOWN = '#f6465d';
+		const W = 1000, PH = 300, VGAP = 10, VH = 54, TOT = PH + VGAP + VH + 18;
+		const PL = 4, PR = 62, PT = 14;
+
+		const fmt = (v: number) =>
+			v >= 1000 ? Math.round(v).toLocaleString('en-US')
+				: v >= 1 ? v.toFixed(2) : v.toFixed(5);
+		const axis = (v: number) =>
+			v >= 1000 ? (v / 1000).toFixed(v >= 10000 ? 0 : 1) + 'k' : v >= 1 ? v.toFixed(1) : v.toFixed(4);
+
+		function render() {
+			const all = DATA[sym];
+			const start = Math.max(0, all.length - range);
+			view = all.slice(start);
+
+			const rawHi = Math.max(...view.map((b) => b[2]));
+			const rawLo = Math.min(...view.map((b) => b[3]));
+			const pad = (rawHi - rawLo) * 0.08;
+			const hi = rawHi + pad;
+			const lo = Math.max(0, rawLo - pad);
+			const vMax = Math.max(...view.map((b) => b[5])) || 1;
+
+			const iw = W - PL - PR;
+			const X = (i: number) => PL + ((i + 0.5) / view.length) * iw;
+			const Y = (v: number) => PT + (1 - (v - lo) / (hi - lo)) * (PH - PT);
+			const VY = (v: number) => PH + VGAP + VH - (v / vMax) * VH;
+
+			geom = { X, Y, lo, hi, iw };
+
+			const last = view[view.length - 1];
+			const lastPx = last[4];
+			const rising = lastPx >= view[0][4];
+			const col = rising ? UP : DOWN;
+
+			// period extremes, annotated on the plot
+			let hiIdx = 0, loIdx = 0;
+			view.forEach((b, i) => {
+				if (b[2] > view[hiIdx][2]) hiIdx = i;
+				if (b[3] < view[loIdx][3]) loIdx = i;
+			});
+
+			// ---- horizontal grid + right-hand price axis ----
+			let g = '';
+			const ticks = 5;
+			for (let k = 0; k <= ticks; k++) {
+				const v = lo + ((hi - lo) * k) / ticks;
+				const y = Y(v).toFixed(1);
+				g += `<line class="grid" x1="${PL}" y1="${y}" x2="${W - PR}" y2="${y}"/>`
+					+ `<text class="axlbl" x="${W - PR + 9}" y="${(+y + 3.5).toFixed(1)}">${axis(v)}</text>`;
+			}
+
+			// ---- series paths ----
+			const linePath = view.map((b, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(b[4]).toFixed(1)}`).join(' ');
+			const areaPath = `${linePath} L ${X(view.length - 1).toFixed(1)} ${PH} L ${X(0).toFixed(1)} ${PH} Z`;
+			// ---- volume pane, tinted by the day's direction ----
+			const bw = Math.max(1, Math.min(9, (iw / view.length) * 0.62));
+			let vols = '';
+			view.forEach((b, i) => {
+				const c = b[4] >= b[1] ? UP : DOWN;
+				const y = VY(b[5]);
+				vols += `<rect x="${(X(i) - bw / 2).toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${(PH + VGAP + VH - y).toFixed(1)}" fill="${c}" opacity="0.32" rx="${bw > 3 ? 1 : 0}"/>`;
+			});
+
+			// ---- month ticks ----
+			const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+			let xl = '';
+			let lastM = -1;
+			const everyN = view.length > 200 ? 2 : 1;
+			view.forEach((b, i) => {
+				const mo = new Date(b[0]).getUTCMonth();
+				if (mo === lastM) return;
+				lastM = mo;
+				if (mo % everyN !== 0) return;
+				xl += `<text class="axlbl mid" x="${X(i).toFixed(1)}" y="${TOT - 5}">${MON[mo]}</text>`;
+			});
+
+			// ---- last price line + tag ----
+			const lpY = Y(lastPx);
+			const tag =
+				`<line class="lastline" x1="${PL}" y1="${lpY.toFixed(1)}" x2="${W - PR}" y2="${lpY.toFixed(1)}" stroke="${col}"/>`
+				+ `<rect x="${W - PR + 3}" y="${(lpY - 9).toFixed(1)}" width="${PR - 6}" height="18" rx="3" fill="${col}"/>`
+				+ `<text class="pxtag" x="${(W - PR + 8).toFixed(1)}" y="${(lpY + 4).toFixed(1)}">${axis(lastPx)}</text>`;
+
+			// ---- extreme markers ----
+			const mark = (i: number, v: number, above: boolean) =>
+				`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2.6" fill="none" stroke="var(--fg-mute)" stroke-width="1.2"/>`
+				+ `<text class="xtreme" x="${X(i).toFixed(1)}" y="${(Y(v) + (above ? -9 : 15)).toFixed(1)}">${axis(v)}</text>`;
+
+			plot.innerHTML =
+				`<svg viewBox="0 0 ${W} ${TOT}" preserveAspectRatio="none" role="img" aria-label="${sym} daily close with volume">
+					<defs>
+						<linearGradient id="cpf" x1="0" y1="0" x2="0" y2="1">
+							<stop offset="0%" stop-color="${col}" stop-opacity="0.26"/>
+							<stop offset="55%" stop-color="${col}" stop-opacity="0.07"/>
+							<stop offset="100%" stop-color="${col}" stop-opacity="0"/>
+						</linearGradient>
+					</defs>
+					<g class="enter">
+						${g}
+						<path d="${areaPath}" fill="url(#cpf)"/>
+						<path class="pxline" d="${linePath}" fill="none" stroke="${col}" stroke-width="2"
+							stroke-linejoin="round" stroke-linecap="round"/>
+						${mark(hiIdx, view[hiIdx][2], true)}
+						${mark(loIdx, view[loIdx][3], false)}
+						${tag}
+						<circle cx="${X(view.length - 1).toFixed(1)}" cy="${lpY.toFixed(1)}" r="3.6" fill="${col}" stroke="var(--bg-panel)" stroke-width="2"/>
+						<g class="volpane">${vols}</g>
+						${xl}
+					</g>
+					<g data-hov hidden>
+						<line class="cross" data-vx y1="${PT}" y2="${PH + VGAP + VH}"/>
+						<line class="cross" data-hy x1="${PL}" x2="${W - PR}"/>
+						<rect class="crosstag" data-ytag x="${W - PR + 3}" width="${PR - 6}" height="18" rx="3"/>
+						<text class="crosstxt" data-ytxt x="${(W - PR + 8).toFixed(1)}"></text>
+						<circle data-dot r="4" fill="#fff"/>
+					</g>
+				</svg>`;
+			readout(view.length - 1);
+		}
+
+		function readout(i: number) {
+			const b = view[i];
+			if (!b) return;
+			const set = (k: string, v: string, cls?: string) => {
+				const el = root.querySelector<HTMLElement>(`[data-o="${k}"]`);
+				if (!el) return;
+				el.textContent = v;
+				if (cls) el.className = cls;
+			};
+			const chg = ((b[4] - b[1]) / b[1]) * 100;
+			set('o', fmt(b[1])); set('h', fmt(b[2])); set('l', fmt(b[3])); set('c', fmt(b[4]));
+			set('chg', `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%`, `o-chg ${chg >= 0 ? 'up' : 'down'}`);
+			set('vol', `$${b[5]}M`);
+			const s = root.querySelector<HTMLElement>('[data-o-sym]');
+			if (s) s.textContent = sym;
+		}
+
+		plot.addEventListener('pointerdown', (e) => move(e as PointerEvent));
+		function move(e: PointerEvent) {
+			const svg = plot.querySelector('svg');
+			if (!svg || !geom) return;
+			const r = svg.getBoundingClientRect();
+			const vx = ((e.clientX - r.left) / r.width) * 1000;
+			const i = Math.max(0, Math.min(view.length - 1,
+				Math.round((vx - 4) / ((1000 - 4 - 66) / view.length) - 0.5)));
+			const b = view[i];
+			if (!b) return;
+			const hov = svg.querySelector('[data-hov]') as SVGGElement;
+			hov.removeAttribute('hidden');
+			const x = geom.X(i), y = geom.Y(b[4]);
+			(svg.querySelector('[data-vx]') as SVGLineElement).setAttribute('x1', String(x));
+			(svg.querySelector('[data-vx]') as SVGLineElement).setAttribute('x2', String(x));
+			(svg.querySelector('[data-hy]') as SVGLineElement).setAttribute('y1', String(y));
+			(svg.querySelector('[data-hy]') as SVGLineElement).setAttribute('y2', String(y));
+			const dot = svg.querySelector('[data-dot]') as SVGCircleElement;
+			dot.setAttribute('cx', String(x)); dot.setAttribute('cy', String(y));
+			const ytag = svg.querySelector('[data-ytag]') as SVGRectElement;
+			const ytxt = svg.querySelector('[data-ytxt]') as SVGTextElement;
+			if (ytag && ytxt) {
+				ytag.setAttribute('y', String(y - 9));
+				ytxt.setAttribute('y', String(y + 4));
+				ytxt.textContent = axis(b[4]);
+			}
+			readout(i);
+			tip.hidden = false;
+			tip.innerHTML = `<b>${new Date(b[0]).toISOString().slice(0, 10)}</b><br>` +
+				`C ${fmt(b[4])} · Vol $${b[5]}M`;
+			tip.style.left = `${(x / 1000) * 100}%`;
+			tip.style.top = `${(y / TOT) * 100}%`;
+		}
+		plot.addEventListener('pointermove', move);
+		plot.addEventListener('pointerleave', () => {
+			const hov = plot.querySelector('[data-hov]');
+			hov?.setAttribute('hidden', '');
+			tip.hidden = true;
+			readout(view.length - 1);
+		});
+
+		/** Pull daily bars for a symbol we didn't ship in the snapshot. */
+		async function ensure(next: string): Promise<boolean> {
+			if (DATA[next]?.length) return true;
+			try {
+				const r = await fetch(
+					`https://data-api.binance.vision/api/v3/klines?symbol=${next}USDT&interval=1d&limit=420`,
+				);
+				if (!r.ok) return false;
+				const rows = await r.json();
+				const p = (v: string) => {
+					const n = +v;
+					return n >= 100 ? Math.round(n) : n >= 1 ? +n.toFixed(2) : +n.toFixed(5);
+				};
+				DATA[next] = rows.map((x: any[]) => [
+					x[0], p(x[1]), p(x[2]), p(x[3]), p(x[4]), Math.round(+x[7] / 1e6),
+				]) as Bar[];
+				return true;
+			} catch {
+				return false;
+			}
+		}
+
+		async function select(next: string) {
+			if (next === sym) return;
+			const tabs = root.querySelector('.syms')!;
+			// a symbol we already hold resolves before the veil's delay elapses,
+			// so only a real network wait shows anything
+			const ok = await withBusy(root, () => ensure(next));
+			if (!ok) return;
+			sym = next;
+			// if there's a tab for it, light that one; otherwise add one
+			let btn = root.querySelector<HTMLElement>(`[data-cpsym="${next}"]`);
+			if (!btn) {
+				btn = document.createElement('button');
+				btn.className = 'tab';
+				btn.dataset.cpsym = next;
+				btn.textContent = next;
+				for (const a of Array.from(root.attributes)) {
+					if (a.name.startsWith('data-astro-cid-')) btn.setAttribute(a.name, '');
+				}
+				btn.addEventListener('click', () => select(next));
+				tabs.appendChild(btn);
+			}
+			root.querySelectorAll('[data-cpsym]').forEach((x) => {
+				x.classList.toggle('on', x === btn);
+				x.setAttribute('aria-selected', String(x === btn));
+			});
+			render();
+			root.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+		}
+
+		(window as any).__chart = { select, current: () => sym };
+		(window as any).__charts = DATA;
+
+		root.querySelectorAll<HTMLButtonElement>('[data-cpsym]').forEach((b) =>
+			b.addEventListener('click', () => {
+				select(b.dataset.cpsym!);
+			}),
+		);
+		root.querySelectorAll<HTMLButtonElement>('[data-range]').forEach((b) =>
+			b.addEventListener('click', () => {
+				range = Number(b.dataset.range);
+				root.querySelectorAll('[data-range]').forEach((x) => {
+					x.classList.toggle('on', x === b);
+					x.setAttribute('aria-selected', String(x === b));
+				});
+				render();
+			}),
+		);
+
+		render();
+	}
+</script>

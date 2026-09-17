@@ -1,0 +1,68 @@
+---
+import Base from '../../layouts/Base.astro';
+import EventFeed from '../../components/EventFeed.astro';
+import NewsWire from '../../components/NewsWire.astro';
+import ReferralSlot from '../../components/ReferralSlot.astro';
+import data from '../../data/events.json';
+---
+
+<Base
+	title="News"
+	description="Dated log of the events that moved crypto, each one paired with the measured market reaction rather than a headline."
+>
+	<div class="wrap page">
+		<header class="ph">
+			<p class="label">kept by hand since {data.since}</p>
+			<h1>News</h1>
+			<p class="lede">
+				Not a news feed. Every entry was read off a primary source, and where it claims a market
+				reaction that number was measured against exchange data with the window named. If an
+				event moved nothing, it says so.
+			</p>
+		</header>
+
+		<div class="panel body">
+			<EventFeed heading />
+		</div>
+
+		<ReferralSlot />
+
+		<div class="panel body">
+			<NewsWire heading />
+		</div>
+
+		<section class="method">
+			<h3>Why it is short</h3>
+			<p>
+				Aggregated crypto headlines are free and worthless — a hundred outlets rewriting the same
+				wire in a race to publish. What is missing from all of them is the second half: what the
+				tape actually did. That takes pulling the bars around the event, so it goes at the speed
+				one person can verify things, and the log starts the day I started keeping it rather than
+				being backfilled from memory.
+			</p>
+		</section>
+
+	</div>
+</Base>
+
+<style>
+	.page { padding: 48px 0 0; max-width: 840px; }
+	.ph { max-width: 62ch; margin-bottom: 26px; }
+	.ph h1 { margin: 10px 0 14px; }
+	.lede { color: var(--fg-dim); margin: 0; }
+	.body { padding: 22px 24px 24px; }
+	.secmark { margin: 34px 0 12px; }
+	.secmark:first-of-type { margin-top: 0; }
+	.secmark h2 {
+		margin: 0 0 5px; font-size: 1.28rem;
+	}
+	.secmark p {
+		margin: 0; font-size: 0.85rem; color: var(--fg-mute); line-height: 1.6; max-width: 70ch;
+	}
+	.method {
+		margin-top: 34px; padding: 20px 22px;
+		border: 1px dashed var(--line-bright); border-radius: var(--radius);
+	}
+	.method h3 { margin: 0 0 10px; font-size: 1rem; }
+	.method p { margin: 0; font-size: 0.87rem; color: var(--fg-dim); line-height: 1.7; }
+</style>

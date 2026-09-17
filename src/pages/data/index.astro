@@ -1,0 +1,355 @@
+---
+import Base from '../../layouts/Base.astro';
+import ReferralSlot from '../../components/ReferralSlot.astro';
+import snap from '../../data/snapshots.json';
+import Busy from '../../components/Busy.astro';
+import OnChain from '../../components/OnChain.astro';
+import MinerCosts from '../../components/MinerCosts.astro';
+import Treasuries from '../../components/Treasuries.astro';
+
+const { stablecoins, fundingHistory, coveredCall } = snap;
+---
+
+<Base
+	title="Data"
+	description="Live funding rates, stablecoin float by chain, and the backtest tables behind the research — each with its source and window."
+>
+	<div class="wrap page">
+		<header class="ph">
+			<p class="label">updated continuously</p>
+			<h1>Data</h1>
+			<p class="lede">
+				The tables I keep coming back to. Funding is live off the exchange; the rest are dated
+				snapshots with the source named. Nothing here is behind an email form.
+			</p>
+		</header>
+
+		<!-- BITCOIN NETWORK -->
+		<section class="block">
+			<div class="bh">
+				<h2>Bitcoin network</h2>
+				<span class="live"><span class="pulse"></span><span class="label">live</span></span>
+			</div>
+			<p class="note">
+				Read off the chain rather than off an exchange — the one table here that still works
+				when every venue is down.
+			</p>
+			<OnChain />
+		</section>
+
+		<!-- MINER ECONOMICS -->
+		<section class="block">
+			<div class="bh"><h2>What it costs to mine a coin</h2></div>
+			<p class="note">
+				Hashprice is what a petahash of work earns in a day. The grid below turns that into
+				the BTC price at which each rig's power bill eats everything it mines — its shutdown
+				price. Cells in red are already underwater on electricity alone.
+			</p>
+			<MinerCosts />
+		</section>
+
+		<!-- TREASURIES -->
+		<section class="block">
+			<div class="bh"><h2>Who else is holding it</h2></div>
+			<p class="note">
+				Listed companies with the coin on the balance sheet. The column worth reading is average
+				cost — it turns a holdings table into a position, and shows how much of the "institutions
+				are in" story is actually above water.
+			</p>
+			<Treasuries />
+		</section>
+
+		<!-- LIVE FUNDING -->
+		<section class="block" data-funding-panel>
+			<Busy />
+			<div class="bh">
+				<h2>Funding rates</h2>
+				<span class="live"><span class="pulse"></span><span class="label">live</span></span>
+			</div>
+			<p class="note">
+				Current 8-hour rate on Binance perpetuals, annualized at three settlements a day.
+				Positive means longs pay shorts.
+			</p>
+			<div class="tbl-wrap">
+				<table data-funding>
+					<thead>
+						<tr><th>Symbol</th><th class="r">Mark</th><th class="r">8h rate</th><th class="r">Annualized</th></tr>
+					</thead>
+					<tbody data-fbody>
+						<tr><td colspan="4" class="loading">loading…</td></tr>
+					</tbody>
+				</table>
+			</div>
+		</section>
+
+		<ReferralSlot />
+
+		<!-- FUNDING HISTORY -->
+		<section class="block">
+			<div class="bh"><h2>What carry actually paid</h2></div>
+			<p class="note">{fundingHistory.source}. As of {fundingHistory.asOf}.</p>
+			<div class="bars">
+				{
+					fundingHistory.rows.map((r) => (
+						<div class="bar">
+							<span class="by">{r.year}</span>
+							<div class="track">
+								<div class="fill" style={`width:${(r.apr / 32) * 100}%`} />
+							</div>
+							<span class="bv">{r.apr.toFixed(2)}%</span>
+							<span class="bn">{r.neg}% neg</span>
+						</div>
+					))
+				}
+			</div>
+			<p class="fine">
+				The seven-year average is 11.57%. Quoting that as a forward expectation is quoting 2021.
+			</p>
+		</section>
+
+		<!-- STABLECOINS -->
+		<section class="block">
+			<div class="bh"><h2>Stablecoin float by chain</h2></div>
+			<p class="note">
+				{stablecoins.source}, {stablecoins.asOf}. Total across all chains:
+				<b>${stablecoins.totalB}B</b>.
+			</p>
+			<div class="chains">
+				{
+					stablecoins.chains.map((c) => (
+						<div class="chain">
+							<span class="cn">{c.name}</span>
+							<div class="track">
+								<div class="fill alt" style={`width:${(c.pct / 48.14) * 100}%`} />
+							</div>
+							<span class="cv">${c.b}B</span>
+							<span class="cp">{c.pct}%</span>
+						</div>
+					))
+				}
+			</div>
+			<p class="fine">Ethereum and Tron together are 79.06% of everything.</p>
+		</section>
+
+		<!-- COVERED CALL -->
+		<section class="block">
+			<div class="bh"><h2>Covered calls vs holding</h2></div>
+			<p class="note">{coveredCall.source}.</p>
+			<div class="tbl-wrap">
+				<table>
+					<thead>
+						<tr><th>Strike</th><th>Premium</th><th>Assigned</th><th class="r">Ending</th><th class="r">vs hold</th></tr>
+					</thead>
+					<tbody>
+						{
+							coveredCall.rows.map((r) => (
+								<tr>
+									<td class="mono">{r.strike}</td>
+									<td class="mono">{r.prem}</td>
+									<td class="mono">{r.assigned}</td>
+									<td class="r mono">{r.end.toFixed(2)}x</td>
+									<td class="r mono down">
+										{(((r.end - coveredCall.hold) / coveredCall.hold) * 100).toFixed(0)}%
+									</td>
+								</tr>
+							))
+						}
+						<tr class="hold">
+							<td colspan="3"><b>Buy and hold</b></td>
+							<td class="r mono up"><b>{coveredCall.hold.toFixed(2)}x</b></td>
+							<td class="r mono">—</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+			<p class="fine">
+				<a href="/research/covered-calls-sell-the-only-part-that-pays/">Full method and the monthly distribution →</a>
+			</p>
+		</section>
+
+	</div>
+</Base>
+
+<style>
+	.page {
+		padding: 52px 0 0;
+	}
+	.ph {
+		max-width: 62ch;
+		margin-bottom: 28px;
+	}
+	.ph h1 {
+		margin: 10px 0 14px;
+	}
+	.lede {
+		color: var(--fg-dim);
+		margin: 0;
+	}
+	/* matches .panel.block on the home page — panels sit close together there */
+	.block {
+		position: relative;
+		margin-bottom: 14px;
+		background: var(--bg-panel);
+		border: 1px solid var(--line);
+		border-radius: var(--radius);
+		padding: 20px 22px 22px;
+	}
+	.bh {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		margin-bottom: 6px;
+	}
+	.bh h2 {
+		margin: 0;
+		font-size: 1.24rem;
+	}
+	.live {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+	}
+	.note {
+		font-size: 0.85rem;
+		color: var(--fg-dim);
+		margin: 0 0 18px;
+	}
+	.fine {
+		font-size: 0.8rem;
+		color: var(--fg-mute);
+		margin: 14px 0 0;
+	}
+	.tbl-wrap {
+		overflow-x: auto;
+	}
+	table {
+		margin: 0;
+		min-width: 460px;
+	}
+	.r {
+		text-align: right;
+	}
+	.mono {
+		font-family: var(--font-mono), monospace;
+	}
+	.loading {
+		color: var(--fg-mute);
+		font-family: var(--font-mono), monospace;
+		font-size: 0.8rem;
+	}
+	tr.hold td {
+		border-top: 1px solid var(--line-bright);
+		border-bottom: 0;
+	}
+
+	.bars,
+	.chains {
+		display: flex;
+		flex-direction: column;
+		gap: 9px;
+	}
+	.bar,
+	.chain {
+		display: grid;
+		grid-template-columns: 62px 1fr 74px 68px;
+		align-items: center;
+		gap: 12px;
+		font-family: var(--font-mono), monospace;
+		font-size: 0.78rem;
+	}
+	.chain {
+		grid-template-columns: 112px 1fr 68px 56px;
+	}
+	.by,
+	.cn {
+		color: var(--fg-dim);
+	}
+	.track {
+		height: 7px;
+		background: #0a0c10;
+		border-radius: 4px;
+		overflow: hidden;
+		border: 1px solid var(--line);
+	}
+	.fill {
+		height: 100%;
+		background: linear-gradient(90deg, var(--accent), #ff8a00);
+		border-radius: 3px;
+	}
+	.fill.alt {
+		background: linear-gradient(90deg, var(--up), #12a568);
+	}
+	.bv,
+	.cv {
+		text-align: right;
+		color: #fff;
+	}
+	.bn,
+	.cp {
+		text-align: right;
+		color: var(--fg-mute);
+		font-size: 0.7rem;
+	}
+	@media (max-width: 640px) {
+		.bar,
+		.chain {
+			grid-template-columns: 70px 1fr 62px;
+		}
+		.bn,
+		.cp {
+			display: none;
+		}
+	}
+</style>
+
+<script>
+	import { withBusy } from '../../lib/busy';
+	async function funding(veil = false) {
+		const body = document.querySelector('[data-fbody]');
+		if (!body) return;
+		const panel = document.querySelector<HTMLElement>('[data-funding-panel]');
+		await withBusy(veil ? panel : null, async () => {
+		let rows: any[] = [];
+		try {
+			const r = await fetch('/api/funding');
+			rows = (await r.json()).rows ?? [];
+		} catch {}
+		if (!rows.length) {
+			try {
+				const r = await fetch('https://fapi.binance.com/fapi/v1/premiumIndex');
+				const watch = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'DOGEUSDT'];
+				rows = (await r.json())
+					.filter((d: any) => watch.includes(d.symbol))
+					.map((d: any) => ({
+						sym: d.symbol.replace('USDT', ''),
+						rate: +d.lastFundingRate * 100,
+						apr: +d.lastFundingRate * 3 * 365 * 100,
+						mark: +d.markPrice,
+					}));
+			} catch {
+				body.innerHTML = '<tr><td colspan="4" class="loading">feed unavailable</td></tr>';
+				return;
+			}
+		}
+		body.innerHTML = rows
+			.map((d) => {
+				const cls = d.apr >= 0 ? 'up' : 'down';
+				const mark =
+					d.mark >= 1000
+						? d.mark.toLocaleString('en-US', { maximumFractionDigits: 0 })
+						: d.mark.toLocaleString('en-US', { maximumFractionDigits: 4 });
+				return `<tr>
+					<td class="mono">${d.sym}</td>
+					<td class="r mono">${mark}</td>
+					<td class="r mono ${cls}">${d.rate >= 0 ? '+' : ''}${d.rate.toFixed(4)}%</td>
+					<td class="r mono ${cls}">${d.apr >= 0 ? '+' : ''}${d.apr.toFixed(2)}%</td>
+				</tr>`;
+			})
+			.join('');
+		});
+	}
+	funding(true);
+	// background refreshes stay silent — the veil is for switches a person made
+	setInterval(() => funding(), 60000);
+</script>

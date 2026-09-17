@@ -1,0 +1,194 @@
+---
+/**
+ * Listed companies holding the coin on their balance sheet, biggest first.
+ *
+ * The column that earns its place is cost basis: it turns a holdings table into
+ * a position, and shows how much of the "institutions are in" story is currently
+ * above water. Filers who don't disclose entry price keep their size and show no
+ * P&L rather than being guessed at.
+ */
+import Busy from './Busy.astro';
+
+const COINS = ['BTC', 'ETH'];
+---
+
+<div class="tr" data-treasuries>
+	<Busy />
+
+	<div class="head">
+		<div class="tabs" role="tablist" aria-label="Asset">
+			{COINS.map((c, i) => (
+				<button class:list={['tab', { on: i === 0 }]} data-tsym={c} role="tab"
+					aria-selected={i === 0 ? 'true' : 'false'}>{c}</button>
+			))}
+		</div>
+		<div class="tot">
+			<span class="label">held by listed companies</span>
+			<b data-t="total">—</b>
+			<span class="sr" data-t="total-sub"></span>
+		</div>
+	</div>
+
+	<div class="tw">
+		<table>
+			<thead>
+				<tr>
+					<th>Company</th>
+					<th class="r">Holdings</th>
+					<th class="r hide-s">Value</th>
+					<th class="r hide-s">Avg cost</th>
+					<th class="r">P&L</th>
+				</tr>
+			</thead>
+			<tbody data-trows>
+				<tr><td colspan="5" class="empty">—</td></tr>
+			</tbody>
+		</table>
+	</div>
+
+	<p class="src">
+		Disclosed holdings via CoinGecko · <span data-t="count">—</span> ·
+		<span data-t="stamp">—</span>
+	</p>
+</div>
+
+<style>
+	.tr { display: block; position: relative; }
+	.head {
+		display: flex; align-items: flex-end; justify-content: space-between;
+		gap: 16px; flex-wrap: wrap; margin-bottom: 12px;
+	}
+	.tabs {
+		display: inline-flex; gap: 2px; background: #0b0e13;
+		border: 1px solid var(--line); border-radius: 8px; padding: 3px;
+	}
+	.tab {
+		appearance: none; border: 0; background: none; cursor: pointer;
+		padding: 5px 13px; border-radius: 6px;
+		font-family: var(--font-mono), monospace; font-size: 0.72rem; font-weight: 700;
+		letter-spacing: 0.06em; color: var(--fg-mute);
+		transition: background 0.15s, color 0.15s;
+	}
+	.tab:hover { color: var(--fg-dim); }
+	.tab.on { background: var(--accent-dim); color: var(--accent); }
+
+	.tot { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+	.tot b {
+		font-family: var(--font-mono), monospace; font-size: 1.24rem; font-weight: 700;
+		color: #fff; font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+	}
+	.sr { font-family: var(--font-mono), monospace; font-size: 0.68rem; color: var(--fg-mute); }
+
+	.tw { overflow-x: auto; }
+	table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+	th, td { padding: 9px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+	th {
+		font-family: var(--font-mono), monospace; font-size: 0.62rem; font-weight: 500;
+		color: var(--fg-mute); text-transform: uppercase; letter-spacing: 0.08em; text-align: left;
+	}
+	.r, th.r { text-align: right; }
+	tbody tr:last-child td { border-bottom: 0; }
+	.empty { text-align: center; color: var(--fg-mute); font-family: var(--font-mono), monospace; }
+
+	.src {
+		margin: 11px 0 0;
+		font-family: var(--font-mono), monospace; font-size: 0.66rem; color: var(--fg-mute);
+	}
+
+	@media (max-width: 620px) {
+		.hide-s { display: none; }
+		th, td { padding: 8px 9px; }
+	}
+</style>
+
+<script>
+	import { withBusy } from '../lib/busy';
+	import { derive, TREASURY_URL } from '../../functions/_lib/treasuries.js';
+
+	const root = document.querySelector<HTMLElement>('[data-treasuries]');
+	if (root) {
+		const body = root.querySelector<HTMLElement>('[data-trows]')!;
+		const q = (k: string) => root.querySelector<HTMLElement>(`[data-t="${k}"]`);
+		const cache: Record<string, any> = {};
+		let coin = 'BTC';
+
+		const n = (v: number, d = 0) =>
+			v.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+		const usd = (v: number) =>
+			v >= 1e9 ? '$' + (v / 1e9).toFixed(2) + 'B'
+				: v >= 1e6 ? '$' + (v / 1e6).toFixed(0) + 'M'
+					: '$' + n(v);
+		const esc = (s: string) =>
+			s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+
+		function render(d: any) {
+			if (!d?.rows?.length) {
+				body.innerHTML = '<tr><td colspan="5" class="empty">feed unavailable</td></tr>';
+				return;
+			}
+			q('total')!.textContent = `${n(d.totalHoldings)} ${d.coin}`;
+			q('total-sub')!.textContent =
+				`${usd(d.totalValueUsd)} · ${d.supplyPct?.toFixed(2) ?? '—'}% of supply`;
+			q('count')!.textContent = `top ${d.rows.length} of ${d.count} filers`;
+			q('stamp')!.textContent =
+				new Date(d.ts).toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
+
+			body.innerHTML = d.rows.map((r: any) => {
+				const pnl = r.pnl == null
+					? '<span class="dim">—</span>'
+					: `<span class="${r.pnl >= 0 ? 'up' : 'down'}">${r.pnl >= 0 ? '+' : ''}${(r.pnl * 100).toFixed(0)}%</span>`;
+				const cost = r.entryPrice == null
+					? '<span class="dim">undisclosed</span>'
+					: '$' + n(r.entryPrice);
+				return `<tr>
+					<td><b>${esc(r.name)}</b>${r.symbol ? ` <span class="dim mono">${esc(r.symbol)}</span>` : ''}</td>
+					<td class="r mono">${n(r.holdings)}</td>
+					<td class="r mono hide-s">${usd(r.valueUsd)}</td>
+					<td class="r mono hide-s">${cost}</td>
+					<td class="r mono">${pnl}</td>
+				</tr>`;
+			}).join('');
+		}
+
+		async function load(next: string, veil = false) {
+			coin = next;
+			if (cache[next]) return render(cache[next]);
+			await withBusy(veil ? root : null, async () => {
+				try {
+					const r = await fetch(`/api/treasuries?coin=${next}`).catch(() => null);
+					let d: any = null;
+					if (r?.ok) d = await r.json();
+					// edge function unavailable (or local dev) — shape it here
+					else d = derive(await (await fetch(TREASURY_URL(next))).json(), next);
+					cache[next] = d;
+					if (coin === next) render(d);
+				} catch {
+					if (coin === next) render(null);
+				}
+			});
+		}
+
+		root.querySelectorAll<HTMLElement>('[data-tsym]').forEach((b) =>
+			b.addEventListener('click', () => {
+				const sym = b.dataset.tsym!;
+				root.querySelectorAll('[data-tsym]').forEach((o) => {
+					o.classList.toggle('on', o === b);
+					o.setAttribute('aria-selected', String(o === b));
+				});
+				load(sym, true);
+			}),
+		);
+
+		load('BTC', true);
+	}
+</script>
+
+<style is:global>
+	[data-treasuries] td b { color: #fff; font-weight: 700; }
+	[data-treasuries] td .mono { font-family: var(--font-mono), monospace; }
+	[data-treasuries] td .dim { color: var(--fg-mute); font-size: 0.74rem; }
+	[data-treasuries] td.mono, [data-treasuries] td .mono { font-variant-numeric: tabular-nums; }
+	[data-treasuries] td.r { font-family: var(--font-mono), monospace; font-variant-numeric: tabular-nums; }
+	[data-treasuries] td .up { color: var(--up); font-weight: 700; }
+	[data-treasuries] td .down { color: var(--down); font-weight: 700; }
+</style>

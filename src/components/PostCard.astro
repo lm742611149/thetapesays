@@ -1,0 +1,130 @@
+---
+import { KIND_LABEL, type Post } from '../lib/posts';
+interface Props {
+	post: Post;
+	featured?: boolean;
+}
+const { post, featured = false } = Astro.props;
+const { title, description, pubDate, kind, stat, statLabel, tags } = post.data;
+const d = pubDate.toISOString().slice(0, 10);
+---
+
+<article class={`card ${featured ? 'feat' : ''}`}>
+	<a href={`/research/${post.id}/`} class="hit" aria-label={title}></a>
+	<div class="meta">
+		<span class="label kind" data-kind={kind}>{KIND_LABEL[kind]}</span>
+		<time class="label" datetime={d}>{d}</time>
+	</div>
+	{
+		stat && (
+			<div class="stat">
+				<span class="num">{stat}</span>
+				{statLabel && <span class="slabel">{statLabel}</span>}
+			</div>
+		)
+	}
+	<h3>{title}</h3>
+	<p>{description}</p>
+	{
+		tags.length > 0 && (
+			<div class="tags">
+				{tags.slice(0, 3).map((t) => (
+					<span class="tag">{t}</span>
+				))}
+			</div>
+		)
+	}
+</article>
+
+<style>
+	.card {
+		position: relative;
+		background: var(--bg-panel);
+		border: 1px solid var(--line);
+		border-radius: var(--radius);
+		padding: 20px 22px 22px;
+		transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+		display: flex;
+		flex-direction: column;
+	}
+	.card:hover {
+		border-color: var(--line-bright);
+		background: var(--bg-hover);
+		transform: translateY(-2px);
+	}
+	.hit {
+		position: absolute;
+		inset: 0;
+		z-index: 1;
+		border-radius: var(--radius);
+	}
+	.meta {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		margin-bottom: 14px;
+	}
+	.kind {
+		color: var(--accent);
+	}
+	.kind[data-kind='log'] {
+		color: var(--up);
+	}
+	.meta time {
+		margin-left: auto;
+		color: #4f5766;
+	}
+	.stat {
+		margin-bottom: 14px;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+	.num {
+		font-family: var(--font-mono), monospace;
+		font-size: 1.75rem;
+		font-weight: 700;
+		letter-spacing: -0.025em;
+		color: #fff;
+		line-height: 1;
+	}
+	.feat .num {
+		font-size: 2.4rem;
+	}
+	.slabel {
+		font-family: var(--font-mono), monospace;
+		font-size: 0.76rem;
+		color: var(--fg-mute);
+	}
+	h3 {
+		font-size: 1.06rem;
+		margin: 0 0 8px;
+		line-height: 1.3;
+	}
+	.feat h3 {
+		font-size: 1.32rem;
+	}
+	.card:hover h3 {
+		color: var(--accent);
+	}
+	p {
+		margin: 0;
+		font-size: 0.93rem;
+		color: var(--fg-dim);
+		line-height: 1.6;
+	}
+	.tags {
+		display: flex;
+		gap: 6px;
+		margin-top: 16px;
+		flex-wrap: wrap;
+	}
+	.tag {
+		font-family: var(--font-mono), monospace;
+		font-size: 0.64rem;
+		color: var(--fg-mute);
+		border: 1px solid var(--line);
+		border-radius: 3px;
+		padding: 2px 6px;
+	}
+</style>

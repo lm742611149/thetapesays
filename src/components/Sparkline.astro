@@ -1,0 +1,41 @@
+---
+/** Compact area+line, no axes. Identity comes from the label beside it. */
+interface Props {
+	values: number[];
+	height?: number;
+	id: string;
+}
+const { values, height = 64, id } = Astro.props;
+const W = 320, H = height, PAD = 3;
+const lo = Math.min(...values), hi = Math.max(...values);
+const X = (i: number) => (i / (values.length - 1)) * W;
+const Y = (v: number) => PAD + (1 - (v - lo) / (hi - lo || 1)) * (H - PAD * 2);
+const line = values.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`).join(' ');
+const area = `${line} L ${W} ${H} L 0 ${H} Z`;
+const up = values[values.length - 1] >= values[0];
+const c = up ? '#26d07c' : '#f6465d';
+---
+
+<svg class="spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true"
+	style={`--h:${H}px`}>
+	<defs>
+		<linearGradient id={`sg-${id}`} x1="0" y1="0" x2="0" y2="1">
+			<stop offset="0%" stop-color={c} stop-opacity="0.28" />
+			<stop offset="100%" stop-color={c} stop-opacity="0" />
+		</linearGradient>
+	</defs>
+	<path d={area} fill={`url(#sg-${id})`} />
+	<path class="sl" d={line} fill="none" stroke={c} stroke-width="1.8"
+		stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" />
+	<circle cx={W} cy={Y(values[values.length - 1])} r="2.6" fill={c} />
+</svg>
+
+<style>
+	/* preserveAspectRatio="none" means the path stretches to whatever box we give
+	   it. Height must be pinned in px — left on auto the SVG keeps its 5:1 ratio
+	   and grows past the card when the hero collapses to one column. */
+	.spark { width: 100%; height: var(--h); display: block; overflow: visible; }
+	.sl { stroke-dasharray: 1200; animation: sdraw 1.4s cubic-bezier(0.3, 0.7, 0.3, 1) both; }
+	@keyframes sdraw { from { stroke-dashoffset: 1200; } to { stroke-dashoffset: 0; } }
+	@media (prefers-reduced-motion: reduce) { .sl { animation: none; stroke-dasharray: none; } }
+</style>

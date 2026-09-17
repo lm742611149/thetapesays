@@ -1,0 +1,58 @@
+---
+import Base from '../../layouts/Base.astro';
+import PostCard from '../../components/PostCard.astro';
+import ReferralSlot from '../../components/ReferralSlot.astro';
+import { allPosts } from '../../lib/posts';
+const posts = await allPosts();
+---
+
+<Base
+	title="Research"
+	description="Backtests, attributions and measurements on crypto and macro — each one names its data source and window so you can rerun it."
+>
+	<div class="wrap page">
+		<header class="ph">
+			<p class="label">{posts.length} pieces</p>
+			<h1>Research</h1>
+			<p class="lede">
+				Every post here is a measurement, not a take. The source API and the exact window are
+				named at the bottom of each one. If you pull the same data and get something else, I
+				want to hear about it.
+			</p>
+		</header>
+		<div class="list">
+			{posts.slice(0, 2).map((p) => <PostCard post={p} />)}
+		</div>
+		<ReferralSlot />
+		<div class="list">
+			{posts.slice(2).map((p) => <PostCard post={p} />)}
+		</div>
+	</div>
+</Base>
+
+<style>
+	.page {
+		padding: 52px 0 0;
+	}
+	.ph {
+		margin-bottom: 34px;
+		max-width: 62ch;
+	}
+	.ph h1 {
+		margin: 10px 0 14px;
+	}
+	.lede {
+		color: var(--fg-dim);
+		margin: 0;
+	}
+	.list {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: 14px;
+	}
+	@media (max-width: 860px) {
+		.list {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

@@ -1,0 +1,184 @@
+---
+/**
+ * 365-day close with the 200-day mean overlaid. One y-axis. Two series, so both
+ * are direct-labelled at their last point — the line style (solid vs dashed)
+ * carries identity as well as colour, which is what keeps it readable for CVD.
+ */
+interface Pt { t: number; c: number; m: number | null }
+interface Props { points: Pt[] }
+const { points } = Astro.props;
+
+const W = 900, H = 300, PL = 6, PR = 62, PT = 16, PB = 26;
+const xs = points.map((p) => p.t);
+const ys = points.flatMap((p) => [p.c, p.m].filter((v): v is number => v != null));
+const x0 = Math.min(...xs), x1 = Math.max(...xs);
+const lo = Math.min(...ys) * 0.97, hi = Math.max(...ys) * 1.03;
+const X = (t: number) => PL + ((t - x0) / (x1 - x0)) * (W - PL - PR);
+const Y = (v: number) => PT + (1 - (v - lo) / (hi - lo)) * (H - PT - PB);
+
+const line = (key: 'c' | 'm') => {
+	let d = '', pen = false;
+	for (const p of points) {
+		const v = p[key];
+		if (v == null) { pen = false; continue; }
+		d += `${pen ? 'L' : 'M'}${X(p.t).toFixed(1)} ${Y(v).toFixed(1)} `;
+		pen = true;
+	}
+	return d.trim();
+};
+const area = `${line('c')} L ${X(x1).toFixed(1)} ${Y(lo).toFixed(1)} L ${X(x0).toFixed(1)} ${Y(lo).toFixed(1)} Z`;
+
+const last = points[points.length - 1];
+const first = points[0];
+const up = last.c >= first.c;
+const stroke = up ? 'var(--up)' : 'var(--down)';
+const ticks = 4;
+const gridVals = Array.from({ length: ticks + 1 }, (_, i) => lo + ((hi - lo) * i) / ticks);
+const fmt = (v: number) => '$' + Math.round(v / 100) * 100 >= 1000
+	? '$' + (Math.round(v) / 1000).toFixed(0) + 'k'
+	: '$' + Math.round(v);
+const monthMarks = points.filter((p, i) => {
+	if (i === 0) return false;
+	const a = new Date(points[i - 1].t).getUTCMonth();
+	return new Date(p.t).getUTCMonth() !== a && new Date(p.t).getUTCMonth() % 3 === 0;
+});
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+---
+
+<figure class="pc" data-pc data-x0={x0} data-x1={x1} data-lo={lo} data-hi={hi}
+	data-pl={PL} data-pr={PR} data-pt={PT} data-pb={PB} data-w={W} data-h={H}
+	data-points={JSON.stringify(points.map((p) => [p.t, p.c, p.m]))}>
+	<svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img"
+		aria-label="Bitcoin daily close over the last year with its 200-day mean">
+		<defs>
+			<linearGradient id="pcfill" x1="0" y1="0" x2="0" y2="1">
+				<stop offset="0%" stop-color={up ? '#26d07c' : '#f6465d'} stop-opacity="0.20" />
+				<stop offset="100%" stop-color={up ? '#26d07c' : '#f6465d'} stop-opacity="0" />
+			</linearGradient>
+		</defs>
+
+		{gridVals.map((v) => (
+			<>
+				<line x1={PL} y1={Y(v)} x2={W - PR} y2={Y(v)} stroke="var(--line)" stroke-width="1" />
+				<text x={W - PR + 8} y={Y(v) + 3.5} class="ax">{fmt(v)}</text>
+			</>
+		))}
+		{monthMarks.map((p) => (
+			<text x={X(p.t)} y={H - 8} class="ax mid">{MON[new Date(p.t).getUTCMonth()]}</text>
+		))}
+
+		<path d={area} fill="url(#pcfill)" />
+		<path class="ma" d={line('m')} fill="none" stroke="var(--fg-mute)" stroke-width="1.5"
+			stroke-dasharray="5 4" stroke-linecap="round" />
+		<path class="px" d={line('c')} fill="none" stroke={stroke} stroke-width="2"
+			stroke-linejoin="round" stroke-linecap="round" />
+
+		<circle cx={X(last.t)} cy={Y(last.c)} r="3.5" fill={stroke} stroke="var(--bg-panel)" stroke-width="2" />
+		<text x={W - PR + 8} y={Y(last.c) + 3.5} class="tag" fill={stroke}>price</text>
+		{last.m && <text x={W - PR + 8} y={Y(last.m) + 3.5} class="tag mut">200d</text>}
+
+		<g class="hov" hidden>
+			<line class="cross" y1={PT} y2={H - PB} stroke="var(--line-bright)" stroke-width="1" />
+			<circle class="dot" r="4" fill={stroke} stroke="var(--bg)" stroke-width="2" />
+		</g>
+	</svg>
+	<div class="tip" hidden></div>
+</figure>
+
+<style>
+	.pc {
+		margin: 0;
+		position: relative;
+	}
+	svg {
+		width: 100%;
+		height: 300px;
+		display: block;
+		overflow: visible;
+	}
+	.ax {
+		font-family: var(--font-mono), monospace;
+		font-size: 10px;
+		fill: var(--fg-mute);
+	}
+	.mid { text-anchor: middle; }
+	.tag {
+		font-family: var(--font-mono), monospace;
+		font-size: 9px;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+	}
+	.tag.mut { fill: var(--fg-mute); }
+	.px {
+		stroke-dasharray: 4000;
+		animation: draw 1.6s cubic-bezier(0.3, 0.7, 0.3, 1) both;
+	}
+	.ma { opacity: 0; animation: fade 0.8s 0.9s ease both; }
+	@keyframes draw { from { stroke-dashoffset: 4000; } to { stroke-dashoffset: 0; } }
+	@keyframes fade { to { opacity: 1; } }
+	.tip {
+		position: absolute;
+		pointer-events: none;
+		background: #05060880;
+		backdrop-filter: blur(8px);
+		border: 1px solid var(--line-bright);
+		border-radius: 6px;
+		padding: 7px 10px;
+		font-family: var(--font-mono), monospace;
+		font-size: 0.7rem;
+		line-height: 1.5;
+		white-space: nowrap;
+		transform: translate(-50%, -115%);
+		z-index: 3;
+	}
+	.tip b { color: #fff; font-weight: 700; }
+	.tip i { font-style: normal; color: var(--fg-mute); }
+	@media (prefers-reduced-motion: reduce) {
+		.px, .ma { animation: none; opacity: 1; stroke-dasharray: none; }
+	}
+</style>
+
+<script>
+	for (const fig of document.querySelectorAll<HTMLElement>('[data-pc]')) {
+		const svg = fig.querySelector('svg')!;
+		const tip = fig.querySelector<HTMLElement>('.tip')!;
+		const hov = fig.querySelector<SVGGElement>('.hov')!;
+		const cross = hov.querySelector<SVGLineElement>('.cross')!;
+		const dot = hov.querySelector<SVGCircleElement>('.dot')!;
+		const pts: [number, number, number | null][] = JSON.parse(fig.dataset.points!);
+		const n = (k: string) => Number(fig.dataset[k]);
+		const [x0, x1, lo, hi, PL, PR, PT, PB, W, H] =
+			['x0','x1','lo','hi','pl','pr','pt','pb','w','h'].map(n);
+		const X = (t: number) => PL + ((t - x0) / (x1 - x0)) * (W - PL - PR);
+		const Y = (v: number) => PT + (1 - (v - lo) / (hi - lo)) * (H - PT - PB);
+		const usd = (v: number) => '$' + Math.round(v).toLocaleString('en-US');
+
+		function move(e: PointerEvent) {
+			const r = svg.getBoundingClientRect();
+			const vx = ((e.clientX - r.left) / r.width) * W;
+			let best = 0, bd = Infinity;
+			for (let i = 0; i < pts.length; i++) {
+				const d = Math.abs(X(pts[i][0]) - vx);
+				if (d < bd) { bd = d; best = i; }
+			}
+			const [t, c, m] = pts[best];
+			hov.removeAttribute('hidden');
+			cross.setAttribute('x1', String(X(t)));
+			cross.setAttribute('x2', String(X(t)));
+			dot.setAttribute('cx', String(X(t)));
+			dot.setAttribute('cy', String(Y(c)));
+			tip.hidden = false;
+			tip.innerHTML =
+				`<i>${new Date(t).toISOString().slice(0, 10)}</i><br><b>${usd(c)}</b>` +
+				(m ? `<br><i>200d ${usd(m)}</i>` : '');
+			tip.style.left = `${(X(t) / W) * 100}%`;
+			tip.style.top = `${(Y(c) / H) * 100}%`;
+		}
+		svg.addEventListener('pointermove', move);
+		svg.addEventListener('pointerleave', () => {
+			hov.setAttribute('hidden', '');
+			tip.hidden = true;
+		});
+	}
+</script>

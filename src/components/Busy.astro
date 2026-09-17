@@ -1,0 +1,71 @@
+---
+/**
+ * In-panel loading veil — the boot screen's wordmark and sweep, scaled down to
+ * sit inside one panel. Drop it as the last child of any positioned container
+ * and flip the container's `data-busy` attribute (see `lib/busy.ts`); nothing
+ * else needs wiring.
+ *
+ * The veil stays translucent so the stale reading shows through: a panel that
+ * is refreshing still has a last-known value worth reading, unlike a cold boot.
+ */
+interface Props {
+	/** Shown under the sweep. Defaults to the wordmark. */
+	label?: string;
+}
+const { label = 'The Tape Says' } = Astro.props;
+---
+
+<div class="busy" aria-hidden="true">
+	<span class="bmark">{label}</span>
+</div>
+
+<style>
+	.busy {
+		position: absolute;
+		inset: 0;
+		z-index: 20;
+		display: grid;
+		place-items: center;
+		border-radius: inherit;
+		background: rgba(10, 12, 16, 0.72);
+		backdrop-filter: blur(2px);
+		opacity: 0;
+		visibility: hidden;
+		transition: opacity 0.22s ease, visibility 0.22s ease;
+	}
+	/* driven by the attribute on whatever panel wraps this */
+	:global([data-busy]) > .busy {
+		opacity: 1;
+		visibility: visible;
+	}
+
+	.bmark {
+		position: relative;
+		padding-bottom: 7px;
+		font-family: Archivo, "Helvetica Neue", system-ui, sans-serif;
+		font-weight: 700;
+		font-size: 0.92rem;
+		letter-spacing: -0.02em;
+		color: #e9ecf1;
+		overflow: hidden;
+	}
+	.bmark::after {
+		content: '';
+		position: absolute;
+		left: 0;
+		bottom: 0;
+		height: 2px;
+		width: 100%;
+		background: linear-gradient(90deg, transparent, #f0b90b, transparent);
+		animation: busySweep 1.25s ease-in-out infinite;
+	}
+	@keyframes busySweep {
+		0% { transform: translateX(-100%); }
+		100% { transform: translateX(100%); }
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.busy { transition: none; }
+		.bmark::after { animation: none; opacity: 0.6; }
+	}
+</style>

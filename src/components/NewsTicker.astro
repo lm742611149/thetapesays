@@ -1,0 +1,163 @@
+---
+/**
+ * Bottom headline crawl. Server renders the build snapshot so it is never
+ * empty; the client refreshes from /api/news (edge-cached, 5 min) and rebuilds
+ * the rail. Duplicated track for a seamless loop, same trick as the quote strip.
+ */
+import data from '../data/btc.json';
+const seed = ((data as any).news ?? []).slice(0, 18);
+---
+
+<div class="news" data-news>
+	<span class="badge">
+		<span class="pulse"></span>
+		<span class="label">news</span>
+	</span>
+	<div class="vp">
+		<div class="rail" data-rail>
+			{[0, 1].map((copy) => (
+				<div class="run" aria-hidden={copy === 1 ? 'true' : undefined}>
+					{seed.map((n: any) => (
+						<a class="it" href={n.link} target="_blank" rel="noopener">
+							<span class="src">{n.source}</span>
+							<span class="ttl">{n.title}</span>
+						</a>
+					))}
+				</div>
+			))}
+		</div>
+	</div>
+	<button class="tog" data-tog aria-label="Hide news bar">×</button>
+</div>
+
+<style>
+	.news {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		z-index: 60;
+		height: 36px;
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 0 10px 0 14px;
+		background: rgba(9, 11, 14, 0.92);
+		backdrop-filter: blur(12px);
+		border-top: 1px solid var(--line);
+		overflow: hidden;
+	}
+	.news.off { transform: translateY(100%); transition: transform 0.3s ease; }
+	.badge { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+	.badge .label { color: var(--accent); }
+	.vp {
+		flex: 1;
+		overflow: hidden;
+		mask-image: linear-gradient(90deg, transparent, #000 26px, #000 calc(100% - 26px), transparent);
+	}
+	.rail {
+		display: flex;
+		width: max-content;
+		animation: newsSlide 150s linear infinite;
+	}
+	.news:hover .rail { animation-play-state: paused; }
+	@keyframes newsSlide { to { transform: translateX(-50%); } }
+	.run { display: flex; }
+	.it {
+		display: inline-flex;
+		align-items: baseline;
+		gap: 8px;
+		padding: 0 20px;
+		white-space: nowrap;
+		text-decoration: none;
+		border-right: 1px solid var(--line);
+	}
+	.it:hover .ttl { color: var(--accent); }
+	.src {
+		font-family: var(--font-mono), monospace;
+		font-size: 0.62rem;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: var(--fg-mute);
+		flex: none;
+	}
+	.ttl {
+		font-size: 0.8rem;
+		color: var(--fg-dim);
+		transition: color 0.14s ease;
+	}
+	.tog {
+		flex: none;
+		appearance: none;
+		border: 0;
+		background: none;
+		color: var(--fg-mute);
+		font-size: 1.1rem;
+		line-height: 1;
+		cursor: pointer;
+		padding: 4px 6px;
+		border-radius: 4px;
+	}
+	.tog:hover { color: var(--fg); background: var(--bg-hover); }
+	@media (max-width: 620px) {
+		.news {
+			height: auto;
+			min-height: 32px;
+			padding: 0 6px 0 11px;
+			padding-bottom: env(safe-area-inset-bottom);
+		}
+		.ttl { font-size: 0.74rem; }
+		.it { padding: 0 14px; }
+		.tog { padding: 8px 8px; font-size: 1.25rem; }
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.rail { animation: none; }
+		.vp { overflow-x: auto; scrollbar-width: none; }
+	}
+</style>
+
+<script>
+	const bar = document.querySelector<HTMLElement>('[data-news]');
+	if (bar) {
+		const rail = bar.querySelector<HTMLElement>('[data-rail]')!;
+
+		bar.querySelector('[data-tog]')?.addEventListener('click', () => {
+			bar.classList.add('off');
+			document.body.style.setProperty('--newsbar', '0px');
+			try { sessionStorage.setItem('newsbar', 'off'); } catch {}
+		});
+		try {
+			if (sessionStorage.getItem('newsbar') === 'off') {
+				bar.classList.add('off');
+				document.body.style.setProperty('--newsbar', '0px');
+			}
+		} catch {}
+
+		async function refresh() {
+			try {
+				const r = await fetch('/api/news');
+				if (!r.ok) return;
+				const { items } = await r.json();
+				if (!items?.length) return;
+				const run = items
+					.slice(0, 18)
+					.map(
+						(n: any) =>
+							`<a class="it" href="${n.link}" target="_blank" rel="noopener">` +
+							`<span class="src">${n.source}</span>` +
+							`<span class="ttl">${n.title.replace(/[<>&]/g, (c: string) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c]!)}</span></a>`,
+					)
+					.join('');
+				// keep the scoped-style attribute by cloning an existing node's dataset
+				rail.innerHTML = `<div class="run">${run}</div><div class="run" aria-hidden="true">${run}</div>`;
+				for (const el of rail.querySelectorAll<HTMLElement>('*')) {
+					for (const a of Array.from(bar!.attributes)) {
+						if (a.name.startsWith('data-astro-cid-')) el.setAttribute(a.name, '');
+					}
+				}
+			} catch {}
+		}
+		refresh();
+		setInterval(refresh, 300000);
+	}
+</script>

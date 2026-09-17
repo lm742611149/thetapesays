@@ -1,0 +1,170 @@
+---
+/**
+ * Semicircular gauge. The SVG carries only the arc and the needle — the reading
+ * lives in HTML underneath it, so type scales with the page instead of the
+ * viewBox and can never collide with the needle.
+ *
+ * Bands are filled d3 annular sectors, not stroked arcs. A stroke can only end
+ * in butt/round/square, so stroked bands meet in a hard radial shear that reads
+ * as a ragged seam, and the scale ends look sawn off. d3-shape runs at build
+ * time — it computes the path strings and ships no client JS.
+ *
+ * Bands butt straight up against each other — as fills they share an exact
+ * radial edge, so there is nothing to see at the seam. The rounded ends belong
+ * to the scale as a whole, so they come from clipping the lot to one rounded
+ * half-ring rather than from rounding each band (which would reopen the gaps).
+ */
+import { arc as d3arc } from 'd3-shape';
+
+interface Zone { to: number; color: string; label: string }
+interface Props {
+	value: number;
+	min?: number;
+	max: number;
+	zones: Zone[];
+	display: string;
+	caption?: string;
+	sub?: string;
+}
+const { value, min = 0, max, zones, display, caption, sub } = Astro.props;
+
+const W = 260, H = 146, CX = 130, CY = 132, R = 104, SW = 17;
+const IR = R - SW;
+const clamp = (v: number) => Math.min(max, Math.max(min, v));
+const frac = (v: number) => (clamp(v) - min) / (max - min);
+// d3 measures from 12 o'clock, clockwise. The scale spans the left half-turn to
+// the right one, so min sits at -90° and max at +90°.
+const ang = (v: number) => (frac(v) - 0.5) * Math.PI;
+
+const band = d3arc().innerRadius(IR).outerRadius(R);
+const shell = d3arc().innerRadius(IR).outerRadius(R).cornerRadius(SW / 2);
+const clipD = shell({ startAngle: ang(min), endAngle: ang(max) } as any)!;
+// one clip per instance, and three gauges share a page
+const clipId = `radclip-${(caption ?? display).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}`;
+
+let prev = min;
+const bands = zones.map((z) => {
+	const d = band({ startAngle: ang(prev), endAngle: ang(z.to) } as any)!;
+	prev = z.to;
+	return { ...z, d };
+});
+
+// Needle: a taper from the hub to a point just short of the band, drawn as a
+// filled path. A plain line has the same width at the tip as at the pivot.
+const th = ang(value);
+const dx = Math.sin(th), dy = -Math.cos(th);
+const px = Math.cos(th), py = Math.sin(th);
+// no counterweight tail: the hub sits 14px off the bottom of the viewBox,
+// so anything behind the pivot hangs out of the figure
+const TIP = IR - 7, HW = 3.8;
+const p = (a: number, b: number) => `${a.toFixed(2)} ${b.toFixed(2)}`;
+const needle = [
+	`M ${p(px * HW, py * HW)}`,
+	`L ${p(dx * TIP, dy * TIP)}`,
+	`L ${p(-px * HW, -py * HW)}`,
+	'Z',
+].join(' ');
+
+const active = zones.find((z) => value <= z.to) ?? zones[zones.length - 1];
+---
+
+<figure class="rad">
+	<svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${caption ?? ''} ${display}`}>
+		<defs>
+			<clipPath id={clipId}><path d={clipD} /></clipPath>
+		</defs>
+		<g transform={`translate(${CX} ${CY})`}>
+			<g clip-path={`url(#${clipId})`}>
+				{bands.map((b) => <path class="band" d={b.d} fill={b.color} />)}
+			</g>
+			<path class="needle" d={needle} fill="#fff" stroke-linejoin="round" />
+			<circle class="hub" cx="0" cy="0" r="6.5" fill="#fff" />
+			<circle class="hub" cx="0" cy="0" r="2.8" fill="var(--bg-panel, #0f1116)" />
+		</g>
+		<text x="2" y={CY + 15} class="end">{min}</text>
+		<text x={W - 2} y={CY + 15} class="end e">{max}</text>
+	</svg>
+
+	<div class="read">
+		<span class="big" style={`color:${active.color}`}>{display}</span>
+		{sub && <span class="sub">{sub}</span>}
+	</div>
+	{caption && <figcaption>{caption}</figcaption>}
+
+	<div class="zl">
+		{zones.map((z) => (
+			<span><i style={`background:${z.color}`} />{z.label}</span>
+		))}
+	</div>
+</figure>
+
+<style>
+	.rad { margin: 0; display: flex; flex-direction: column; align-items: center; width: 100%; }
+	svg { width: 100%; max-width: 260px; height: auto; overflow: visible; display: block; }
+	.end {
+		font-family: var(--font-mono), monospace;
+		font-size: 11px;
+		fill: #59606e;
+	}
+	.end.e { text-anchor: end; }
+	.band { animation: bandIn 0.7s ease both; }
+	@keyframes bandIn { from { opacity: 0; } }
+	.needle, .hub { animation: fadeIn 0.7s 0.15s ease both; }
+	@keyframes fadeIn { from { opacity: 0; } }
+
+	.read {
+		display: flex;
+		align-items: baseline;
+		justify-content: center;
+		gap: 10px;
+		margin-top: 12px;
+		flex-wrap: wrap;
+	}
+	.big {
+		font-family: var(--font-mono), monospace;
+		font-size: 2.6rem;
+		font-weight: 700;
+		line-height: 1;
+		letter-spacing: -0.03em;
+		font-variant-numeric: tabular-nums;
+	}
+	.sub {
+		font-family: var(--font-mono), monospace;
+		font-size: 0.82rem;
+		font-weight: 500;
+		color: var(--fg-dim);
+		text-transform: uppercase;
+		letter-spacing: 0.07em;
+		padding-left: 2px;
+	}
+	figcaption {
+		font-family: var(--font-mono), monospace;
+		font-size: 0.74rem;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: var(--fg-mute);
+		margin-top: 7px;
+		text-align: center;
+	}
+	.zl {
+		display: flex;
+		gap: 4px 11px;
+		margin-top: 15px;
+		flex-wrap: wrap;
+		justify-content: center;
+		max-width: 300px;
+	}
+	.zl span {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		font-family: var(--font-mono), monospace;
+		font-size: 0.68rem;
+		color: var(--fg-mute);
+		white-space: nowrap;
+	}
+	.zl i { width: 9px; height: 9px; border-radius: 2px; opacity: 0.8; }
+	@media (prefers-reduced-motion: reduce) {
+		.band, .needle, .hub { animation: none; opacity: 1; }
+	}
+</style>

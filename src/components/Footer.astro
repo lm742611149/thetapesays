@@ -1,0 +1,82 @@
+---
+import { SITE_TAGLINE, X_URL } from '../consts';
+const year = new Date().getFullYear();
+---
+
+<footer class="ft">
+	<div class="wrap">
+		<div class="cols">
+			<div>
+				<div class="mark">The Tape Says</div>
+				<p class="tag">{SITE_TAGLINE}</p>
+			</div>
+			<div class="links">
+				<a href="/research/">Research</a>
+				<a href="/data/">Data</a>
+				<a href="/rss.xml">RSS</a>
+				<a href={X_URL} target="_blank" rel="noopener">X</a>
+			</div>
+		</div>
+		<p class="disc">
+			Everything here is a record of what I measured, not advice. I hold spot positions in the
+			assets I write about and say so in the post when I do. Numbers come from public exchange
+			and on-chain APIs; the source and the window are named wherever a figure appears, so you
+			can pull it yourself and disagree with me on the same data.
+		</p>
+		<p class="copy">© {year} The Tape Says</p>
+	</div>
+</footer>
+
+<style>
+	.ft {
+		margin-top: 88px;
+		border-top: 1px solid var(--line);
+		padding: 38px 0 50px;
+		background: #0a0c0f;
+	}
+	.cols {
+		display: flex;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 20px;
+		margin-bottom: 26px;
+	}
+	.mark {
+		font-family: var(--font-display), sans-serif;
+		font-weight: 700;
+		color: #fff;
+		letter-spacing: -0.02em;
+	}
+	.tag {
+		margin: 3px 0 0;
+		font-size: 0.85rem;
+		color: var(--fg-mute);
+	}
+	.links {
+		display: flex;
+		gap: 18px;
+		flex-wrap: wrap;
+		font-size: 0.85rem;
+	}
+	.links a {
+		color: var(--fg-dim);
+		text-decoration: none;
+	}
+	.links a:hover {
+		color: var(--accent);
+	}
+	.disc {
+		font-size: 0.78rem;
+		line-height: 1.7;
+		color: var(--fg-mute);
+		max-width: 68ch;
+		padding-top: 22px;
+		border-top: 1px solid var(--line);
+	}
+	.copy {
+		margin: 0;
+		font-family: var(--font-mono), monospace;
+		font-size: 0.7rem;
+		color: #4a5160;
+	}
+</style>

@@ -1,0 +1,163 @@
+---
+/**
+ * Altcoin season index: of the top N pairs by turnover, how many beat BTC over
+ * the last 90 days. The scale is the conventional one — 75+ is altcoin season,
+ * 25 or less is bitcoin season — and the reading is computed here rather than
+ * taken from an API, so the universe and the window are both auditable.
+ */
+interface Coin { sym: string; volB: number; ret: number; vsBtc: number }
+interface Props {
+	value: number; zone: string; beating: number; counted: number;
+	btcRet: number; lookback: number;
+	leaders: Coin[]; laggards: Coin[];
+}
+const { value, zone, beating, counted, btcRet, lookback, leaders = [], laggards = [] } = Astro.props;
+
+const pc = (n: number, d = 1) => `${n >= 0 ? '+' : ''}${n.toFixed(d)}%`;
+const cls = (n: number) => (n >= 0 ? 'up' : 'down');
+
+const BANDS = [
+	{ to: 25, label: 'bitcoin season', color: 'var(--accent)' },
+	{ to: 75, label: 'neither', color: 'var(--fg-mute)' },
+	{ to: 100, label: 'altcoin season', color: 'var(--up)' },
+];
+const active = BANDS.find((b) => value <= b.to) ?? BANDS[2];
+// The bands are the reading's own scale, so the bar is drawn as three segments
+// at their true widths instead of one gradient that hides where the lines are.
+let from = 0;
+const segs = BANDS.map((b) => {
+	const s = { ...b, left: from, width: b.to - from, on: b === active };
+	from = b.to;
+	return s;
+});
+---
+
+<div class="alt">
+	<div class="read">
+		<div class="num">
+			<b class="big mono" style={`color:${active.color}`}>{value}</b>
+			<span class="of">/ 100</span>
+		</div>
+		<div class="meta">
+			<strong class="zone" style={`color:${active.color}`}>{zone}</strong>
+			<span class="sub">
+				{beating} of {counted} beat BTC over {lookback} days · BTC itself {pc(btcRet)}
+			</span>
+		</div>
+	</div>
+
+	<div class="scale">
+		<div class="track">
+			{segs.map((s) => (
+				<div class:list={['seg', { on: s.on }]}
+					style={`left:${s.left}%;width:${s.width}%;--c:${s.color}`}>
+					<i>{s.label}</i>
+				</div>
+			))}
+			<div class="marker" style={`left:${value}%`}><span class="mono">{value}</span></div>
+		</div>
+		<div class="ticks"><span>0</span><span>25</span><span>75</span><span>100</span></div>
+	</div>
+
+	<div class="cols">
+		<div class="col">
+			<h4 class="label">Beating BTC hardest</h4>
+			<table>
+				<tbody>
+					{leaders.map((c) => (
+						<tr>
+							<td class="v">{c.sym}</td>
+							<td class="r m dim">${c.volB.toFixed(2)}B</td>
+							<td class={`r m ${cls(c.ret)}`}>{pc(c.ret, 0)}</td>
+							<td class={`r m w ${cls(c.vsBtc)}`}>{pc(c.vsBtc, 0)}</td>
+						</tr>
+					))}
+				</tbody>
+			</table>
+		</div>
+		<div class="col">
+			<h4 class="label">Losing to BTC hardest</h4>
+			<table>
+				<tbody>
+					{laggards.map((c) => (
+						<tr>
+							<td class="v">{c.sym}</td>
+							<td class="r m dim">${c.volB.toFixed(2)}B</td>
+							<td class={`r m ${cls(c.ret)}`}>{pc(c.ret, 0)}</td>
+							<td class={`r m w ${cls(c.vsBtc)}`}>{pc(c.vsBtc, 0)}</td>
+						</tr>
+					))}
+				</tbody>
+			</table>
+		</div>
+	</div>
+
+	<p class="note">
+		Last column is what actually matters: performance <b>relative to BTC</b>, not in dollars.
+		A coin up 40% in a quarter where bitcoin did 21% has underperformed the thing you could have
+		held instead. Universe is the top {counted} USDT pairs by turnover with stablecoins and wrapped
+		assets removed, priced off Binance daily closes.
+	</p>
+</div>
+
+<style>
+	.alt { display: block; }
+
+	.read { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+	.num { display: flex; align-items: baseline; gap: 6px; }
+	.big { font-size: 3rem; font-weight: 700; line-height: 1; }
+	.of { font-family: var(--font-mono), monospace; font-size: 0.85rem; color: var(--fg-mute); }
+	.meta { display: flex; flex-direction: column; gap: 3px; }
+	.zone { font-size: 0.95rem; font-weight: 700; text-transform: lowercase; letter-spacing: 0.01em; }
+	.sub { font-size: 0.78rem; color: var(--fg-mute); font-family: var(--font-mono), monospace; }
+
+	.scale { margin-bottom: 22px; }
+	.track { position: relative; height: 34px; border-radius: 7px; overflow: visible; }
+	.seg {
+		position: absolute; top: 0; height: 34px;
+		background: color-mix(in srgb, var(--c) 12%, transparent);
+		border: 1px solid color-mix(in srgb, var(--c) 28%, transparent);
+		display: flex; align-items: center; justify-content: center;
+	}
+	.seg:first-child { border-radius: 7px 0 0 7px; }
+	.seg:last-child { border-radius: 0 7px 7px 0; }
+	.seg.on { background: color-mix(in srgb, var(--c) 22%, transparent); border-color: var(--c); }
+	.seg i {
+		font-style: normal; font-size: 0.64rem; letter-spacing: 0.06em; text-transform: uppercase;
+		color: var(--fg-mute); white-space: nowrap; padding: 0 6px; overflow: hidden; text-overflow: ellipsis;
+	}
+	.seg.on i { color: var(--c); font-weight: 600; }
+
+	.marker { position: absolute; top: -7px; bottom: -7px; width: 2px; background: #fff; transform: translateX(-1px); }
+	.marker span {
+		position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
+		font-size: 0.68rem; font-weight: 700; color: #fff; background: var(--bg-raised);
+		border: 1px solid var(--line-bright); border-radius: 4px; padding: 0 5px;
+	}
+	.ticks {
+		display: flex; justify-content: space-between; margin-top: 7px;
+		font-family: var(--font-mono), monospace; font-size: 0.66rem; color: var(--fg-mute);
+	}
+	/* the inner ticks sit at 25 and 75, not at even thirds */
+	.ticks span:nth-child(2) { margin-left: 13%; }
+	.ticks span:nth-child(3) { margin-right: 13%; }
+
+	.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
+	h4.label { margin: 0 0 8px; font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-mute); font-weight: 600; }
+	table { margin: 0; width: 100%; }
+	td { padding: 5px 0; border-bottom: 1px solid var(--line); }
+	.r { text-align: right; }
+	.m { font-family: var(--font-mono), monospace; font-variant-numeric: tabular-nums; font-size: 0.82rem; }
+	.v { font-family: var(--font-mono), monospace; font-weight: 700; color: #fff; font-size: 0.82rem; }
+	.dim { color: var(--fg-mute); }
+	.w { font-weight: 700; }
+
+	.note { margin: 16px 0 0; font-size: 0.82rem; line-height: 1.62; color: var(--fg-mute); max-width: 78ch; }
+	.note b { color: var(--fg-dim); }
+
+	@media (max-width: 620px) {
+		.cols { grid-template-columns: 1fr; gap: 18px; }
+		.big { font-size: 2.4rem; }
+		.seg i { font-size: 0.56rem; }
+	}
+</style>

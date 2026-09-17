@@ -1,0 +1,248 @@
+---
+/**
+ * Deribit options surface. Three readings that a spot-only dashboard can't give
+ * you: what vol is priced at across expiries, how that compares to its own
+ * recent range (DVOL), and which way the book is leaning (put/call).
+ */
+import LineChart from './LineChart.astro';
+
+interface Term { t: number; label: string; days: number; iv: number; strike: number; oi: number; putOi: number; v: number }
+interface Props {
+	spot: number;
+	pcOi: number; pcVol: number | null;
+	oi: { put: number; call: number };
+	totalOi: number;
+	frontIv: number; slope: number | null; farLabel: string | null;
+	term: Term[];
+	byExpiry: Term[];
+	dvol: { t: number; v: number }[];
+	dvolNow: number | null; dvolPctile: number | null;
+	dvolLow: number | null; dvolHigh: number | null;
+	currency: string;
+}
+const {
+	spot, pcOi, pcVol, oi, totalOi, frontIv, slope, farLabel,
+	term = [], byExpiry = [], dvol = [], dvolNow, dvolPctile, dvolLow, dvolHigh, currency,
+} = Astro.props;
+
+const n1 = (v: number) => v.toFixed(1);
+// Put/call is read against 1.0, so the colour has to flip there rather than at zero.
+const leaning = pcOi > 1 ? 'puts' : 'calls';
+const putShare = (oi.put / (oi.put + oi.call)) * 100;
+
+// Term-structure curve. Days-to-expiry is the x axis and it is not evenly
+// spaced, so points are placed by time rather than by index — otherwise a
+// weekly and a six-month expiry get the same width and the curve lies.
+const W = 660, H = 168, L = 34, R = 10, T = 12, B = 26;
+const pts = term.filter((x) => Number.isFinite(x.iv) && x.days > 0);
+const xs = pts.map((p) => p.days);
+const ys = pts.map((p) => p.iv);
+const xMin = Math.min(...xs), xMax = Math.max(...xs);
+const pad = (Math.max(...ys) - Math.min(...ys)) * 0.25 || 2;
+const yMin = Math.min(...ys) - pad, yMax = Math.max(...ys) + pad;
+const px = (d: number) => L + ((d - xMin) / (xMax - xMin || 1)) * (W - L - R);
+const py = (v: number) => T + (1 - (v - yMin) / (yMax - yMin || 1)) * (H - T - B);
+const curve = pts.map((p, i) => `${i ? 'L' : 'M'} ${px(p.days).toFixed(1)} ${py(p.iv).toFixed(1)}`).join(' ');
+const area = pts.length
+	? `${curve} L ${px(pts[pts.length - 1].days).toFixed(1)} ${H - B} L ${px(pts[0].days).toFixed(1)} ${H - B} Z`
+	: '';
+const gridY = [yMin, (yMin + yMax) / 2, yMax];
+---
+
+<div class="opt">
+	<div class="stats">
+		<div class="st">
+			<i class="label">Front IV</i>
+			<b class="mono">{frontIv ? n1(frontIv) : '—'}%</b>
+			<em>{term[0]?.days ?? '—'}d to expiry</em>
+		</div>
+		<div class="st">
+			<i class="label">Term slope</i>
+			<b class:list={['mono', slope !== null && slope < 0 ? 'down' : 'up']}>
+				{slope !== null ? `${slope >= 0 ? '+' : ''}${n1(slope)}` : '—'}
+			</b>
+			<em>{slope !== null && slope < 0 ? 'backwardation' : 'contango'} vs {farLabel ?? '—'}</em>
+		</div>
+		<div class="st">
+			<i class="label">Put / call OI</i>
+			<b class:list={['mono', pcOi > 1 ? 'down' : 'up']}>{pcOi.toFixed(2)}</b>
+			<em>book leans {leaning}</em>
+		</div>
+		<div class="st">
+			<i class="label">Open interest</i>
+			<b class="mono">{Math.round(totalOi).toLocaleString('en-US')}</b>
+			<em>{currency} across live strikes</em>
+		</div>
+	</div>
+
+	<div class="grid2">
+		<figure class="fig">
+			<figcaption>
+				<span class="ct">Implied vol by expiry</span>
+				<span class="cs">ATM mark, nearest strike to ${Math.round(spot).toLocaleString('en-US')}</span>
+			</figcaption>
+			{pts.length > 1 ? (
+				<svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Implied volatility term structure">
+					{gridY.map((g) => (
+						<>
+							<line class="grid" x1={L} y1={py(g).toFixed(1)} x2={W - R} y2={py(g).toFixed(1)} />
+							<text class="ax" x={L - 6} y={(py(g) + 3.5).toFixed(1)} text-anchor="end">{g.toFixed(0)}</text>
+						</>
+					))}
+					<path class="area" d={area} />
+					<path class="line" d={curve} />
+					{pts.map((p) => (
+						<g class="node">
+							<circle cx={px(p.days).toFixed(1)} cy={py(p.iv).toFixed(1)} r="3.4" />
+							<title>{p.label} · {p.days}d · IV {n1(p.iv)}%</title>
+						</g>
+					))}
+					{[pts[0], pts[Math.floor(pts.length / 2)], pts[pts.length - 1]].map((p) => (
+						<text class="ax" x={px(p.days).toFixed(1)} y={H - 8} text-anchor="middle">{p.days < 1 ? '<1d' : `${Math.round(p.days)}d`}</text>
+					))}
+				</svg>
+			) : (
+				<p class="empty">term structure unavailable</p>
+			)}
+		</figure>
+
+		<figure class="fig">
+			<figcaption>
+				<span class="ct">DVOL · 30-day implied</span>
+				<span class="cs">
+					{dvolNow ? `${n1(dvolNow)} now` : '—'}
+					{dvolPctile !== null && <> · <b>{dvolPctile}th percentile</b> of 120 days</>}
+				</span>
+			</figcaption>
+			{dvol.length > 1 ? (
+				<LineChart points={dvol} height={168} fmt="num" color="#7aa2ff" fill={true} />
+			) : (
+				<p class="empty">DVOL unavailable</p>
+			)}
+			{dvolLow !== null && dvolHigh !== null && (
+				<div class="range">
+					<span class="mono">{n1(dvolLow)}</span>
+					<div class="rt">
+						<div class="rf" style={`left:${(((dvolNow! - dvolLow) / (dvolHigh - dvolLow)) * 100).toFixed(1)}%`}></div>
+					</div>
+					<span class="mono">{n1(dvolHigh)}</span>
+				</div>
+			)}
+		</figure>
+	</div>
+
+	<div class="split">
+		<div class="pcbar">
+			<div class="pch">
+				<span class="label">Open interest by side</span>
+				<span class="mono dim">{Math.round(oi.put).toLocaleString('en-US')}P / {Math.round(oi.call).toLocaleString('en-US')}C</span>
+			</div>
+			<div class="bar">
+				<div class="p" style={`width:${putShare.toFixed(1)}%`}><span>puts {putShare.toFixed(0)}%</span></div>
+				<div class="c"><span>calls {(100 - putShare).toFixed(0)}%</span></div>
+			</div>
+			{pcVol !== null && (
+				<p class="vnote">
+					Today's <b>volume</b> ratio is {pcVol.toFixed(2)} — flow, unlike the {pcOi.toFixed(2)} in
+					standing open interest, which is position.
+				</p>
+			)}
+		</div>
+
+		<div class="tw">
+			<table>
+				<thead>
+					<tr>
+						<th>Expiry</th>
+						<th class="r">Days</th>
+						<th class="r">IV</th>
+						<th class="r">OI</th>
+						<th class="r hide-s">Put share</th>
+					</tr>
+				</thead>
+				<tbody>
+					{byExpiry.map((e) => (
+						<tr>
+							<td class="v">{e.label}</td>
+							<td class="r m dim">{e.days < 1 ? '<1' : Math.round(e.days)}</td>
+							<td class="r m">{n1(e.iv)}%</td>
+							<td class="r m w">{Math.round(e.oi).toLocaleString('en-US')}</td>
+							<td class="r m dim hide-s">{e.oi > 0 ? `${Math.round((e.putOi / e.oi) * 100)}%` : '—'}</td>
+						</tr>
+					))}
+				</tbody>
+			</table>
+		</div>
+	</div>
+
+	<p class="note">
+		Implied vol is what the option market charges for the next move, annualised. A curve that
+		<b> slopes up</b> means the market sees no near-term event and is charging more for time;
+		one that <b>inverts</b> means something is expected soon and the front is bid. DVOL's
+		percentile is the honest context for the level — {dvolNow ? n1(dvolNow) : 'a reading'} means
+		nothing until you know it sits
+		{dvolPctile !== null ? ` at the ${dvolPctile}th percentile of the last 120 days` : ' in its own range'}.
+		Source Deribit, which is where most of the crypto options book lives.
+	</p>
+</div>
+
+<style>
+	.opt { display: block; }
+
+	.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-bottom: 18px; }
+	.st { background: var(--bg-raised); padding: 11px 13px; display: flex; flex-direction: column; gap: 2px; }
+	.st .label { font-style: normal; font-size: 0.62rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--fg-mute); }
+	.st b { font-family: var(--font-mono), monospace; font-size: 1.15rem; font-weight: 700; color: var(--fg); }
+	.st em { font-style: normal; font-size: 0.7rem; color: var(--fg-mute); }
+
+	.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-bottom: 20px; }
+	.fig { margin: 0; }
+	figcaption { display: flex; flex-direction: column; gap: 1px; margin-bottom: 8px; }
+	.ct { font-size: 0.8rem; font-weight: 600; color: var(--fg-dim); }
+	.cs { font-size: 0.7rem; color: var(--fg-mute); font-family: var(--font-mono), monospace; }
+	.cs b { color: var(--accent); }
+	.fig svg { width: 100%; height: 168px; display: block; }
+
+	.grid { stroke: var(--line); stroke-width: 1; }
+	.ax { font-family: var(--font-mono), monospace; font-size: 9px; fill: var(--fg-mute); }
+	.line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
+	.area { fill: var(--accent-dim); stroke: none; }
+	.node circle { fill: var(--bg); stroke: var(--accent); stroke-width: 2; }
+	.node:hover circle { fill: var(--accent); }
+
+	.range { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 0.68rem; color: var(--fg-mute); }
+	.rt { position: relative; flex: 1; height: 3px; background: var(--line-bright); border-radius: 2px; }
+	.rf { position: absolute; top: -3px; width: 2px; height: 9px; background: #7aa2ff; }
+
+	.split { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
+	.pch { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 7px; }
+	.pch .label { font-size: 0.68rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--fg-mute); }
+	.dim { color: var(--fg-mute); }
+	.bar { display: flex; height: 30px; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); }
+	.bar .p { background: var(--down-bg); border-right: 1px solid var(--down); display: flex; align-items: center; justify-content: center; }
+	.bar .c { background: var(--up-bg); flex: 1; display: flex; align-items: center; justify-content: center; }
+	.bar span { font-family: var(--font-mono), monospace; font-size: 0.68rem; font-weight: 600; white-space: nowrap; padding: 0 6px; }
+	.bar .p span { color: var(--down); }
+	.bar .c span { color: var(--up); }
+	.vnote { margin: 9px 0 0; font-size: 0.75rem; line-height: 1.55; color: var(--fg-mute); }
+	.vnote b { color: var(--fg-dim); }
+
+	.tw { overflow-x: auto; }
+	table { margin: 0; min-width: 300px; }
+	.r { text-align: right; }
+	.m { font-family: var(--font-mono), monospace; font-variant-numeric: tabular-nums; }
+	.v { font-family: var(--font-mono), monospace; font-weight: 700; color: #fff; }
+	.w { font-weight: 700; }
+	tbody tr { transition: background 0.12s; }
+	tbody tr:hover { background: var(--bg-hover); }
+
+	.empty { color: var(--fg-mute); font-size: 0.8rem; }
+	.note { margin: 16px 0 0; font-size: 0.82rem; line-height: 1.62; color: var(--fg-mute); max-width: 78ch; }
+	.note b { color: var(--fg-dim); }
+
+	@media (max-width: 860px) {
+		.stats { grid-template-columns: repeat(2, 1fr); }
+		.grid2, .split { grid-template-columns: 1fr; }
+	}
+	@media (max-width: 620px) { .hide-s { display: none; } }
+</style>

@@ -1,0 +1,72 @@
+---
+/**
+ * Two behaviours, both opt-in by attribute and both no-ops under
+ * prefers-reduced-motion: reveal-on-scroll, and count-up for [data-count].
+ */
+---
+
+<script>
+	const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+	// --- reveal on scroll ---
+	const items = document.querySelectorAll<HTMLElement>('[data-reveal]');
+	if (reduce || !('IntersectionObserver' in window)) {
+		items.forEach((el) => el.classList.add('in'));
+	} else {
+		const io = new IntersectionObserver(
+			(entries) => {
+				for (const e of entries) {
+					if (!e.isIntersecting) continue;
+					e.target.classList.add('in');
+					io.unobserve(e.target);
+				}
+			},
+			{ rootMargin: '0px 0px -8% 0px', threshold: 0.08 },
+		);
+		items.forEach((el) => io.observe(el));
+	}
+
+	// --- count up ---
+	function countUp(el: HTMLElement) {
+		const to = Number(el.dataset.count);
+		if (!Number.isFinite(to)) return;
+		const dec = Number(el.dataset.dec ?? 0);
+		const pre = el.dataset.pre ?? '';
+		const suf = el.dataset.suf ?? '';
+		const sign = el.dataset.sign === '1';
+		const dur = 900;
+		const t0 = performance.now();
+		const write = (v: number) => {
+			const s = Math.abs(v).toLocaleString('en-US', {
+				minimumFractionDigits: dec,
+				maximumFractionDigits: dec,
+			});
+			el.textContent = `${sign && v >= 0 ? '+' : v < 0 ? '−' : ''}${pre}${s}${suf}`;
+		};
+		if (reduce) return write(to);
+		const tick = (now: number) => {
+			const p = Math.min(1, (now - t0) / dur);
+			const e = 1 - Math.pow(1 - p, 3);
+			write(to * e);
+			if (p < 1) requestAnimationFrame(tick);
+		};
+		requestAnimationFrame(tick);
+	}
+
+	const nums = document.querySelectorAll<HTMLElement>('[data-count]');
+	if (reduce || !('IntersectionObserver' in window)) {
+		nums.forEach(countUp);
+	} else {
+		const io2 = new IntersectionObserver(
+			(entries) => {
+				for (const e of entries) {
+					if (!e.isIntersecting) continue;
+					countUp(e.target as HTMLElement);
+					io2.unobserve(e.target);
+				}
+			},
+			{ threshold: 0.3 },
+		);
+		nums.forEach((el) => io2.observe(el));
+	}
+</script>

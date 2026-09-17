@@ -1,0 +1,26 @@
+{
+	"_comment": "VERIFY BEFORE PUBLISHING. Entries below come from the T2 signal log; confirm every price and date against the exchange record.",
+	"rules": [
+		"Spot only. No leverage, no perpetuals, no margin.",
+		"Entries and exits fire on a daily close, never intraday.",
+		"Stop is written down at entry and is not moved down. Ever.",
+		"Position size is a fixed slice of the pool, not a conviction call.",
+		"Every fill gets posted, including the ones that lose. Especially those."
+	],
+	"open": [
+		{ "sym": "SOL", "entry": null, "stop": 96.6, "opened": null, "note": "stop level is live; entry pending verification" }
+	],
+	"closed": [
+		{
+			"sym": "ETH",
+			"entry": 2516.29,
+			"exit": 2380,
+			"opened": "2026-09-11",
+			"closed": "2026-09-16",
+			"stop": 2437.36,
+			"pnlPct": -5.4,
+			"held": 5,
+			"note": "Stopped out on the close. Written stop was 2437.36; exit filled below it on the gap. Loss is inside the system's normal range — historical losing ETH trades average -9.4% over a 10-day median hold."
+		}
+	]
+}

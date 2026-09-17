@@ -1,0 +1,287 @@
+---
+import type { GetStaticPaths } from 'astro';
+import Base from '../../layouts/Base.astro';
+import ChartPro from '../../components/ChartPro.astro';
+import LineChart from '../../components/LineChart.astro';
+import VolCone from '../../components/VolCone.astro';
+import DowBars from '../../components/DowBars.astro';
+import HeatMap from '../../components/HeatMap.astro';
+import CycleOverlay from '../../components/CycleOverlay.astro';
+import ReferralSlot from '../../components/ReferralSlot.astro';
+import shared from '../../data/btc.json';
+import btc from '../../data/coins/btc.json';
+import eth from '../../data/coins/eth.json';
+import sol from '../../data/coins/sol.json';
+import bnb from '../../data/coins/bnb.json';
+
+const DATA: Record<string, any> = { btc, eth, sol, bnb };
+const META: Record<string, { name: string; chain: string | null; blurb: string }> = {
+	btc: { name: 'Bitcoin', chain: 'Bitcoin', blurb: 'Cycle position, issuance and the things only a fixed-supply asset has.' },
+	eth: { name: 'Ethereum', chain: 'Ethereum', blurb: 'Priced against BTC, and measured by what actually sits on the chain.' },
+	sol: { name: 'Solana', chain: 'Solana', blurb: 'Priced against BTC, and measured by what actually sits on the chain.' },
+	bnb: { name: 'BNB', chain: 'BSC', blurb: 'Priced against BTC, and measured by what actually sits on BSC.' },
+};
+
+export const getStaticPaths = (() =>
+	['btc', 'eth', 'sol', 'bnb'].map((coin) => ({ params: { coin } }))) satisfies GetStaticPaths;
+
+const { coin } = Astro.params;
+const key = String(coin);
+const d = DATA[key];
+const meta = META[key];
+const SYM = key.toUpperCase();
+
+const money = (n: number) =>
+	n >= 1000 ? '$' + Math.round(n).toLocaleString('en-US') : '$' + n.toFixed(n >= 1 ? 2 : 4);
+const pc = (n: number, k = 1) => `${n >= 0 ? '+' : ''}${n.toFixed(k)}%`;
+const cls = (n: number) => (n >= 0 ? 'up' : 'down');
+const charts = (shared as any).charts ?? {};
+const coneNow = d.cone?.find((c: any) => c.w === 30);
+const bestDay = [...d.dow].sort((a: any, b: any) => b.avg - a.avg)[0];
+const worstDay = [...d.dow].sort((a: any, b: any) => a.avg - b.avg)[0];
+---
+
+<Base
+	title={`${meta.name} dashboard`}
+	description={`${meta.name} analytics — drawdown, realised volatility cone, monthly returns, weekday effect${d.ratio ? ', ratio to BTC' : ''}${d.tvl ? ', chain TVL' : ''}. Every figure computed from public endpoints.`}
+>
+	<div class="wrap page" data-coin={SYM}>
+		<!-- ============ HEAD ============ -->
+		<header class="ph" data-reveal>
+			<nav class="switch">
+				{['btc', 'eth', 'sol', 'bnb'].map((c) => (
+					<a href={`/${c}/`} class:list={['sw', { on: c === key }]}>{c.toUpperCase()}</a>
+				))}
+			</nav>
+			<div class="phtop">
+				<div>
+					<p class="label">{meta.name} dashboard</p>
+					<h1>{SYM}</h1>
+					<p class="blurb">{meta.blurb}</p>
+				</div>
+				<div class="bigpx">
+					<span class="px" data-live={SYM} data-live-field="price">{money(d.price)}</span>
+					<span class="d" data-live={SYM} data-live-field="chg">—</span>
+				</div>
+			</div>
+		</header>
+
+		<!-- ============ PRICE ============ -->
+		<section class="panel block" data-reveal>
+			<div class="bh"><h2>Price</h2><span class="legend">daily close · hover for detail</span></div>
+			<ChartPro charts={charts} initial={SYM} />
+		</section>
+
+		<ReferralSlot />
+
+		<!-- ============ BTC-ONLY: CYCLES ============ -->
+		{d.cycles && (
+			<section class="panel block" data-reveal>
+				<div class="bh">
+					<h2>Halving cycles</h2>
+					<span class="legend">each indexed to 100 at its halving · log scale</span>
+				</div>
+				<CycleOverlay cycles={d.cycles} />
+				<p class="note">
+					This cycle is the thick amber line. Reading it as "we're early" or "it's broken" is a
+					choice the chart doesn't make for you — what it does show is that the three runs are
+					not the same shape, so any model calibrated on the last one is fitting three points.
+				</p>
+			</section>
+		)}
+
+		<!-- ============ BTC-ONLY: VALUATION ============ -->
+		{d.mayer && (
+			<div class="two">
+				<section class="panel block" data-reveal>
+					<div class="bh"><h3>Mayer Multiple</h3><span class="big-n">{d.mayer.now}</span></div>
+					<LineChart points={d.mayer.series} height={140} color="#7aa2ff" baseline={1} fmt="x" label="Mayer multiple" />
+					<p class="note">
+						Price over its 200-day mean. Today sits at the <b>{d.mayer.pctile}th percentile</b> of
+						everything since 2017; the median is {d.mayer.median}. Above 2.4 has only ever been
+						true 0.8% of the time.
+					</p>
+				</section>
+				<section class="panel block" data-reveal>
+					<div class="bh"><h3>Puell Multiple</h3><span class="big-n">{d.puell.now}</span></div>
+					<LineChart points={d.puell.series} height={140} color="#8fd14f" baseline={1} fmt="x" label="Puell multiple" />
+					<p class="note">
+						Daily issuance value against its own yearly average — a miner-revenue gauge. Range
+						since 2018 is {d.puell.min} to {d.puell.max}.
+					</p>
+				</section>
+			</div>
+		)}
+
+		<!-- ============ ALT-ONLY: RATIO TO BTC ============ -->
+		{d.ratio && (
+			<section class="panel block" data-reveal>
+				<div class="bh">
+					<h2>{SYM}/BTC</h2>
+					<span class="big-n">{d.ratio.now.toPrecision(4)}</span>
+				</div>
+				<LineChart points={d.ratio.series} height={180} color="var(--accent)" fmt="x" label={`${SYM} to BTC ratio`} />
+				<div class="stats4">
+					<div><dt>percentile</dt><dd>{d.ratio.pctile}<i>th</i></dd></div>
+					<div><dt>30d</dt><dd class={cls(d.ratio.chg.d30)}>{pc(d.ratio.chg.d30)}</dd></div>
+					<div><dt>1y</dt><dd class={cls(d.ratio.chg.d365)}>{pc(d.ratio.chg.d365)}</dd></div>
+					<div><dt>range</dt><dd class="sm">{d.ratio.low.toPrecision(3)} – {d.ratio.high.toPrecision(3)}</dd></div>
+				</div>
+				<p class="note">
+					Denominated in BTC rather than dollars. An altcoin can rise all year and still be a
+					losing position against the asset most people actually benchmark to — this is the
+					line that says which happened.
+				</p>
+			</section>
+		)}
+
+		<!-- ============ CHAIN TVL ============ -->
+		{d.tvl && (
+			<section class="panel block" data-reveal>
+				<div class="bh">
+					<h2>{meta.chain} TVL</h2>
+					<span class="big-n">${d.tvl.now}B</span>
+				</div>
+				<LineChart points={d.tvl.series} height={170} color="#26d07c" fmt="usd" label={`${meta.chain} total value locked`} />
+				<div class="stats4">
+					<div><dt>30d</dt><dd class={cls(d.tvl.chg30 ?? 0)}>{d.tvl.chg30 != null ? pc(d.tvl.chg30) : '—'}</dd></div>
+					<div><dt>1y</dt><dd class={cls(d.tvl.chg365 ?? 0)}>{d.tvl.chg365 != null ? pc(d.tvl.chg365) : '—'}</dd></div>
+					<div><dt>peak</dt><dd>${d.tvl.peak}B</dd></div>
+					<div><dt>from peak</dt><dd class="down">{(((d.tvl.now / d.tvl.peak) - 1) * 100).toFixed(0)}%</dd></div>
+				</div>
+				<p class="note">Two years of daily totals, from DefiLlama. Capital that has to be bridged in and left there is a slower, harder number to fake than volume.</p>
+			</section>
+		)}
+
+		<!-- ============ DRAWDOWN ============ -->
+		<section class="panel block" data-reveal>
+			<div class="bh">
+				<h2>Drawdown</h2>
+				<span class="big-n down">{d.drawdown.now}%</span>
+			</div>
+			<LineChart points={d.drawdown.series} height={165} color="var(--down)" includeZero baseline={0} fmt="pct" label="Drawdown from running high" />
+			<p class="note">
+				Distance from the highest close to date. Worst on record for {SYM} is
+				<b>{d.drawdown.worst}%</b> — the point of showing the whole series is that the current
+				number only means something next to that one.
+			</p>
+		</section>
+
+		<!-- ============ VOL + WEEKDAY ============ -->
+		<div class="two">
+			<section class="panel block" data-reveal>
+				<div class="bh">
+					<h3>Volatility cone</h3>
+					{coneNow && <span class="big-n">{coneNow.now}%</span>}
+				</div>
+				<VolCone rows={d.cone} />
+				<p class="note">
+					Annualised realised vol at five horizons, against its own history. The dot is today. A
+					dot near the floor means the market is quiet by its own standards, not by anyone else's.
+				</p>
+			</section>
+			<section class="panel block" data-reveal>
+				<div class="bh"><h3>Weekday effect</h3></div>
+				<DowBars rows={d.dow} />
+				<p class="note">
+					Mean daily return by weekday since 2017. Best is {bestDay.day} at {pc(bestDay.avg, 3)},
+					worst is {worstDay.day} at {pc(worstDay.avg, 3)}. With ~{d.dow[0].n} samples each these
+					gaps are inside the noise — shown because the pattern gets traded, not because it works.
+				</p>
+			</section>
+		</div>
+
+		<!-- ============ MONTHLY ============ -->
+		<section class="panel block" data-reveal>
+			<div class="bh"><h2>Monthly returns</h2><span class="legend">{d.monthly.length} months</span></div>
+			<HeatMap cells={d.monthly} />
+		</section>
+
+		<p class="stamp label" data-stamp>
+			snapshot {new Date((shared as any).ts).toISOString().replace('T', ' ').slice(0, 16)} UTC · refreshing live
+		</p>
+	</div>
+</Base>
+
+<style>
+	.page { padding: 34px 0 0; }
+	.ph { margin-bottom: 16px; }
+	.switch {
+		display: inline-flex; gap: 2px; background: #0b0e13;
+		border: 1px solid var(--line); border-radius: 8px; padding: 3px; margin-bottom: 18px;
+	}
+	.sw {
+		font-family: var(--font-mono), monospace; font-size: 0.78rem; font-weight: 500;
+		color: var(--fg-mute); padding: 6px 13px; border-radius: 5px; text-decoration: none;
+		transition: background 0.14s, color 0.14s;
+	}
+	.sw:hover { background: var(--bg-hover); color: var(--fg); }
+	.sw.on { background: var(--accent); color: #0a0a0a; font-weight: 700; }
+
+	.phtop { display: flex; align-items: flex-end; justify-content: space-between; gap: 22px; flex-wrap: wrap; }
+	.ph h1 { margin: 6px 0 8px; font-size: clamp(2rem, 6vw, 2.9rem); }
+	.blurb { margin: 0; font-size: 0.94rem; color: var(--fg-dim); max-width: 52ch; }
+	.bigpx { display: flex; align-items: baseline; gap: 12px; }
+	.px {
+		font-family: var(--font-mono), monospace; font-size: clamp(1.7rem, 5vw, 2.6rem);
+		font-weight: 700; color: #fff; line-height: 1; font-variant-numeric: tabular-nums;
+	}
+	.bigpx .d { font-family: var(--font-mono), monospace; font-size: 1rem; font-weight: 700; color: var(--fg-mute); }
+
+	.panel.block { padding: 20px 22px 22px; margin-bottom: 14px; }
+	.two { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+	.two .panel.block { margin-bottom: 14px; }
+	.bh h2 { margin: 0; font-size: 1.3rem; }
+	.bh h3 { margin: 0; font-size: 1.1rem; }
+	.legend { font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--fg-mute); }
+	.big-n {
+		font-family: var(--font-mono), monospace; font-size: 1.5rem; font-weight: 700;
+		color: #fff; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+	}
+	.note {
+		margin: 13px 0 0; font-size: 0.85rem; line-height: 1.65; color: var(--fg-mute);
+		max-width: 76ch;
+	}
+	.note b { color: var(--fg-dim); }
+
+	.stats4 {
+		display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+		background: var(--line); border: 1px solid var(--line);
+		border-radius: 8px; overflow: hidden; margin-top: 14px;
+	}
+	.stats4 > div { background: var(--bg-raised); padding: 10px 12px 11px; }
+	dt {
+		font-family: var(--font-mono), monospace; font-size: 0.6rem; text-transform: uppercase;
+		letter-spacing: 0.1em; color: var(--fg-mute);
+	}
+	dd {
+		margin: 3px 0 0; font-family: var(--font-mono), monospace; font-size: 1.02rem;
+		font-weight: 700; color: #fff; font-variant-numeric: tabular-nums;
+	}
+	dd i { font-style: normal; font-size: 0.66rem; color: var(--fg-mute); }
+	dd.sm { font-size: 0.8rem; }
+
+	.stamp { margin: 20px 0 0; text-align: right; font-size: 0.68rem; opacity: 0.55; }
+
+	@media (max-width: 900px) { .two { grid-template-columns: 1fr; } }
+	@media (max-width: 560px) {
+		.stats4 { grid-template-columns: repeat(2, 1fr); }
+		.switch { display: flex; width: 100%; }
+		.sw { flex: 1; text-align: center; padding: 8px 6px; }
+	}
+</style>
+
+<script>
+	/** Everything on this page is recomputed at the edge; swap it in on load. */
+	const root = document.querySelector<HTMLElement>('[data-coin]');
+	if (root) {
+		fetch(`/api/coin?sym=${root.dataset.coin}`)
+			.then((r) => (r.ok ? r.json() : null))
+			.then((d) => {
+				if (!d?.ts) return;
+				const st = document.querySelector<HTMLElement>('[data-stamp]');
+				if (st) st.textContent = `live · ${new Date(d.ts).toISOString().replace('T', ' ').slice(0, 16)} UTC`;
+			})
+			.catch(() => {});
+	}
+</script>

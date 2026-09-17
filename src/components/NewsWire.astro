@@ -1,0 +1,134 @@
+---
+/**
+ * Aggregated headlines grouped by day. Kept visually distinct from the hand-kept
+ * event log: this is a wire, nobody checked what any of it did to the tape.
+ */
+import data from '../data/btc.json';
+interface Props {
+	days?: number;
+	perDay?: number;
+	/** Render the section heading with the wire rather than beside it. */
+	heading?: boolean;
+}
+const { days = 7, perDay = 14, heading = false } = Astro.props;
+
+const items = ((data as any).news ?? []) as { source: string; title: string; link: string; ts: number }[];
+const byDay = new Map<string, typeof items>();
+for (const it of items) {
+	const d = new Date(it.ts).toISOString().slice(0, 10);
+	if (!byDay.has(d)) byDay.set(d, []);
+	byDay.get(d)!.push(it);
+}
+const today = new Date().toISOString().slice(0, 10);
+const groups = [...byDay.entries()].sort((a, b) => b[0].localeCompare(a[0])).slice(0, days);
+const label = (d: string) =>
+	d === today
+		? 'today'
+		: new Date(d + 'T00:00:00Z').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+const hhmm = (ts: number) => new Date(ts).toISOString().slice(11, 16);
+---
+
+{heading && (
+	<div class="secmark">
+		<h2>Wire</h2>
+		<p>
+			Aggregated from Cointelegraph, CoinDesk, Decrypt and The Block. Nobody checked what any
+			of it did to the tape — that is the difference between this and the section above.
+			{' '}{items.length} headlines on a rolling {days}-day window.
+		</p>
+	</div>
+)}
+
+<div class="wire">
+	{
+		groups.map(([day, list]) => (
+			<section class="grp">
+				<div class="sep">
+					<span>{label(day)}</span>
+					<span class="n">{list.length}</span>
+				</div>
+				{list.slice(0, perDay).map((it) => (
+					<a class="ln" href={it.link} target="_blank" rel="noopener">
+						<span class="tm">{hhmm(it.ts)}</span>
+						<span class="sr">{it.source}</span>
+						<span class="tt">{it.title}</span>
+					</a>
+				))}
+				{list.length > perDay && (
+					<div class="rest">+{list.length - perDay} more that day</div>
+				)}
+			</section>
+		))
+	}
+</div>
+
+<style>
+	.secmark { margin: 0 0 12px; }
+	.secmark h2 { margin: 0 0 5px; font-size: 1.28rem; }
+	.secmark p {
+		margin: 0; font-size: 0.85rem; color: var(--fg-mute);
+		line-height: 1.6; max-width: 70ch;
+	}
+
+	.wire { font-family: var(--font-mono), monospace; font-size: 0.8rem; }
+	.grp { display: block; }
+	.sep {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 18px 2px 7px;
+		font-size: 0.66rem;
+		text-transform: uppercase;
+		letter-spacing: 0.16em;
+		color: var(--fg-mute);
+	}
+	.grp:first-child .sep { padding-top: 2px; }
+	.sep::before {
+		content: '';
+		order: 3;
+		flex: 1;
+		height: 1px;
+		background: linear-gradient(90deg, var(--line), transparent);
+	}
+	.sep .n { order: 4; color: #414855; }
+	.ln {
+		display: grid;
+		grid-template-columns: 46px 86px minmax(0, 1fr);
+		gap: 12px;
+		align-items: baseline;
+		padding: 6px 8px 6px 10px;
+		border-left: 2px solid transparent;
+		border-bottom: 1px solid #101318;
+		text-decoration: none;
+		transition: background 0.12s ease, border-color 0.12s ease;
+	}
+	.ln:hover { background: #0e1117; border-left-color: var(--line-bright); }
+	.tm { color: #414855; font-variant-numeric: tabular-nums; }
+	.sr {
+		font-size: 0.64rem;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: var(--fg-mute);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.tt {
+		font-family: var(--font-body), sans-serif;
+		font-size: 0.89rem;
+		color: var(--fg-dim);
+		line-height: 1.45;
+	}
+	.ln:hover .tt { color: #fff; }
+	.rest {
+		padding: 7px 10px;
+		font-size: 0.66rem;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: #414855;
+	}
+	@media (max-width: 620px) {
+		.ln { grid-template-columns: 44px minmax(0, 1fr); }
+		.sr { display: none; }
+	}
+</style>

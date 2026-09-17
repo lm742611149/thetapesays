@@ -1,0 +1,146 @@
+---
+/**
+ * General series chart: line, area or zero-anchored fill. Used for drawdown,
+ * TVL, ratio-to-BTC, Mayer and Puell so those panels share one implementation.
+ */
+interface Pt { t?: number; d?: number; v: number }
+interface Props {
+	points: Pt[];
+	height?: number;
+	color?: string;
+	fill?: boolean;
+	/** draw a reference line at this y value */
+	baseline?: number;
+	/** format for the axis labels */
+	fmt?: 'num' | 'pct' | 'usd' | 'x';
+	/** clamp the y-domain to include this */
+	includeZero?: boolean;
+	label?: string;
+}
+const {
+	points, height = 150, color = 'var(--accent)', fill = true,
+	baseline, fmt = 'num', includeZero = false, label,
+} = Astro.props;
+
+const W = 900, PL = 4, PR = 54, PT = 10, PB = 18;
+const H = height;
+const vals = points.map((p) => p.v);
+let hi = Math.max(...vals), lo = Math.min(...vals);
+if (includeZero) { hi = Math.max(hi, 0); lo = Math.min(lo, 0); }
+if (baseline != null) { hi = Math.max(hi, baseline); lo = Math.min(lo, baseline); }
+const pad = (hi - lo) * 0.08 || 1;
+hi += pad; lo -= pad;
+
+const X = (i: number) => PL + (i / (points.length - 1)) * (W - PL - PR);
+const Y = (v: number) => PT + (1 - (v - lo) / (hi - lo)) * (H - PT - PB);
+const line = points.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(p.v).toFixed(1)}`).join(' ');
+const floor = includeZero ? Y(Math.min(0, hi)) : H - PB;
+const area = `${line} L ${X(points.length - 1).toFixed(1)} ${floor.toFixed(1)} L ${PL} ${floor.toFixed(1)} Z`;
+
+const f = (v: number) =>
+	fmt === 'pct' ? `${v.toFixed(0)}%`
+	: fmt === 'usd' ? `$${v >= 1 ? v.toFixed(0) : v.toFixed(2)}B`
+	: fmt === 'x' ? `${v.toFixed(2)}`
+	: v >= 1000 ? (v / 1000).toFixed(0) + 'k'
+	: v >= 1 ? v.toFixed(1) : v.toPrecision(2);
+
+const ticks = 4;
+const grid = Array.from({ length: ticks + 1 }, (_, i) => lo + ((hi - lo) * i) / ticks);
+const uid = Math.random().toString(36).slice(2, 8);
+---
+
+<figure class="lc" data-lc data-points={JSON.stringify(points.map((p) => [p.t ?? p.d ?? 0, p.v]))}
+	data-geom={JSON.stringify({ W, H, PL, PR, PT, PB, lo, hi })} data-fmt={fmt}>
+	<svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={label ?? 'series'}>
+		<defs>
+			<linearGradient id={`lg-${uid}`} x1="0" y1="0" x2="0" y2="1">
+				<stop offset="0%" stop-color={color} stop-opacity="0.26" />
+				<stop offset="100%" stop-color={color} stop-opacity="0" />
+			</linearGradient>
+		</defs>
+		{grid.map((v) => (
+			<>
+				<line class="g" x1={PL} y1={Y(v).toFixed(1)} x2={W - PR} y2={Y(v).toFixed(1)} />
+				<text class="ax" x={W - PR + 7} y={(Y(v) + 3.4).toFixed(1)}>{f(v)}</text>
+			</>
+		))}
+		{baseline != null && (
+			<line class="base" x1={PL} y1={Y(baseline).toFixed(1)} x2={W - PR} y2={Y(baseline).toFixed(1)} />
+		)}
+		{fill && <path d={area} fill={`url(#lg-${uid})`} />}
+		<path class="pl" d={line} fill="none" stroke={color} />
+		<circle cx={X(points.length - 1).toFixed(1)} cy={Y(vals.at(-1)!).toFixed(1)} r="3" fill={color} />
+		<g class="hov" hidden>
+			<line class="cross" y1={PT} y2={H - PB} />
+			<circle class="dot" r="3.5" fill="#fff" />
+		</g>
+	</svg>
+	<div class="tip" hidden></div>
+</figure>
+
+<style>
+	.lc { margin: 0; position: relative; }
+	svg { width: 100%; height: auto; display: block; overflow: visible; }
+	.g { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
+	.base { stroke: var(--fg-mute); stroke-width: 1; stroke-dasharray: 4 3; opacity: 0.6; }
+	.ax { font-family: var(--font-mono), monospace; font-size: 9.5px; fill: #59606e; }
+	.pl {
+		stroke-width: 2; stroke-linejoin: round; stroke-linecap: round;
+		stroke-dasharray: 3000; animation: lcDraw 1.1s cubic-bezier(0.3, 0.7, 0.3, 1) both;
+	}
+	@keyframes lcDraw { from { stroke-dashoffset: 3000; } to { stroke-dashoffset: 0; } }
+	.cross { stroke: var(--line-bright); stroke-width: 1; stroke-dasharray: 3 3; }
+	.tip {
+		position: absolute; pointer-events: none; z-index: 3;
+		background: #05060880; backdrop-filter: blur(8px);
+		border: 1px solid var(--line-bright); border-radius: 6px;
+		padding: 6px 9px; font-family: var(--font-mono), monospace;
+		font-size: 0.7rem; white-space: nowrap; transform: translate(-50%, -115%);
+	}
+	.tip b { color: #fff; }
+	@media (prefers-reduced-motion: reduce) { .pl { animation: none; stroke-dasharray: none; } }
+</style>
+
+<script>
+	for (const fig of document.querySelectorAll<HTMLElement>('[data-lc]')) {
+		const svg = fig.querySelector('svg')!;
+		const tip = fig.querySelector<HTMLElement>('.tip')!;
+		const hov = fig.querySelector<SVGGElement>('.hov')!;
+		const pts: [number, number][] = JSON.parse(fig.dataset.points!);
+		const g = JSON.parse(fig.dataset.geom!);
+		const fmt = fig.dataset.fmt;
+		const X = (i: number) => g.PL + (i / (pts.length - 1)) * (g.W - g.PL - g.PR);
+		const Y = (v: number) => g.PT + (1 - (v - g.lo) / (g.hi - g.lo)) * (g.H - g.PT - g.PB);
+		const show = (v: number) =>
+			fmt === 'pct' ? `${v.toFixed(1)}%`
+			: fmt === 'usd' ? `$${v.toFixed(2)}B`
+			: fmt === 'x' ? v.toFixed(3)
+			: v >= 1 ? v.toLocaleString('en-US', { maximumFractionDigits: 2 }) : v.toPrecision(4);
+
+		function move(e: PointerEvent) {
+			const r = svg.getBoundingClientRect();
+			const vx = ((e.clientX - r.left) / r.width) * g.W;
+			let best = 0, bd = Infinity;
+			for (let i = 0; i < pts.length; i++) {
+				const d = Math.abs(X(i) - vx);
+				if (d < bd) { bd = d; best = i; }
+			}
+			const [t, v] = pts[best];
+			hov.removeAttribute('hidden');
+			const cx = X(best), cy = Y(v);
+			hov.querySelector('.cross')!.setAttribute('x1', String(cx));
+			hov.querySelector('.cross')!.setAttribute('x2', String(cx));
+			const dot = hov.querySelector('.dot')!;
+			dot.setAttribute('cx', String(cx));
+			dot.setAttribute('cy', String(cy));
+			tip.hidden = false;
+			const when = t > 1e11 ? new Date(t).toISOString().slice(0, 10) : `day ${t}`;
+			tip.innerHTML = `<b>${show(v)}</b><br>${when}`;
+			tip.style.left = `${(cx / g.W) * 100}%`;
+			tip.style.top = `${(cy / g.H) * 100}%`;
+		}
+		svg.addEventListener('pointermove', move);
+		svg.addEventListener('pointerdown', (e) => move(e as PointerEvent));
+		svg.addEventListener('pointerleave', () => { hov.setAttribute('hidden', ''); tip.hidden = true; });
+	}
+</script>

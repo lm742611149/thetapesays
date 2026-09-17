@@ -1,0 +1,311 @@
+---
+/**
+ * Detail dialog for a board row. Uses native <dialog> so focus trapping, ESC
+ * and inertness come from the platform rather than hand-rolled JS. Bars are
+ * fetched on open and cached per symbol.
+ */
+import Busy from './Busy.astro';
+import m from '../data/btc.json';
+const seeded = Object.keys((m as any).charts ?? {});
+---
+
+<dialog class="cm" data-coinmodal aria-labelledby="cm-sym">
+	<div class="head">
+		<div class="id">
+			<span class="sym" id="cm-sym" data-cm-sym>—</span>
+			<span class="pair">/USDT</span>
+		</div>
+		<button class="x" data-cm-close aria-label="Close">×</button>
+	</div>
+
+	<div class="px">
+		<span class="val" data-cm-price>—</span>
+		<span class="chg" data-cm-chg>—</span>
+	</div>
+
+	<div class="ranges" role="tablist" aria-label="Range">
+		{[['30', '30D'], ['90', '90D'], ['180', '6M'], ['365', '1Y']].map(([v, t]) => (
+			<button class:list={['r', { on: v === '90' }]} data-cm-range={v} role="tab">{t}</button>
+		))}
+	</div>
+
+	<div class="plot" data-cm-plot><div class="skel"></div></div>
+
+	<dl class="stats">
+		<div><dt>24h high</dt><dd data-cm-high>—</dd></div>
+		<div><dt>24h low</dt><dd data-cm-low>—</dd></div>
+		<div><dt>24h volume</dt><dd data-cm-vol>—</dd></div>
+		<div><dt>range position</dt><dd data-cm-pos>—</dd></div>
+	</dl>
+
+	<p class="src">Binance spot · daily closes · <span data-cm-note>live</span></p>
+	<script type="application/json" data-cm-seed set:html={JSON.stringify(seeded)} />
+	<Busy />
+</dialog>
+
+<style>
+	.cm {
+		border: 1px solid var(--line-bright);
+		border-radius: 14px;
+		background: linear-gradient(170deg, rgba(18,21,27,0.96), rgba(11,13,18,0.97));
+		backdrop-filter: blur(10px);
+		color: var(--fg);
+		padding: 22px 24px 20px;
+		width: min(640px, calc(100vw - 32px));
+		box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+		opacity: 0;
+		transform: translateY(10px) scale(0.985);
+		transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.2, 0.8, 0.3, 1);
+	}
+	.cm[open] { opacity: 1; transform: none; }
+	.cm::backdrop {
+		background: rgba(4, 5, 7, 0.62);
+		backdrop-filter: blur(9px);
+		opacity: 0;
+		transition: opacity 0.22s ease;
+	}
+	.cm[open]::backdrop { opacity: 1; }
+
+	.head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+	.id { display: flex; align-items: baseline; gap: 6px; }
+	.sym {
+		font-family: var(--font-mono), monospace; font-size: 1.28rem;
+		font-weight: 700; color: #fff; letter-spacing: 0.01em;
+	}
+	.pair { font-family: var(--font-mono), monospace; font-size: 0.8rem; color: var(--fg-mute); }
+	.x {
+		appearance: none; border: 0; background: none; color: var(--fg-mute);
+		font-size: 1.5rem; line-height: 1; cursor: pointer; padding: 2px 8px; border-radius: 6px;
+	}
+	.x:hover { color: #fff; background: var(--bg-hover); }
+
+	.px { display: flex; align-items: baseline; gap: 11px; margin: 12px 0 14px; }
+	.val {
+		font-family: var(--font-mono), monospace; font-size: 2.2rem; font-weight: 700;
+		color: #fff; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums;
+	}
+	.chg { font-family: var(--font-mono), monospace; font-size: 1rem; font-weight: 700; }
+
+	.ranges { display: inline-flex; gap: 2px; background: #0b0e13; border: 1px solid var(--line); border-radius: 7px; padding: 3px; margin-bottom: 12px; }
+	.r {
+		appearance: none; border: 0; background: none; cursor: pointer;
+		font-family: var(--font-mono), monospace; font-size: 0.72rem;
+		color: var(--fg-mute); padding: 5px 11px; border-radius: 5px;
+		transition: background 0.14s, color 0.14s;
+	}
+	.r:hover { color: var(--fg); background: var(--bg-hover); }
+	.r.on { background: var(--accent); color: #0a0a0a; font-weight: 700; }
+
+	.plot { height: 190px; position: relative; }
+	.plot :global(svg) { width: 100%; height: 190px; display: block; overflow: visible; }
+	.plot :global(.g) { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
+	.plot :global(.ax) { font-family: var(--font-mono), monospace; font-size: 9.5px; fill: #59606e; }
+	.plot :global(.pl) {
+		stroke-width: 2; fill: none; stroke-linejoin: round; stroke-linecap: round;
+		stroke-dasharray: 2600; animation: cmDraw 1.05s cubic-bezier(0.3, 0.7, 0.3, 1) both;
+	}
+	@keyframes cmDraw { from { stroke-dashoffset: 2600; } to { stroke-dashoffset: 0; } }
+	.skel {
+		position: absolute; inset: 12px 0;
+		background: linear-gradient(90deg, #0e1117 25%, #141821 37%, #0e1117 63%);
+		background-size: 400% 100%; border-radius: 8px;
+		animation: shimmer 1.3s ease-in-out infinite;
+	}
+	@keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+
+	.stats {
+		display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+		background: var(--line); border: 1px solid var(--line);
+		border-radius: 8px; overflow: hidden; margin: 14px 0 12px;
+	}
+	.stats > div { background: #0e1117; padding: 10px 12px 11px; }
+	dt {
+		font-family: var(--font-mono), monospace; font-size: 0.6rem;
+		text-transform: uppercase; letter-spacing: 0.1em; color: var(--fg-mute);
+	}
+	dd {
+		margin: 3px 0 0; font-family: var(--font-mono), monospace;
+		font-size: 0.95rem; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums;
+	}
+	.src { margin: 0; font-family: var(--font-mono), monospace; font-size: 0.64rem; color: #4f5766; }
+
+	@media (max-width: 560px) {
+		/* bottom sheet rather than a centred box */
+		.cm {
+			width: 100vw;
+			max-width: 100vw;
+			margin: auto 0 0;
+			border-radius: 16px 16px 0 0;
+			border-bottom: 0;
+			padding: 18px 16px calc(16px + env(safe-area-inset-bottom));
+			transform: translateY(18px);
+		}
+		.stats { grid-template-columns: repeat(2, 1fr); }
+		.val { font-size: 1.8rem; }
+		.plot, .plot :global(svg) { height: 158px; }
+		.x { font-size: 1.8rem; padding: 4px 10px; }
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.cm, .cm::backdrop { transition: none; }
+		.plot :global(.pl) { animation: none; stroke-dasharray: none; }
+		.skel { animation: none; }
+	}
+</style>
+
+<script>
+	import { withBusy } from '../lib/busy';
+	type Bar = [number, number, number, number, number, number];
+	const dlg = document.querySelector<HTMLDialogElement>('[data-coinmodal]');
+	if (dlg) {
+		const seeded: string[] = JSON.parse(
+			dlg.querySelector<HTMLElement>('[data-cm-seed]')!.textContent || '[]',
+		);
+		const cache: Record<string, Bar[]> = {};
+		const plot = dlg.querySelector<HTMLElement>('[data-cm-plot]')!;
+		const q = (k: string) => dlg.querySelector<HTMLElement>(`[data-cm-${k}]`);
+		let sym = '';
+		let range = 90;
+
+		const fmt = (v: number) =>
+			v >= 1000 ? Math.round(v).toLocaleString('en-US') : v >= 1 ? v.toFixed(2) : v.toFixed(5);
+		const axis = (v: number) =>
+			v >= 1000 ? (v / 1000).toFixed(v >= 10000 ? 0 : 1) + 'k' : v >= 1 ? v.toFixed(1) : v.toFixed(4);
+
+		async function bars(s: string): Promise<Bar[] | null> {
+			if (cache[s]) return cache[s];
+			// the page already ships six of them
+			const inline = (window as any).__charts?.[s];
+			if (inline) return (cache[s] = inline);
+			try {
+				const r = await fetch(
+					`https://data-api.binance.vision/api/v3/klines?symbol=${s}USDT&interval=1d&limit=420`,
+				);
+				if (!r.ok) return null;
+				const rows = await r.json();
+				const p = (v: string) => {
+					const n = +v;
+					return n >= 100 ? Math.round(n) : n >= 1 ? +n.toFixed(2) : +n.toFixed(5);
+				};
+				return (cache[s] = rows.map((x: any[]) => [
+					x[0], p(x[1]), p(x[2]), p(x[3]), p(x[4]), Math.round(+x[7] / 1e6),
+				]));
+			} catch {
+				return null;
+			}
+		}
+
+		function draw(data: Bar[]) {
+			const view = data.slice(-range);
+			const W = 640, H = 190, PL = 2, PR = 44, PT = 10, PB = 18;
+			const cl = view.map((b) => b[4]);
+			const hi = Math.max(...cl) * 1.02, lo = Math.min(...cl) * 0.98;
+			const X = (i: number) => PL + (i / (view.length - 1)) * (W - PL - PR);
+			const Y = (v: number) => PT + (1 - (v - lo) / (hi - lo)) * (H - PT - PB);
+			const line = view.map((b, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(b[4]).toFixed(1)}`).join(' ');
+			const area = `${line} L ${X(view.length - 1).toFixed(1)} ${H - PB} L ${PL} ${H - PB} Z`;
+			const up = cl[cl.length - 1] >= cl[0];
+			const c = up ? '#26d07c' : '#f6465d';
+			let g = '';
+			for (let k = 0; k <= 3; k++) {
+				const v = lo + ((hi - lo) * k) / 3;
+				g += `<line class="g" x1="${PL}" y1="${Y(v).toFixed(1)}" x2="${W - PR}" y2="${Y(v).toFixed(1)}"/>`
+					+ `<text class="ax" x="${W - PR + 7}" y="${(Y(v) + 3.4).toFixed(1)}">${axis(v)}</text>`;
+			}
+			plot.innerHTML =
+				`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+					<defs><linearGradient id="cmg" x1="0" y1="0" x2="0" y2="1">
+						<stop offset="0%" stop-color="${c}" stop-opacity="0.24"/>
+						<stop offset="100%" stop-color="${c}" stop-opacity="0"/>
+					</linearGradient></defs>
+					${g}<path d="${area}" fill="url(#cmg)"/>
+					<path class="pl" d="${line}" stroke="${c}"/>
+				</svg>`;
+		}
+
+		/** One-shot 24h stats, so the panel is never blank if the socket
+		    hasn't pushed this symbol yet (or can't connect at all). */
+		async function seedStats(s: string) {
+			try {
+				const r = await fetch(
+					`https://data-api.binance.vision/api/v3/ticker/24hr?symbol=${s}USDT`,
+				);
+				if (!r.ok) return;
+				const d = await r.json();
+				if (s !== sym) return;
+				const t = {
+					price: +d.lastPrice, chg: +d.priceChangePercent,
+					high: +d.highPrice, low: +d.lowPrice, vol: +d.quoteVolume,
+				};
+				paint(t);
+			} catch {}
+		}
+
+		function paint(t: any) {
+			if (!t) return;
+			const p = q('price'), ch = q('chg');
+			if (p && t.price != null) p.textContent = '$' + fmt(t.price);
+			if (ch && t.chg != null) {
+				ch.textContent = `${t.chg >= 0 ? '+' : ''}${t.chg.toFixed(2)}%`;
+				ch.className = `chg ${t.chg >= 0 ? 'up' : 'down'}`;
+			}
+			if (t.high != null) q('high')!.textContent = fmt(t.high);
+			if (t.low != null) q('low')!.textContent = fmt(t.low);
+			if (t.vol != null) q('vol')!.textContent = '$' + (t.vol / 1e9).toFixed(2) + 'B';
+			if (t.high != null && t.low != null && t.price != null && t.high > t.low) {
+				const pos = ((t.price - t.low) / (t.high - t.low)) * 100;
+				q('pos')!.textContent = pos.toFixed(0) + '%';
+			}
+		}
+
+		function live() {
+			paint((window as any).__live?.get(sym));
+		}
+
+		async function open(next: string) {
+			sym = next;
+			range = 90;
+			dlg.querySelectorAll('[data-cm-range]').forEach((b) =>
+				b.classList.toggle('on', (b as HTMLElement).dataset.cmRange === '90'),
+			);
+			q('sym')!.textContent = sym;
+			plot.innerHTML = '<div class="skel"></div>';
+			for (const k of ['price', 'chg', 'high', 'low', 'vol', 'pos']) q(k)!.textContent = '—';
+			if (!dlg.open) dlg.showModal();
+			live();
+			// stats and bars are two calls; veil the panel until both have landed,
+			// or the price fills in while the chart is still empty
+			await withBusy(dlg, async () => {
+				const [d] = await Promise.all([bars(sym), seedStats(sym)]);
+				if (sym !== next) return;
+				if (!d) {
+					plot.innerHTML = '<p class="src">No daily bars for this pair.</p>';
+					return;
+				}
+				draw(d);
+				q('note')!.textContent = seeded.includes(sym) ? 'live' : 'fetched on open';
+			});
+		}
+
+		dlg.querySelectorAll<HTMLElement>('[data-cm-range]').forEach((b) =>
+			b.addEventListener('click', async () => {
+				range = Number(b.dataset.cmRange);
+				dlg.querySelectorAll('[data-cm-range]').forEach((o) => o.classList.toggle('on', o === b));
+				const d = await withBusy(dlg, () => bars(sym));
+				if (d) draw(d);
+			}),
+		);
+		dlg.querySelector('[data-cm-close]')?.addEventListener('click', () => dlg.close());
+		// click on the backdrop (outside the panel) closes
+		dlg.addEventListener('click', (e) => {
+			const r = dlg.getBoundingClientRect();
+			const inside =
+				e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+			if (!inside) dlg.close();
+		});
+
+		(window as any).__live?.subscribe?.((s: string) => {
+			if (dlg.open && s === sym) live();
+		});
+		(window as any).__coinModal = { open };
+	}
+</script>

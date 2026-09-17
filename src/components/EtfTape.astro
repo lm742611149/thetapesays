@@ -1,0 +1,179 @@
+---
+/**
+ * US spot ETF tape. Dollar volume, not flow — creations and redemptions are a
+ * paid dataset and the panel says so rather than passing volume off as flow.
+ * Bars are the whole complex's daily turnover; the table breaks it out by fund.
+ */
+interface Fund {
+	sym: string; name: string; issuer: string; asset: string;
+	price: number; d1: number; w1: number; m3: number;
+	volM: number; avg20M: number; relVol: number;
+	series: { t: number; v: number }[];
+}
+interface Props {
+	funds: Fund[];
+	total: { t: number; v: number }[];
+	totalM: number | null;
+	totalAvgM: number | null;
+	asOf: number | null;
+}
+const { funds, total = [], totalM, totalAvgM, asOf } = Astro.props;
+
+const pc = (n: number, d = 2) => `${n >= 0 ? '+' : ''}${n.toFixed(d)}%`;
+const cls = (n: number) => (n >= 0 ? 'up' : 'down');
+const money = (m: number) => (m >= 1000 ? `$${(m / 1000).toFixed(2)}B` : `$${m.toFixed(0)}M`);
+
+// Bars share one scale so a quiet day reads as quiet instead of being
+// rescaled up to fill the box.
+const W = 720, H = 132, PAD = 4;
+const peak = Math.max(...total.map((p) => p.v), 1);
+const bw = total.length ? (W - PAD * 2) / total.length : 0;
+const bars = total.map((p, i) => ({
+	...p,
+	x: PAD + i * bw,
+	h: Math.max(1, (p.v / peak) * (H - 18)),
+	// the last bar is the session everyone is asking about
+	last: i === total.length - 1,
+}));
+const avg = totalAvgM ?? null;
+const avgY = avg ? H - 18 - (avg / peak) * (H - 18) : null;
+const vsAvg = totalM && avg ? ((totalM - avg) / avg) * 100 : null;
+const day = (t: number) => new Date(t).toISOString().slice(5, 10);
+---
+
+<div class="etf">
+	{funds.length === 0 ? (
+		<p class="empty">ETF tape unavailable — Nasdaq's quote endpoint did not answer this build.</p>
+	) : (
+		<>
+			<div class="top">
+				<div class="hero">
+					<span class="label">complex turnover, last session</span>
+					<b class="big mono">{totalM ? money(totalM) : '—'}</b>
+					{vsAvg !== null && (
+						<em class={cls(vsAvg)}>{pc(vsAvg, 0)} vs 20-day average</em>
+					)}
+				</div>
+				<div class="legend">
+					<span><i class="sw bar"></i>daily $ volume</span>
+					<span><i class="sw avgline"></i>20-day average</span>
+				</div>
+			</div>
+
+			<svg class="bars" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img"
+				aria-label="Daily dollar volume across US spot crypto ETFs">
+				{avgY !== null && <line class="avg" x1="0" y1={avgY.toFixed(1)} x2={W} y2={avgY.toFixed(1)} />}
+				{bars.map((b) => (
+					<rect
+						class:list={['bar', { on: b.last }]}
+						x={b.x.toFixed(2)} y={(H - 18 - b.h).toFixed(2)}
+						width={Math.max(1, bw - 1.4).toFixed(2)} height={b.h.toFixed(2)}
+					><title>{day(b.t)} · {money(b.v)}</title></rect>
+				))}
+				{bars.length > 0 && (
+					<>
+						<text class="ax" x={PAD} y={H - 4}>{day(bars[0].t)}</text>
+						<text class="ax e" x={W - PAD} y={H - 4}>{day(bars[bars.length - 1].t)}</text>
+					</>
+				)}
+			</svg>
+
+			<div class="tw">
+				<table>
+					<thead>
+						<tr>
+							<th>Fund</th>
+							<th class="hide-s">Issuer</th>
+							<th class="r">Last</th>
+							<th class="r">1d</th>
+							<th class="r hide-s">1w</th>
+							<th class="r">3m</th>
+							<th class="r">$ vol</th>
+							<th class="r">vs 20d</th>
+						</tr>
+					</thead>
+					<tbody>
+						{funds.map((f) => (
+							<tr>
+								<td class="v">
+									{f.sym}
+									<i class={`tag ${f.asset.toLowerCase()}`}>{f.asset}</i>
+								</td>
+								<td class="dim hide-s">{f.issuer}</td>
+								<td class="r m">${f.price.toFixed(2)}</td>
+								<td class={`r m ${cls(f.d1)}`}>{pc(f.d1)}</td>
+								<td class={`r m hide-s ${cls(f.w1)}`}>{pc(f.w1)}</td>
+								<td class={`r m ${cls(f.m3)}`}>{pc(f.m3)}</td>
+								<td class="r m">{money(f.volM)}</td>
+								<td class="r m">
+									<span class={`rel ${f.relVol >= 1 ? 'hot' : 'cold'}`}>{f.relVol.toFixed(2)}x</span>
+								</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
+			</div>
+
+			<p class="note">
+				This is the <b>tape, not the flow</b>. Volume counts every share that changed hands;
+				creations and redemptions — the number headlines quote as "ETFs bought $X" — come from a
+				paid dataset and are deliberately absent rather than guessed at from price and volume.
+				What the tape does tell you is participation: the <b>vs 20d</b> column above 1.00x means a
+				fund traded heavier than its own recent norm. Source Nasdaq, close of {asOf ? day(asOf) : '—'}.
+			</p>
+		</>
+	)}
+</div>
+
+<style>
+	.etf { display: block; }
+	.empty { color: var(--fg-mute); font-size: 0.85rem; margin: 0; }
+
+	.top { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 10px; }
+	.hero { display: flex; flex-direction: column; gap: 2px; }
+	.hero .big { font-size: 1.75rem; font-weight: 700; color: var(--fg); line-height: 1.1; }
+	.hero em { font-style: normal; font-size: 0.78rem; font-family: var(--font-mono), monospace; }
+
+	.legend { display: flex; gap: 14px; font-size: 0.7rem; color: var(--fg-mute); }
+	.legend span { display: inline-flex; align-items: center; gap: 5px; }
+	.sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+	.sw.bar { background: var(--accent); opacity: 0.55; }
+	.sw.avgline { height: 0; border-top: 2px dashed var(--fg-mute); border-radius: 0; }
+
+	.bars { width: 100%; height: 132px; display: block; margin-bottom: 14px; }
+	.bar { fill: var(--accent); opacity: 0.42; transition: opacity 0.12s; }
+	.bar:hover { opacity: 0.9; }
+	.bar.on { opacity: 0.95; }
+	.avg { stroke: var(--fg-mute); stroke-width: 1; stroke-dasharray: 4 4; }
+	.ax { font-family: var(--font-mono), monospace; font-size: 9px; fill: var(--fg-mute); }
+	.ax.e { text-anchor: end; }
+
+	.tw { overflow-x: auto; }
+	table { margin: 0; min-width: 620px; }
+	.r { text-align: right; }
+	.m { font-family: var(--font-mono), monospace; font-variant-numeric: tabular-nums; }
+	.v { font-family: var(--font-mono), monospace; font-weight: 700; color: #fff; white-space: nowrap; }
+	.dim { color: var(--fg-mute); }
+	tbody tr { transition: background 0.12s; }
+	tbody tr:hover { background: var(--bg-hover); }
+
+	.tag {
+		font-style: normal; font-size: 0.6rem; font-weight: 600; letter-spacing: 0.04em;
+		padding: 1px 5px; border-radius: 4px; margin-left: 7px; vertical-align: middle;
+	}
+	.tag.btc { background: var(--accent-dim); color: var(--accent); }
+	.tag.eth { background: rgba(122, 162, 255, 0.14); color: #7aa2ff; }
+
+	.rel { font-weight: 600; }
+	.rel.hot { color: var(--accent); }
+	.rel.cold { color: var(--fg-mute); }
+
+	.note { margin: 13px 0 0; font-size: 0.82rem; line-height: 1.62; color: var(--fg-mute); max-width: 78ch; }
+	.note b { color: var(--fg-dim); }
+
+	@media (max-width: 620px) {
+		.hide-s { display: none; }
+		table { min-width: 400px; }
+		.hero .big { font-size: 1.45rem; }
+	}
+</style>

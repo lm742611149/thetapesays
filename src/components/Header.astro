@@ -1,0 +1,100 @@
+---
+import { SITE_TITLE, X_URL } from '../consts';
+const path = Astro.url.pathname;
+const nav = [
+	['/btc/', 'Markets'],
+	['/events/', 'News'],
+	['/research/', 'Research'],
+	['/data/', 'Data'],
+];
+const on = (href: string) => path === href || (href !== '/' && path.startsWith(href));
+---
+
+<header class="hd">
+	<div class="wrap hd-in">
+		<a href="/" class="brand" aria-label={SITE_TITLE}>
+			<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+				<path d="M1 15.5 L6 9.5 L10 12.5 L15 4 L21 10" stroke="var(--accent)" stroke-width="2"
+					stroke-linecap="round" stroke-linejoin="round"></path>
+				<circle cx="21" cy="10" r="2" fill="var(--accent)"></circle>
+			</svg>
+			<span>The Tape Says</span>
+		</a>
+		<nav>
+			{nav.map(([href, text]) => <a href={href} class={on(href) ? 'on' : ''}>{text}</a>)}
+			<a href={X_URL} rel="me noopener" target="_blank" class="x" aria-label="X / Twitter">
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+					<path d="M18.9 1.2h3.7l-8.1 9.2 9.5 12.6h-7.4l-5.8-7.6-6.7 7.6H.4l8.6-9.9L0 1.2h7.6l5.2 6.9ZM17.6 20.8h2L6.5 3.3H4.3Z"></path>
+				</svg>
+			</a>
+		</nav>
+	</div>
+</header>
+
+<style>
+	.hd {
+		background: rgba(8, 9, 11, 0.82);
+		backdrop-filter: blur(12px);
+		border-bottom: 1px solid var(--line);
+	}
+	.hd-in {
+		height: 58px;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 18px;
+	}
+	.brand {
+		display: inline-flex;
+		align-items: center;
+		gap: 9px;
+		font-family: var(--font-display), sans-serif;
+		font-weight: 700;
+		font-size: 1.02rem;
+		letter-spacing: -0.02em;
+		color: #fff;
+		text-decoration: none;
+		white-space: nowrap;
+	}
+	.brand:hover {
+		color: #fff;
+	}
+	nav {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+	}
+	nav a {
+		font-size: 0.85rem;
+		color: var(--fg-dim);
+		text-decoration: none;
+		padding: 6px 11px;
+		border-radius: 6px;
+		transition: background 0.14s, color 0.14s;
+	}
+	nav a:hover {
+		background: var(--bg-hover);
+		color: var(--fg);
+	}
+	nav a.on {
+		color: var(--accent);
+	}
+	nav a.x {
+		display: inline-grid;
+		place-items: center;
+		width: 30px;
+		height: 30px;
+		padding: 0;
+		margin-left: 4px;
+		border: 1px solid var(--line);
+	}
+	@media (max-width: 620px) {
+		.brand span {
+			display: none;
+		}
+		nav a {
+			padding: 6px 8px;
+			font-size: 0.8rem;
+		}
+	}
+</style>

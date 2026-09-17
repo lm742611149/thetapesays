@@ -1,0 +1,55 @@
+---
+import BaseHead from '../components/BaseHead.astro';
+import Header from '../components/Header.astro';
+import Ticker from '../components/Ticker.astro';
+import Footer from '../components/Footer.astro';
+import Motion from '../components/Motion.astro';
+import Loader from '../components/Loader.astro';
+import Backdrop from '../components/Backdrop.astro';
+import Live from '../components/Live.astro';
+import NewsTicker from '../components/NewsTicker.astro';
+import CoinModal from '../components/CoinModal.astro';
+
+interface Props {
+	title: string;
+	description: string;
+	image?: string;
+	type?: string;
+}
+const { title, description, image, type } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<BaseHead title={title} description={description} image={image} type={type} />
+	</head>
+	<body>
+		<Loader />
+		<Backdrop />
+		<div class="topbar">
+			<Ticker />
+			<Header />
+		</div>
+		<main>
+			<slot />
+		</main>
+		<Footer />
+		<Motion />
+		<Live />
+		<NewsTicker />
+		<CoinModal />
+	</body>
+</html>
+
+<style is:global>
+	/* Quote strip and nav travel together and stay pinned. */
+	.topbar {
+		position: sticky;
+		top: 0;
+		z-index: 50;
+	}
+	/* Room for the fixed headline crawl at the bottom. */
+	body { padding-bottom: var(--newsbar, 36px); }
+	@media (max-width: 620px) { body { padding-bottom: var(--newsbar, 32px); } }
+</style>

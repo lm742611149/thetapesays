@@ -1,0 +1,452 @@
+---
+import Base from '../layouts/Base.astro';
+import PostCard from '../components/PostCard.astro';
+import Radial from '../components/Radial.astro';
+import Radar from '../components/Radar.astro';
+import Donut from '../components/Donut.astro';
+import FundingBoard from '../components/FundingBoard.astro';
+import OiBoard from '../components/OiBoard.astro';
+import OptionsBoard from '../components/OptionsBoard.astro';
+import AltSeason from '../components/AltSeason.astro';
+import EtfTape from '../components/EtfTape.astro';
+import ChartPro from '../components/ChartPro.astro';
+import CoinBoard from '../components/CoinBoard.astro';
+import ReferralSlot from '../components/ReferralSlot.astro';
+import EventFeed from '../components/EventFeed.astro';
+import HeroDeck from '../components/HeroDeck.astro';
+import { SITE_TITLE, SITE_DESC } from '../consts';
+import { allPosts } from '../lib/posts';
+import m from '../data/btc.json';
+import btcCoin from '../data/coins/btc.json';
+import snaps from '../data/snapshots.json';
+
+const posts = await allPosts();
+const [lead, ...rest] = posts;
+
+const money = (n: number) => '$' + Math.round(n).toLocaleString('en-US');
+const pc = (n: number, d = 2) => `${n >= 0 ? '+' : ''}${n.toFixed(d)}%`;
+const cls = (n: number) => (n >= 0 ? 'up' : 'down');
+const ahrZone = m.ahr999.value < 0.45 ? 'bottom' : m.ahr999.value < 1.2 ? 'accumulate' : 'wait';
+const totalVol = m.board.reduce((s: number, r: any) => s + r.volB, 0);
+
+/**
+ * CoinGecko's /global is the flakiest source on the page and it rate-limits
+ * without warning. Render a dash rather than take the build down with it.
+ */
+const g: any = m;
+const capT = typeof g.totalMcapT === 'number' ? `$${g.totalMcapT.toFixed(2)}T` : '—';
+const dominance =
+	typeof g.dominance === 'number' ? `BTC ${g.dominance.toFixed(1)}% dominance` : 'dominance unavailable';
+
+/** Snapshot panels added on top of the core metrics; each renders only if its
+ *  source answered during the build. */
+const alt = g.altseason?.value !== undefined ? g.altseason : null;
+const opts = g.options?.term?.length ? g.options : null;
+const etf = g.etf?.funds?.length ? g.etf : null;
+
+/** Radar axes, each normalised so "further out" means a hotter market. */
+const b: any = btcCoin;
+const clamp = (v: number) => Math.max(0, Math.min(100, v));
+const cone30 = b.cone.find((c: any) => c.w === 30);
+const volPct = clamp(((cone30.now - cone30.min) / (cone30.max - cone30.min)) * 100);
+const axes = [
+	{ key: 'fng', label: 'sentiment', value: m.fng.value, raw: String(m.fng.value), note: 'fear & greed' },
+	{ key: 'ahr', label: 'ahr999', value: clamp((m.ahr999.value / 1.2) * 100), raw: m.ahr999.value.toFixed(3), note: 'dca index' },
+	{ key: 'mayer', label: 'mayer', value: b.mayer.pctile, raw: String(b.mayer.now), note: 'vs 200d mean' },
+	{ key: 'ma200w', label: '200w mult', value: clamp((m.ma200wMult / 3) * 100), raw: m.ma200wMult.toFixed(2) + 'x', note: 'vs 200w mean' },
+	{ key: 'dd', label: 'from ath', value: clamp(100 + m.ath.drawdown), raw: m.ath.drawdown.toFixed(0) + '%', note: 'drawdown' },
+	{ key: 'vol', label: 'volatility', value: volPct, raw: cone30.now.toFixed(0) + '%', note: '30d realised' },
+];
+const stable = snaps.stablecoins;
+const advancing = m.board.filter((r: any) => r.chg >= 0).length;
+---
+
+<Base title={SITE_TITLE} description={SITE_DESC}>
+	<!-- ============ HERO ============ -->
+	<section class="hero">
+		<div class="wrap hero-in">
+			<div class="hero-copy">
+				<p class="label kicker">first-hand market data</p>
+				<h1>Numbers first.<br /><span class="dim">Opinions after.</span></h1>
+				<p class="sub">
+					I pull the data myself, publish the window and the source, and post the position
+					before the outcome is known. When one loses, that post goes up too.
+				</p>
+				<div class="cta">
+					<a href="/research/" class="btn primary">Read the research</a>
+					<a href="/btc/" class="btn" data-deck-cta><span data-deck-sym>BTC</span> dashboard</a>
+				</div>
+			</div>
+
+			<HeroDeck />
+		</div>
+	</section>
+
+	<!-- ============ MARKET SNAPSHOT ============ -->
+	<section class="wrap mkt">
+		<div class="panel block" data-reveal>
+			<div class="bh">
+				<h2>Market</h2>
+				<span class="live"><span class="pulse"></span><span class="label">live</span></span>
+			</div>
+
+		<div class="statrow">
+			<div class="st">
+				<i class="label">BTC</i>
+				<b class="mono" data-live="BTC" data-live-field="price">{money(m.price)}</b>
+				<em class={cls(m.chg.d1)}><span data-live="BTC" data-live-field="chg">{pc(m.chg.d1)}</span> 24h</em>
+			</div>
+			<div class="st">
+				<i class="label">Total cap</i>
+				<b class="mono">{capT}</b>
+				<em>{dominance}</em>
+			</div>
+			<div class="st">
+				<i class="label">24h volume</i>
+				<b class="mono">${totalVol.toFixed(1)}B</b>
+				<em>top 16 pairs, Binance spot</em>
+			</div>
+			<div class="st">
+				<i class="label">Advancing</i>
+				<b class="mono">{advancing}<span class="of">/16</span></b>
+				<em>{advancing >= 8 ? 'broad strength' : 'broad weakness'}</em>
+			</div>
+			<div class="st">
+				<i class="label">From ATH</i>
+				<b class="mono down">{m.ath.drawdown.toFixed(1)}%</b>
+				<em>high {money(m.ath.price)}</em>
+			</div>
+			<div class="st">
+				<i class="label">Halving</i>
+				<b class="mono">{Math.round(m.halving.days)}<span class="of">d</span></b>
+				<em>{m.halving.blocksLeft.toLocaleString()} blocks</em>
+			</div>
+		</div>
+
+		<!-- gauges -->
+		<div class="gauges">
+			<div class="panel g" data-reveal>
+				<Radial
+					value={m.fng.value} max={100} display={String(m.fng.value)}
+					sub={m.fng.label} caption="Fear & Greed"
+					zones={[
+						{ to: 25, color: '#f6465d', label: 'extreme fear' },
+						{ to: 45, color: '#ff9445', label: 'fear' },
+						{ to: 55, color: '#c3cbd9', label: 'neutral' },
+						{ to: 75, color: '#a3e635', label: 'greed' },
+						{ to: 100, color: '#15a05e', label: 'extreme greed' },
+					]}
+				/>
+			</div>
+			<div class="panel g" data-reveal style="--rd:70ms">
+				<Radial
+					value={m.ahr999.value} max={3} display={m.ahr999.value.toFixed(3)}
+					sub={ahrZone} caption="AHR999 · DCA index"
+					zones={[
+						{ to: 0.45, color: '#26d07c', label: 'bottom' },
+						{ to: 1.2, color: '#f0b90b', label: 'accumulate' },
+						{ to: 3, color: '#f6465d', label: 'wait' },
+					]}
+				/>
+			</div>
+			<div class="panel g" data-reveal style="--rd:140ms">
+				<Radial
+					value={Math.min(3, m.ma200wMult)} max={3} display={`${m.ma200wMult.toFixed(2)}x`}
+					sub="of MA200W" caption="200-week multiple"
+					zones={[
+						{ to: 1, color: '#26d07c', label: 'under' },
+						{ to: 2, color: '#f0b90b', label: 'mid' },
+						{ to: 3, color: '#f6465d', label: 'stretched' },
+					]}
+				/>
+			</div>
+		</div>
+
+		</div>
+
+		<!-- regime + composition -->
+		<div class="two" data-reveal>
+			<div class="panel block">
+				<div class="bh">
+					<h3>Market regime</h3>
+					<span class="legend">six measures, normalised</span>
+				</div>
+				<Radar axes={axes} />
+			</div>
+			<div class="panel block">
+				<div class="bh">
+					<h3>Stablecoins by chain</h3>
+					<a href="/research/stablecoins-are-basically-two-chains/" class="more label">the write-up →</a>
+				</div>
+				<Donut
+					slices={stable.chains.map((c: any) => ({ name: c.name, pct: c.pct }))}
+					center={`$${stable.totalB}B`}
+					sub="all chains"
+				/>
+				<p class="pnote">
+					Ethereum and Tron hold {(stable.chains[0].pct + stable.chains[1].pct).toFixed(0)}% of every
+					stablecoin in existence. Source DefiLlama, {stable.asOf}.
+				</p>
+			</div>
+		</div>
+
+		<!-- altcoin season -->
+		{alt && (
+			<div class="panel block" data-reveal>
+				<div class="bh">
+					<h3>Altcoin season index</h3>
+					<span class="legend">{alt.lookback}-day window · recomputed each build</span>
+				</div>
+				<AltSeason
+					value={alt.value} zone={alt.zone} beating={alt.beating} counted={alt.counted}
+					btcRet={alt.btcRet} lookback={alt.lookback}
+					leaders={alt.leaders} laggards={alt.laggards}
+				/>
+			</div>
+		)}
+
+		<!-- funding across venues -->
+		<div class="panel block" data-reveal>
+			<div class="bh">
+				<h3>Funding across venues</h3>
+				<a href="/research/funding-rate-carry-is-mostly-gone/" class="more label">what it pays →</a>
+			</div>
+			<FundingBoard />
+		</div>
+
+		<ReferralSlot />
+
+		<!-- open interest across venues -->
+		<div class="panel block" data-reveal>
+			<div class="bh">
+				<h3>Open interest across venues</h3>
+				<span class="legend">live · normalised to coins</span>
+			</div>
+			<OiBoard />
+		</div>
+
+		<!-- options surface -->
+		{opts && (
+			<div class="panel block" data-reveal>
+				<div class="bh">
+					<h3>What options are pricing</h3>
+					<span class="legend">Deribit · {opts.currency}</span>
+				</div>
+				<OptionsBoard
+					spot={opts.spot} pcOi={opts.pcOi} pcVol={opts.pcVol} oi={opts.oi}
+					totalOi={opts.totalOi} frontIv={opts.frontIv} slope={opts.slope} farLabel={opts.farLabel}
+					term={opts.term} byExpiry={opts.byExpiry}
+					dvol={opts.dvol ?? []} dvolNow={opts.dvolNow} dvolPctile={opts.dvolPctile}
+					dvolLow={opts.dvolLow} dvolHigh={opts.dvolHigh} currency={opts.currency}
+				/>
+			</div>
+		)}
+
+		<!-- price -->
+		<div class="panel chart" data-reveal>
+			<div class="bh">
+				<h3>Price</h3>
+				<span class="legend">daily close · hover for detail</span>
+			</div>
+			<ChartPro charts={m.charts} />
+		</div>
+
+		<!-- etf tape -->
+		{etf && (
+			<div class="panel block" data-reveal>
+				<div class="bh">
+					<h3>US spot ETF tape</h3>
+					<span class="legend">dollar volume · not flow</span>
+				</div>
+				<EtfTape funds={etf.funds} total={etf.total} totalM={etf.totalM} totalAvgM={etf.totalAvgM} asOf={etf.asOf} />
+			</div>
+		)}
+
+		<!-- news, under the price chart -->
+		<div class="panel evpanel" data-reveal>
+			<div class="bh">
+				<h3>News</h3>
+				<a href="/events/" class="more label">full log →</a>
+			</div>
+			<EventFeed scroll height={330} showUpcoming={false} />
+		</div>
+
+		<!-- board -->
+		<div class="panel chart" data-reveal>
+			<div class="bh">
+				<h3>Market board</h3>
+				<a href="/btc/" class="more label">monthly heatmap &amp; more →</a>
+			</div>
+			<CoinBoard rows={m.board} />
+		</div>
+	</section>
+
+	<!-- ============ FINDINGS ============ -->
+	<section class="wrap">
+		<div class="panel block" data-reveal>
+			<div class="bh">
+				<h3>Findings</h3>
+				<a href="/research/" class="more label">all research →</a>
+			</div>
+			<div class="findings">
+			{
+				[
+					{ n: '0.29x', l: 'covered calls vs 7.90x holding', h: '/research/covered-calls-sell-the-only-part-that-pays/' },
+					{ n: '49%', l: 'FOMC bounce vs 57% ordinary', h: '/research/the-fomc-reversal-is-a-drop-thing/' },
+					{ n: '79%', l: 'of stablecoins on two chains', h: '/research/stablecoins-are-basically-two-chains/' },
+					{ n: '2.82%', l: 'funding carry, down from 30.6%', h: '/research/funding-rate-carry-is-mostly-gone/' },
+				].map((f) => (
+					<a href={f.h} class="fnd">
+						<span class="fn">{f.n}</span>
+						<span class="fl">{f.l}</span>
+					</a>
+				))
+			}
+			</div>
+		</div>
+	</section>
+
+	<!-- ============ LATEST ============ -->
+	<section class="wrap">
+		<div class="panel block" data-reveal>
+			<div class="bh">
+				<h3>Latest</h3>
+				<a href="/research/" class="more label">all research →</a>
+			</div>
+			{lead && <PostCard post={lead} featured />}
+			<div class="grid">
+				{rest.slice(0, 4).map((p) => <PostCard post={p} />)}
+			</div>
+		</div>
+	</section>
+
+	<div class="wrap"><ReferralSlot /></div>
+</Base>
+
+<style>
+	.hero {
+		padding: 62px 0 44px;
+		border-bottom: 1px solid var(--line);
+		background:
+			radial-gradient(900px 340px at 12% -10%, rgba(240, 185, 11, 0.07), transparent 65%),
+			radial-gradient(700px 300px at 85% 0%, rgba(38, 208, 124, 0.045), transparent 60%);
+	}
+	.hero-in {
+		display: grid;
+		grid-template-columns: minmax(0, 1.05fr) minmax(330px, 0.95fr);
+		gap: 48px;
+		align-items: center;
+	}
+	.kicker { margin: 0 0 15px; color: var(--accent); }
+
+	.hero h1 {
+		margin: 0 0 18px;
+		font-size: clamp(2.3rem, 6.4vw, 3.9rem);
+		font-weight: 700;
+		letter-spacing: -0.03em;
+	}
+	.dim { color: var(--fg-mute); }
+	.sub { max-width: 58ch; font-size: 1.06rem; color: var(--fg-dim); margin: 0 0 26px; }
+	.cta { display: flex; gap: 10px; flex-wrap: wrap; }
+	.btn {
+		display: inline-block; padding: 11px 20px; border-radius: 7px;
+		border: 1px solid var(--line-bright); font-size: 0.94rem; font-weight: 500;
+		text-decoration: none; color: var(--fg); transition: all 0.15s ease;
+	}
+	.btn:hover { border-color: var(--accent); color: var(--accent); }
+	.btn.primary { background: var(--accent); border-color: var(--accent); color: #0a0a0a; font-weight: 600; }
+	.btn.primary:hover { background: #ffc247; border-color: #ffc247; color: #0a0a0a; }
+
+	.mkt { padding-top: 34px; }
+	.panel.block { padding: 20px 22px 22px; margin-bottom: 14px; }
+	.bh h2 { margin: 0; font-size: 1.32rem; }
+	.live { display: inline-flex; align-items: center; gap: 6px; }
+	.more { text-decoration: none; color: var(--fg-mute); }
+	.more:hover { color: var(--accent); }
+
+	.statrow {
+		display: grid; grid-template-columns: repeat(6, 1fr); gap: 1px;
+		background: var(--line); border: 1px solid var(--line);
+		border-radius: var(--radius); overflow: hidden;
+	}
+	.st {
+		background: var(--bg-panel); padding: 15px 16px 17px;
+		display: flex; flex-direction: column; gap: 5px;
+	}
+	.st b {
+		font-family: var(--font-mono), monospace; font-size: 1.4rem; font-weight: 700;
+		color: #fff; line-height: 1; letter-spacing: -0.025em; font-variant-numeric: tabular-nums;
+	}
+	.st .of { font-size: 0.8rem; color: var(--fg-mute); font-weight: 500; }
+	.st em {
+		font-style: normal; font-family: var(--font-mono), monospace;
+		font-size: 0.72rem; color: var(--fg-mute);
+	}
+
+	.gauges { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 14px; }
+	.two { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 14px; }
+	.two .panel.block { margin-bottom: 0; }
+	.bh h3 { margin: 0; font-size: 1.1rem; }
+	.legend { font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--fg-mute); }
+	.pnote { margin: 14px 0 0; font-size: 0.82rem; line-height: 1.6; color: var(--fg-mute); }
+	.panel.g { padding: 22px 18px 20px; display: flex; justify-content: center; background: var(--bg-raised); }
+	.panel.chart { padding: 20px 22px 22px; margin-bottom: 14px; }
+	.bh {
+		display: flex; align-items: baseline; justify-content: space-between;
+		gap: 14px; margin-bottom: 14px; flex-wrap: wrap;
+	}
+	.bh h3 { margin: 0; font-size: 1.16rem; }
+	.legend {
+		display: inline-flex; align-items: center; gap: 7px;
+		font-family: var(--font-mono), monospace; font-size: 0.74rem; color: var(--fg-mute);
+	}
+	.sw { width: 15px; height: 2px; border-radius: 1px; display: inline-block; }
+	.sw.dash, .sw.dash2 {
+		background: repeating-linear-gradient(90deg, var(--fg-mute) 0 4px, transparent 4px 7px);
+		margin-left: 8px;
+	}
+	.sw.dash2 {
+		background: repeating-linear-gradient(90deg, var(--accent) 0 4px, transparent 4px 7px);
+	}
+
+	.evpanel { padding: 20px 22px 10px; margin-bottom: 14px; }
+
+	.findings {
+		display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+		background: var(--line); border: 1px solid var(--line);
+		border-radius: var(--radius); overflow: hidden;
+	}
+	.fnd { background: var(--bg-raised); }
+	.fnd {
+		background: var(--bg-panel); padding: 20px 19px; text-decoration: none;
+		display: flex; flex-direction: column; gap: 6px; transition: background 0.15s ease;
+	}
+	.fnd:hover { background: var(--bg-hover); }
+	.fn {
+		font-family: var(--font-mono), monospace; font-size: 2.1rem; font-weight: 700;
+		color: #fff; letter-spacing: -0.03em; line-height: 1;
+	}
+	.fnd:hover .fn { color: var(--accent); }
+	.fl { font-size: 0.84rem; color: var(--fg-mute); line-height: 1.45; }
+
+	section.wrap { margin-bottom: 38px; }
+	.grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 12px; }
+
+	@media (max-width: 940px) {
+		.hero-in { grid-template-columns: 1fr; gap: 34px; }
+	}
+	@media (max-width: 1000px) {
+		.statrow { grid-template-columns: repeat(3, 1fr); }
+		.gauges { grid-template-columns: 1fr; }
+		.two { grid-template-columns: 1fr; }
+	}
+	@media (max-width: 860px) {
+		.findings { grid-template-columns: repeat(2, 1fr); }
+		.grid { grid-template-columns: 1fr; }
+	}
+	@media (max-width: 560px) {
+		.statrow { grid-template-columns: repeat(2, 1fr); }
+		.findings { grid-template-columns: 1fr; }
+		.hero { padding: 44px 0 36px; }
+	}
+</style>

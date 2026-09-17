@@ -1,0 +1,289 @@
+---
+/**
+ * Referral banner. Binance yellow, and loud on purpose — but the claim it makes
+ * is the one thing on the page that has to stay true, so it sells the account
+ * the site's own numbers are pulled from rather than a return.
+ *
+ * `wide` closes a page; `inline` is the slim strip for dropping under a table
+ * someone is already reading, where the context does the persuading.
+ */
+import { REFERRAL } from '../consts';
+interface Props {
+	variant?: 'wide' | 'inline';
+}
+const { variant = 'wide' } = Astro.props;
+---
+
+{REFERRAL.live && (
+	<aside class={`ref ${variant}`} data-ref>
+		<div class="glow" aria-hidden="true"></div>
+
+		<div class="body">
+			<div class="copy">
+				<span class="kicker">
+					<span class="dot" aria-hidden="true"></span>
+					Support the site
+				</span>
+				<h3>
+					Sign up to <b>{REFERRAL.name}</b> with my code — you pay lower fees, and the rebate
+					keeps this site running.
+				</h3>
+			</div>
+
+			<div class="act">
+				<a class="cta" href={REFERRAL.href} rel="sponsored noopener" target="_blank">
+					<span>Open a {REFERRAL.name} account</span>
+					<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" /></svg>
+				</a>
+				<button class="code" data-ref-code={REFERRAL.code} type="button">
+					<i>Referral code</i>
+					<b>{REFERRAL.code}</b>
+					<span class="cp" data-ref-state>copy</span>
+				</button>
+			</div>
+		</div>
+
+		<p class="fine">Referral link · costs you nothing extra</p>
+	</aside>
+)}
+
+<style>
+	.ref {
+		position: relative;
+		border-radius: 14px;
+		background:
+			radial-gradient(120% 140% at 8% 0%, rgba(240, 185, 11, 0.13), transparent 58%),
+			linear-gradient(170deg, #15130c, #0c0d11 60%);
+		padding: 22px 24px 16px;
+		overflow: hidden;
+		isolation: isolate;
+	}
+	.ref.wide { margin: 14px 0; }
+	.ref.inline { margin: 26px 0; padding: 18px 20px 13px; }
+
+	/* A yellow edge that stays lit, with a brighter arc travelling around it.
+	   Drawn as a masked ring so the fill underneath is untouched. */
+	.ref::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		padding: 1px;
+		background:
+			conic-gradient(
+				from var(--sweep, 0deg),
+				rgba(240, 185, 11, 0.25) 0deg,
+				#f0b90b 40deg,
+				rgba(240, 185, 11, 0.9) 70deg,
+				rgba(240, 185, 11, 0.22) 150deg,
+				rgba(240, 185, 11, 0.22) 360deg
+			);
+		mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+		mask-composite: exclude;
+		-webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+		-webkit-mask-composite: xor;
+		animation: sweep 5s linear infinite;
+		z-index: 2;
+		pointer-events: none;
+	}
+	@property --sweep {
+		syntax: '<angle>';
+		inherits: false;
+		initial-value: 0deg;
+	}
+	@keyframes sweep { to { --sweep: 360deg; } }
+
+	/* slow breathing wash behind the copy */
+	.glow {
+		position: absolute;
+		inset: -40% -10% auto -10%;
+		height: 240px;
+		background: radial-gradient(60% 100% at 20% 50%, rgba(240, 185, 11, 0.16), transparent 70%);
+		animation: breathe 6s ease-in-out infinite;
+		z-index: 0;
+	}
+	@keyframes breathe {
+		0%, 100% { opacity: 0.55; transform: translateX(0); }
+		50% { opacity: 1; transform: translateX(6%); }
+	}
+
+	.body {
+		position: relative;
+		z-index: 1;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 26px;
+		flex-wrap: wrap;
+	}
+	.copy { flex: 1 1 340px; min-width: 0; }
+
+	.kicker {
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+		font-family: var(--font-mono), monospace;
+		font-size: 0.62rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.14em;
+		color: var(--accent);
+	}
+	.dot {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: var(--accent);
+		box-shadow: 0 0 0 0 rgba(240, 185, 11, 0.6);
+		animation: ping 1.9s ease-out infinite;
+	}
+	@keyframes ping {
+		0% { box-shadow: 0 0 0 0 rgba(240, 185, 11, 0.55); }
+		70%, 100% { box-shadow: 0 0 0 9px rgba(240, 185, 11, 0); }
+	}
+
+	.ref h3 {
+		margin: 9px 0 0;
+		max-width: 46ch;
+		font-size: 1.18rem;
+		font-weight: 700;
+		line-height: 1.38;
+		letter-spacing: -0.015em;
+		color: #fff;
+	}
+	.ref h3 b { color: var(--accent); }
+	.act { display: flex; flex-direction: column; gap: 9px; flex: 0 0 auto; }
+
+	.cta {
+		position: relative;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 9px;
+		min-height: var(--tap);
+		padding: 0 22px;
+		border-radius: 9px;
+		background: linear-gradient(180deg, #f8c633, var(--accent));
+		color: #14100a;
+		font-family: var(--font-display), sans-serif;
+		font-size: 0.92rem;
+		font-weight: 700;
+		text-decoration: none;
+		white-space: nowrap;
+		overflow: hidden;
+		box-shadow: 0 6px 22px rgba(240, 185, 11, 0.26);
+		transition: transform 0.16s ease, box-shadow 0.16s ease;
+	}
+	/* a shine that crosses the button on its own, then again on hover */
+	.cta::after {
+		content: '';
+		position: absolute;
+		inset: 0 auto 0 -60%;
+		width: 45%;
+		background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+		transform: skewX(-18deg);
+		animation: shine 3.4s ease-in-out infinite;
+	}
+	@keyframes shine {
+		0%, 62% { left: -60%; }
+		92%, 100% { left: 130%; }
+	}
+	.cta:hover { transform: translateY(-1px); box-shadow: 0 10px 28px rgba(240, 185, 11, 0.38); }
+	.cta:active { transform: translateY(0); }
+	.cta svg {
+		width: 15px; height: 15px; flex: none;
+		fill: none; stroke: currentColor; stroke-width: 2;
+		stroke-linecap: round; stroke-linejoin: round;
+	}
+
+	.code {
+		appearance: none;
+		display: grid;
+		grid-template-columns: auto auto;
+		align-items: center;
+		gap: 2px 10px;
+		padding: 8px 14px;
+		border: 1px dashed rgba(240, 185, 11, 0.45);
+		border-radius: 9px;
+		background: rgba(240, 185, 11, 0.13);
+		cursor: pointer;
+		text-align: left;
+		transition: border-color 0.16s, background 0.16s;
+	}
+	.code:hover { border-color: var(--accent); background: rgba(240, 185, 11, 0.2); }
+	.code i {
+		grid-column: 1 / -1;
+		font-family: var(--font-mono), monospace;
+		font-size: 0.58rem;
+		font-style: normal;
+		text-transform: uppercase;
+		letter-spacing: 0.12em;
+		color: var(--fg-mute);
+	}
+	.code b {
+		font-family: var(--font-mono), monospace;
+		font-size: 1rem;
+		font-weight: 700;
+		letter-spacing: 0.1em;
+		color: var(--accent);
+	}
+	.cp {
+		font-family: var(--font-mono), monospace;
+		font-size: 0.6rem;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: var(--fg-mute);
+	}
+	.code.done .cp { color: var(--up); }
+
+	.fine {
+		position: relative;
+		z-index: 1;
+		margin: 15px 0 0;
+		padding-top: 11px;
+		border-top: 1px solid rgba(240, 185, 11, 0.16);
+		font-family: var(--font-mono), monospace;
+		font-size: 0.63rem;
+		letter-spacing: 0.04em;
+		color: var(--fg-mute);
+	}
+
+	.ref.inline h3 { font-size: 1.02rem; }
+
+	@media (max-width: 620px) {
+		.act { width: 100%; }
+		.cta { width: 100%; }
+		.code { justify-content: center; }
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.ref::before, .glow, .dot, .cta::after { animation: none; }
+		.cta:hover { transform: none; }
+	}
+</style>
+
+<script>
+	for (const el of document.querySelectorAll<HTMLElement>('[data-ref-code]')) {
+		el.addEventListener('click', async () => {
+			const code = el.dataset.refCode!;
+			const tag = el.querySelector<HTMLElement>('[data-ref-state]');
+			try {
+				await navigator.clipboard.writeText(code);
+			} catch {
+				// clipboard is blocked outside a secure context — select it instead
+				const r = document.createRange();
+				r.selectNodeContents(el.querySelector('b')!);
+				const sel = getSelection();
+				sel?.removeAllRanges();
+				sel?.addRange(r);
+				if (tag) tag.textContent = 'select + ⌘C';
+				return;
+			}
+			el.classList.add('done');
+			if (tag) tag.textContent = 'copied';
+			setTimeout(() => {
+				el.classList.remove('done');
+				if (tag) tag.textContent = 'copy';
+			}, 1800);
+		});
+	}
+</script>

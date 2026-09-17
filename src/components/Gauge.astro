@@ -1,0 +1,96 @@
+---
+/** Horizontal scale with named zones and a marker at the current value. */
+interface Zone {
+	to: number;
+	label: string;
+	color: string;
+}
+interface Props {
+	value: number;
+	min: number;
+	max: number;
+	zones: Zone[];
+	format?: (v: number) => string;
+}
+const { value, min, max, zones } = Astro.props;
+const pct = (v: number) => Math.min(100, Math.max(0, ((v - min) / (max - min)) * 100));
+let prev = min;
+const bands = zones.map((z) => {
+	const b = { ...z, left: pct(prev), width: pct(z.to) - pct(prev) };
+	prev = z.to;
+	return b;
+});
+const here = pct(value);
+---
+
+<div class="g">
+	<div class="track">
+		{bands.map((b) => <span class="band" style={`left:${b.left}%;width:${b.width}%;background:${b.color}`} />)}
+		<span class="mark" style={`left:${here}%`}></span>
+	</div>
+	<div class="legend">
+		{
+			bands.map((b) => (
+				<span class="lg" style={`width:${b.width}%`}>
+					<i style={`background:${b.color}`} />
+					{b.label}
+				</span>
+			))
+		}
+	</div>
+</div>
+
+<style>
+	.g {
+		margin-top: 14px;
+	}
+	.track {
+		position: relative;
+		height: 8px;
+		border-radius: 4px;
+		overflow: visible;
+		background: #0a0c10;
+		border: 1px solid var(--line);
+	}
+	.band {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		opacity: 0.55;
+	}
+	.band:first-of-type {
+		border-radius: 4px 0 0 4px;
+	}
+	.mark {
+		position: absolute;
+		top: -5px;
+		width: 3px;
+		height: 16px;
+		margin-left: -1.5px;
+		background: #fff;
+		border-radius: 2px;
+		box-shadow: 0 0 0 2px var(--bg-panel), 0 0 10px rgba(255, 255, 255, 0.5);
+	}
+	.legend {
+		display: flex;
+		margin-top: 9px;
+		gap: 0;
+	}
+	.lg {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		font-family: var(--font-mono), monospace;
+		font-size: 0.6rem;
+		color: var(--fg-mute);
+		white-space: nowrap;
+		overflow: hidden;
+	}
+	.lg i {
+		width: 6px;
+		height: 6px;
+		border-radius: 1px;
+		flex: none;
+		opacity: 0.8;
+	}
+</style>

@@ -1,0 +1,31 @@
+---
+import Base from '../layouts/Base.astro';
+import ReferralSlot from '../components/ReferralSlot.astro';
+---
+
+<Base title="404" description="Nothing here.">
+	<div class="wrap nf">
+		<p class="code">404</p>
+		<h1>No print at that level</h1>
+		<p>That page doesn't exist. The <a href="/research/">research index</a> probably has what you came for.</p>
+	</div>
+	<div class="wrap"><ReferralSlot /></div>
+</Base>
+
+<style>
+	.nf {
+		padding: 110px 0 60px;
+		text-align: center;
+	}
+	.code {
+		font-family: var(--font-mono), monospace;
+		font-size: 4.5rem;
+		font-weight: 700;
+		color: var(--line-bright);
+		margin: 0 0 8px;
+		line-height: 1;
+	}
+	.nf p:last-child {
+		color: var(--fg-dim);
+	}
+</style>

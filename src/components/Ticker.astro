@@ -1,0 +1,81 @@
+---
+/**
+ * Seamless scrolling quote strip. The row is rendered twice and translated by
+ * -50%, so the loop has no seam. Hover pauses it; reduced-motion stops it and
+ * leaves the strip scrollable by hand.
+ */
+import board from '../data/btc.json';
+const seed = (board as any).board ?? [];
+---
+
+<div class="ticker" data-ticker>
+	<span class="live"><span class="pulse"></span><span class="label">live</span></span>
+	<div class="vp">
+		<div class="rail" data-rail>
+			{[0, 1].map((copy) => (
+				<div class="run" aria-hidden={copy === 1 ? 'true' : undefined}>
+					{seed.map((q: any) => (
+						<span class="q">
+							<b>{q.sym}</b>
+							<span class="px" data-live={q.sym} data-live-field="price" data-live-fmt="plain">
+								{q.price >= 1000
+									? Math.round(q.price).toLocaleString('en-US')
+									: q.price.toFixed(q.price >= 1 ? 2 : 4)}
+							</span>
+							<span class={`ch ${q.chg >= 0 ? 'up' : 'down'}`} data-live={q.sym} data-live-field="chg">
+								{q.chg >= 0 ? '+' : ''}
+								{q.chg.toFixed(2)}%
+							</span>
+						</span>
+					))}
+				</div>
+			))}
+		</div>
+	</div>
+</div>
+
+<style>
+	.ticker {
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		height: 42px;
+		padding: 0 16px;
+		border-bottom: 1px solid var(--line);
+		background: linear-gradient(180deg, #0b0d11, var(--bg));
+		overflow: hidden;
+	}
+	.live { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+	.vp {
+		flex: 1;
+		overflow: hidden;
+		mask-image: linear-gradient(90deg, transparent, #000 28px, #000 calc(100% - 28px), transparent);
+	}
+	.rail {
+		display: flex;
+		width: max-content;
+		animation: slide 90s linear infinite;
+	}
+	.ticker:hover .rail { animation-play-state: paused; }
+	@keyframes slide {
+		to { transform: translateX(-50%); }
+	}
+	.run { display: flex; }
+	.q {
+		display: inline-flex;
+		align-items: baseline;
+		gap: 6px;
+		font-family: var(--font-mono), monospace;
+		font-size: 0.84rem;
+		white-space: nowrap;
+		padding: 2px 13px;
+		border-radius: 3px;
+	}
+	.q b { color: var(--fg-dim); font-weight: 500; }
+	.px { color: var(--fg); font-variant-numeric: tabular-nums; }
+	.ch { font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+	@media (prefers-reduced-motion: reduce) {
+		.rail { animation: none; }
+		.vp { overflow-x: auto; scrollbar-width: none; }
+	}
+</style>

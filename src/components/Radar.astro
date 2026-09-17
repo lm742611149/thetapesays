@@ -1,0 +1,114 @@
+---
+/**
+ * Market-regime radar. Six axes, each normalised to 0-100 with its own
+ * direction so "further out" always means "hotter". Purely a summary view —
+ * every axis links back to the number it came from.
+ */
+interface Axis { key: string; label: string; value: number; raw: string; note: string }
+interface Props { axes: Axis[] }
+const { axes } = Astro.props;
+
+const R = 92, CX = 118, CY = 112, RINGS = 4;
+const n = axes.length;
+const ang = (i: number) => (Math.PI * 2 * i) / n - Math.PI / 2;
+const pt = (i: number, r: number) => [CX + r * Math.cos(ang(i)), CY + r * Math.sin(ang(i))];
+const poly = (vals: number[]) =>
+	vals.map((v, i) => { const [x, y] = pt(i, (Math.max(0, Math.min(100, v)) / 100) * R); return `${x.toFixed(1)},${y.toFixed(1)}`; }).join(' ');
+const ring = (f: number) =>
+	axes.map((_, i) => { const [x, y] = pt(i, R * f); return `${x.toFixed(1)},${y.toFixed(1)}`; }).join(' ');
+const mean = axes.reduce((s, a) => s + a.value, 0) / n;
+---
+
+<div class="rwrap">
+<figure class="radar">
+	<svg viewBox="-52 -9 320 243" role="img" aria-label="Market regime radar">
+		{Array.from({ length: RINGS }, (_, k) => (
+			<polygon class="ring" points={ring((k + 1) / RINGS)} />
+		))}
+		{axes.map((_, i) => {
+			const [x, y] = pt(i, R);
+			return <line class="spoke" x1={CX} y1={CY} x2={x.toFixed(1)} y2={y.toFixed(1)} />;
+		})}
+		<polygon class="area" points={poly(axes.map((a) => a.value))} />
+		{axes.map((a, i) => {
+			const [x, y] = pt(i, (Math.max(0, Math.min(100, a.value)) / 100) * R);
+			return <circle class="node" cx={x.toFixed(1)} cy={y.toFixed(1)} r="3.2" data-ax={a.key} />;
+		})}
+		{axes.map((a, i) => {
+			const [x, y] = pt(i, R + 19);
+			return (
+				<text class="lbl" x={x.toFixed(1)} y={(y + 3).toFixed(1)}
+					text-anchor={Math.abs(x - CX) < 6 ? 'middle' : x > CX ? 'start' : 'end'}>{a.label}</text>
+			);
+		})}
+	</svg>
+
+	<ul class="legend">
+		{axes.map((a) => (
+			<li>
+				<span class="k">{a.label}</span>
+				<span class="bar"><i style={`--w:${Math.max(0, Math.min(100, a.value))}%`} /></span>
+				<span class="raw">{a.raw}</span>
+			</li>
+		))}
+	</ul>
+	<p class="mean">composite <b>{mean.toFixed(0)}</b><span>/100 · higher is hotter</span></p>
+</figure>
+</div>
+
+<style>
+	/* Whether the plot and the legend fit side by side depends on the panel we
+	   are dropped into, not on the viewport — this component sits in a two-up
+	   grid on wide screens, where each column is narrower than the page is on a
+	   tablet. So the switch is a container query. */
+	.rwrap { container-type: inline-size; }
+	.radar { margin: 0; display: grid; grid-template-columns: minmax(232px, 320px) minmax(0, 1fr); gap: 18px; align-items: center; }
+	/* The viewBox is wider than the plot: axis labels hang off every side, and
+	   "VOLATILITY" alone reaches ~63px past the left spoke. Sized to fit them
+	   rather than left to overflow the panel. */
+	svg { width: 320px; max-width: 100%; height: auto; }
+	.ring { fill: none; stroke: var(--line); stroke-width: 1; }
+	.spoke { stroke: var(--line); stroke-width: 1; }
+	.area {
+		fill: rgba(240, 185, 11, 0.16);
+		stroke: var(--accent);
+		stroke-width: 2;
+		stroke-linejoin: round;
+		animation: radarIn 0.9s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+		transform-origin: 118px 112px;
+	}
+	@keyframes radarIn { from { transform: scale(0.2); opacity: 0; } }
+	.node { fill: var(--accent); stroke: var(--bg-panel); stroke-width: 1.5; }
+	.lbl {
+		font-family: var(--font-mono), monospace; font-size: 9.5px;
+		fill: var(--fg-mute); text-transform: uppercase; letter-spacing: 0.06em;
+	}
+
+	.legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+	.legend li {
+		display: grid; grid-template-columns: 78px minmax(0, 1fr) 62px;
+		align-items: center; gap: 10px;
+		font-family: var(--font-mono), monospace; font-size: 0.72rem;
+	}
+	.k { color: var(--fg-mute); text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.64rem; }
+	.bar { height: 5px; background: #0a0c10; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+	.bar i {
+		display: block; height: 100%; width: var(--w);
+		background: linear-gradient(90deg, var(--accent), #ff8a00);
+		animation: barGrow 0.8s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+	}
+	@keyframes barGrow { from { width: 0; } }
+	.raw { text-align: right; color: #fff; font-weight: 700; font-variant-numeric: tabular-nums; }
+	.mean {
+		grid-column: 1 / -1; margin: 4px 0 0; text-align: center;
+		font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--fg-mute);
+	}
+	.mean b { color: var(--accent); font-size: 1.1rem; }
+	.mean span { font-size: 0.66rem; }
+
+	@container (max-width: 640px) {
+		.radar { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+		.legend { width: 100%; }
+	}
+	@media (prefers-reduced-motion: reduce) { .area, .bar i { animation: none; } }
+</style>

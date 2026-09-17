@@ -1,0 +1,50 @@
+---
+/** Mean return by weekday — diverging bars around zero. */
+interface Row { day: string; avg: number; win: number; n: number }
+interface Props { rows: Row[] }
+const { rows } = Astro.props;
+const max = Math.max(...rows.map((r) => Math.abs(r.avg))) * 1.25 || 1;
+---
+
+<div class="dow">
+	{rows.map((r) => (
+		<div class="row">
+			<span class="d">{r.day}</span>
+			<div class="track">
+				<span class="zero" />
+				<i class={r.avg >= 0 ? 'up' : 'down'}
+					style={`--w:${(Math.abs(r.avg) / max) * 50}%;--side:${r.avg >= 0 ? '50%' : 'auto'};--rside:${r.avg >= 0 ? 'auto' : '50%'}`} />
+			</div>
+			<span class={`v ${r.avg >= 0 ? 'up' : 'down'}`}>{r.avg >= 0 ? '+' : ''}{r.avg.toFixed(3)}%</span>
+			<span class="w">{r.win}% up</span>
+		</div>
+	))}
+</div>
+
+<style>
+	.dow { display: flex; flex-direction: column; gap: 7px; }
+	.row {
+		display: grid; grid-template-columns: 40px minmax(0, 1fr) 76px 66px;
+		align-items: center; gap: 12px;
+		font-family: var(--font-mono), monospace; font-size: 0.78rem;
+	}
+	.d { color: var(--fg-dim); }
+	.track { position: relative; height: 16px; background: #0a0c10; border: 1px solid var(--line); border-radius: 3px; }
+	.zero { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--line-bright); }
+	.track i {
+		position: absolute; top: 2px; bottom: 2px;
+		left: var(--side); right: var(--rside); width: var(--w);
+		border-radius: 2px;
+		animation: dowGrow 0.7s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+	}
+	.track i.up { background: var(--up); }
+	.track i.down { background: var(--down); }
+	@keyframes dowGrow { from { width: 0; } }
+	.v { text-align: right; font-weight: 700; }
+	.w { text-align: right; color: var(--fg-mute); font-size: 0.7rem; }
+	@media (max-width: 620px) {
+		.row { grid-template-columns: 34px minmax(0, 1fr) 70px; }
+		.w { display: none; }
+	}
+	@media (prefers-reduced-motion: reduce) { .track i { animation: none; } }
+</style>

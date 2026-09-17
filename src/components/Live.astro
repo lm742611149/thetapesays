@@ -1,0 +1,180 @@
+---
+/**
+ * One WebSocket for the whole page. Binance's public data stream pushes every
+ * tick; anything that wants live numbers registers a binding via data-live
+ * attributes and this updates it. Falls back to polling /api/quotes where the
+ * socket can't connect (blocked regions, corporate proxies), which still works
+ * because that route is proxied at the edge.
+ *
+ * Bindings, set as attributes on any element:
+ *   data-live="BTC"          the symbol to track
+ *   data-live-field="price"  price | chg | high | low | vol
+ *   data-live-fmt="usd"      usd | pct | compact  (optional)
+ */
+---
+
+<script>
+	type Tick = { price: number; chg: number; high: number; low: number; vol: number };
+
+	const SYMS = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','TON','SUI','DOT','LTC','TRX','NEAR','APT'];
+	const state: Record<string, Tick> = {};
+	const prev: Record<string, number> = {};
+	const subs = new Set<(s: string, t: Tick) => void>();
+
+	const num = (n: number) =>
+		n >= 1000 ? Math.round(n).toLocaleString('en-US')
+			: n >= 1 ? n.toFixed(2)
+			: n.toFixed(n >= 0.01 ? 4 : 6);
+	const fmt = {
+		usd: (n: number) => '$' + num(n),
+		plain: (n: number) => num(n),
+		pct: (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`,
+		compact: (n: number) => '$' + (n / 1e9).toFixed(2) + 'B',
+	};
+
+	/** Paint every element bound to this symbol, flashing on change. */
+	function paint(sym: string, t: Tick) {
+		const nodes = document.querySelectorAll<HTMLElement>(`[data-live="${sym}"]`);
+		for (const el of nodes) {
+			const field = (el.dataset.liveField ?? 'price') as keyof Tick;
+			const v = t[field];
+			if (v == null) continue;
+			const f = (el.dataset.liveFmt ?? (field === 'chg' ? 'pct' : field === 'vol' ? 'compact' : 'usd')) as keyof typeof fmt;
+			const next = fmt[f](v);
+			if (el.textContent === next) continue;
+			el.textContent = next;
+			if (field === 'chg' || el.dataset.liveColor === '1') {
+				el.classList.toggle('up', v >= 0);
+				el.classList.toggle('down', v < 0);
+			}
+			if (field === 'price') {
+				const p = prev[sym];
+				if (p !== undefined && p !== v) {
+					const dir = v > p ? 'tick-up' : 'tick-down';
+					el.classList.remove('tick-up', 'tick-down');
+					void el.offsetWidth;
+					el.classList.add(dir);
+					setTimeout(() => el.classList.remove(dir), 700);
+				}
+			}
+		}
+		if (t.price != null) prev[sym] = t.price;
+		for (const fn of subs) fn(sym, t);
+	}
+
+	function apply(sym: string, patch: Partial<Tick>) {
+		state[sym] = { ...(state[sym] ?? ({} as Tick)), ...patch } as Tick;
+		paint(sym, state[sym]);
+	}
+
+	// ---- websocket ----
+	let ws: WebSocket | null = null;
+	let retries = 0;
+	let pollTimer: number | null = null;
+
+	function connect() {
+		const streams = SYMS.map((s) => `${s.toLowerCase()}usdt@ticker`).join('/');
+		try {
+			ws = new WebSocket(`wss://data-stream.binance.vision/stream?streams=${streams}`);
+		} catch {
+			return startPolling();
+		}
+		const giveUp = setTimeout(() => {
+			if (ws && ws.readyState !== WebSocket.OPEN) { ws.close(); startPolling(); }
+		}, 6000);
+
+		ws.onopen = () => {
+			clearTimeout(giveUp);
+			retries = 0;
+			if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+			document.documentElement.dataset.feed = 'ws';
+		};
+		ws.onmessage = (ev) => {
+			const msg = JSON.parse(ev.data);
+			const d = msg.data ?? msg;
+			if (!d?.s) return;
+			const sym = d.s.replace('USDT', '');
+			apply(sym, { price: +d.c, chg: +d.P, high: +d.h, low: +d.l, vol: +d.q });
+		};
+		ws.onclose = () => {
+			clearTimeout(giveUp);
+			document.documentElement.dataset.feed = 'poll';
+			if (retries < 4) setTimeout(connect, 1500 * ++retries);
+			else startPolling();
+		};
+		ws.onerror = () => ws?.close();
+	}
+
+	// ---- rest fallback ----
+	async function pollOnce() {
+		// The edge route doesn't exist under `astro dev`, so go straight to the
+		// public-data host when it 404s — otherwise local runs show no prices.
+		try {
+			const r = await fetch('/api/quotes');
+			if (r.ok) {
+				const { quotes } = await r.json();
+				if (quotes?.length) {
+					for (const q of quotes) apply(q.sym, { price: q.price, chg: q.chg });
+					return;
+				}
+			}
+		} catch {}
+		try {
+			const pairs = JSON.stringify(SYMS.map((s) => `${s}USDT`));
+			const r = await fetch(
+				`https://data-api.binance.vision/api/v3/ticker/24hr?symbols=${encodeURIComponent(pairs)}`,
+			);
+			if (!r.ok) return;
+			for (const d of await r.json()) {
+				apply(d.symbol.replace('USDT', ''), {
+					price: +d.lastPrice, chg: +d.priceChangePercent,
+					high: +d.highPrice, low: +d.lowPrice, vol: +d.quoteVolume,
+				});
+			}
+		} catch {}
+	}
+	function startPolling() {
+		if (pollTimer) return;
+		document.documentElement.dataset.feed = 'poll';
+		pollOnce();
+		pollTimer = window.setInterval(pollOnce, 5000);
+	}
+
+	document.addEventListener('visibilitychange', () => {
+		if (document.hidden) {
+			ws?.close();
+			ws = null;
+		} else if (!ws || ws.readyState > 1) {
+			retries = 0;
+			connect();
+		}
+	});
+
+	connect();
+
+	// expose for components that need more than a text binding
+	(window as any).__live = {
+		get: (s: string) => state[s],
+		all: () => state,
+		subscribe: (fn: (s: string, t: Tick) => void) => {
+			subs.add(fn);
+			return () => subs.delete(fn);
+		},
+	};
+</script>
+
+<style is:global>
+	.tick-up { animation: tickUp 0.7s ease-out; }
+	.tick-down { animation: tickDown 0.7s ease-out; }
+	@keyframes tickUp {
+		0% { color: var(--up); text-shadow: 0 0 14px rgba(38, 208, 124, 0.55); }
+		100% { text-shadow: none; }
+	}
+	@keyframes tickDown {
+		0% { color: var(--down); text-shadow: 0 0 14px rgba(246, 70, 93, 0.55); }
+		100% { text-shadow: none; }
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.tick-up, .tick-down { animation: none; }
+	}
+</style>

@@ -1,0 +1,323 @@
+---
+/**
+ * Stacked market cards. One is face-up, the rest fan out behind it; the deck
+ * advances on a timer and holds while the pointer is on it. All quotes bind to
+ * the shared live socket.
+ */
+import Sparkline from './Sparkline.astro';
+import data from '../data/btc.json';
+
+const SYMS = ['BTC', 'ETH', 'SOL', 'BNB'];
+const board: any[] = (data as any).board ?? [];
+const charts: Record<string, number[][]> = (data as any).charts ?? {};
+
+const cards = SYMS.map((sym) => {
+	const row = board.find((b) => b.sym === sym);
+	const bars = charts[sym] ?? [];
+	const closes = bars.slice(-45).map((b) => b[4]);
+	return {
+		sym,
+		price: row?.price ?? closes.at(-1) ?? 0,
+		chg: row?.chg ?? 0,
+		high: row?.high ?? 0,
+		low: row?.low ?? 0,
+		spark: closes,
+	};
+}).filter((c) => c.spark.length > 5);
+
+const money = (n: number) =>
+	n >= 1000 ? '$' + Math.round(n).toLocaleString('en-US') : '$' + n.toFixed(n >= 1 ? 2 : 4);
+const pc = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;
+---
+
+<div class="deck" data-deck style={`--count:${cards.length}`}>
+	{
+		cards.map((c, i) => (
+			<article class="card" data-card data-i={i} style={`--i:${i}`}>
+				<div class="top">
+					<span class="sym">{c.sym}<span class="pair">/USD</span></span>
+					<span class="live"><span class="pulse" /><span class="label">live</span></span>
+				</div>
+				<div class="px">
+					<span class="val" data-live={c.sym} data-live-field="price">{money(c.price)}</span>
+					<span class={`chg ${c.chg >= 0 ? 'up' : 'down'}`} data-live={c.sym} data-live-field="chg">
+						{pc(c.chg)}
+					</span>
+				</div>
+				<Sparkline values={c.spark} id={`deck-${c.sym}`} height={96} />
+				<div class="foot">
+					<span><i class="label">24h high</i><b data-live={c.sym} data-live-field="high" data-live-fmt="plain">{c.high ? money(c.high).slice(1) : '—'}</b></span>
+					<span><i class="label">24h low</i><b data-live={c.sym} data-live-field="low" data-live-fmt="plain">{c.low ? money(c.low).slice(1) : '—'}</b></span>
+					<span><i class="label">90d range</i><b>{Math.round(((c.spark.at(-1)! - Math.min(...c.spark)) / (Math.max(...c.spark) - Math.min(...c.spark) || 1)) * 100)}%</b></span>
+				</div>
+			</article>
+		))
+	}
+	<div class="dots" data-dots>
+		{cards.map((c, i) => (
+			<button class:list={['dot', { on: i === 0 }]} data-dot={i} aria-label={`Show ${c.sym}`}>
+				<span class="tk">{c.sym}</span>
+				<span class="prog"><i /></span>
+			</button>
+		))}
+	</div>
+</div>
+
+<style>
+	.deck {
+		position: relative;
+		overflow: hidden;
+		/* room for the fan stays inside the column; no negative margins, or the
+		   back cards spill past the grid track */
+		padding: 4px 34px 0 0;
+		perspective: 1100px;
+		/* All cards share one grid cell, so the tallest one sets the height and
+		   the dots sit in a row of their own. A fixed min-height can't work: the
+		   cards grow when the hero collapses to a single column. */
+		display: grid;
+		grid-template-rows: auto auto;
+	}
+	.card {
+		grid-area: 1 / 1;
+		/* natural height; without this the shorter cards stretch to the tallest */
+		align-self: start;
+		background: linear-gradient(170deg, rgba(18,21,27,0.86), rgba(11,13,18,0.9));
+		backdrop-filter: blur(4px);
+		border: 1px solid var(--line-bright);
+		border-radius: 14px;
+		padding: 18px 20px 16px;
+		box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55);
+		transition:
+			transform 0.55s cubic-bezier(0.22, 0.8, 0.28, 1),
+			opacity 0.45s ease,
+			filter 0.45s ease,
+			border-color 0.3s ease;
+		will-change: transform;
+	}
+	/* depth: each card behind drops, shifts, shrinks and tilts */
+	.card[data-depth='0'] { transform: none; opacity: 1; z-index: 4; }
+	.card[data-depth='1'] {
+		transform: translate3d(17px, 20px, 0) scale(0.955) rotate(1.8deg);
+		opacity: 0.86; z-index: 3; filter: saturate(0.72) brightness(0.86);
+	}
+	.card[data-depth='2'] {
+		transform: translate3d(32px, 37px, 0) scale(0.912) rotate(3.6deg);
+		opacity: 0.68; z-index: 2; filter: saturate(0.5) brightness(0.72);
+	}
+	.card[data-depth='3'] {
+		transform: translate3d(45px, 51px, 0) scale(0.872) rotate(5.2deg);
+		opacity: 0.5; z-index: 1; filter: saturate(0.34) brightness(0.6);
+	}
+	.card[data-depth='0']:hover { border-color: var(--line-bright); }
+
+	/* The front card is dealt off the top, then reappears at the back of the
+	   stack. Transitions can't express that, so the exit is a keyframe and the
+	   re-entry is a second one fired after it lands. */
+	.card.leaving {
+		animation: dealOut 0.3s ease forwards;
+		z-index: 9;
+		pointer-events: none;
+	}
+	@keyframes dealOut { to { opacity: 0; } }
+
+
+	.top { display: flex; align-items: center; justify-content: space-between; }
+	.sym {
+		font-family: var(--font-mono), monospace; font-size: 0.95rem;
+		font-weight: 700; color: #fff; letter-spacing: 0.02em;
+	}
+	.pair { color: var(--fg-mute); font-weight: 400; }
+	.live { display: inline-flex; align-items: center; gap: 6px; }
+
+	.px { display: flex; align-items: baseline; gap: 11px; margin: 11px 0 4px; }
+	.val {
+		font-family: var(--font-mono), monospace; font-size: 2.3rem; font-weight: 700;
+		color: #fff; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums;
+	}
+	.chg { font-family: var(--font-mono), monospace; font-size: 0.98rem; font-weight: 700; }
+
+	.foot {
+		display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+		margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line);
+	}
+	.foot span { display: flex; flex-direction: column; gap: 3px; }
+	.foot i { font-size: 0.64rem; }
+	.foot b {
+		font-family: var(--font-mono), monospace; font-size: 1rem;
+		color: #fff; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums;
+	}
+
+	.dots {
+		grid-row: 2;
+		/* clears the deepest card, which is pushed down by transform and so
+		   takes up no layout height of its own */
+		margin-top: var(--fan, 56px);
+		display: flex; justify-content: center; gap: 14px; z-index: 5;
+	}
+	/* ticker label + a hairline that fills as the card's turn runs out */
+	.dot {
+		appearance: none; border: 0; background: transparent; cursor: pointer;
+		padding: 6px 2px 0;
+		display: flex; flex-direction: column; align-items: center; gap: 5px;
+	}
+	.tk {
+		font-family: var(--font-mono), monospace;
+		font-size: 0.64rem;
+		font-weight: 700;
+		letter-spacing: 0.12em;
+		color: #4f5766;
+		transition: color 0.25s ease;
+	}
+	.prog {
+		display: block;
+		width: 30px;
+		height: 2px;
+		border-radius: 1px;
+		background: #1b1f27;
+		overflow: hidden;
+	}
+	.prog i {
+		display: block;
+		height: 100%;
+		width: 0;
+		background: var(--accent);
+		border-radius: 1px;
+	}
+	.dot:hover .tk { color: var(--fg-dim); }
+	.dot.on .tk { color: var(--accent); }
+	.dot.on .prog i { width: 100%; transition: width var(--hold, 4.2s) linear; }
+	.deck.held .dot.on .prog i { transition: none; }
+
+	@media (max-width: 940px) {
+		.deck { padding-right: 24px; --fan: 48px; }
+		.card[data-depth='1'] { transform: translate3d(12px, 16px, 0) scale(0.96) rotate(1.4deg); }
+		.card[data-depth='2'] { transform: translate3d(22px, 30px, 0) scale(0.922) rotate(2.8deg); }
+		.card[data-depth='3'] { transform: translate3d(31px, 42px, 0) scale(0.888) rotate(4deg); }
+	}
+	@media (max-width: 560px) {
+		/* no room to fan sideways — stack almost straight down */
+		.deck { padding-right: 14px; --fan: 40px; }
+		.card { padding: 15px 16px 14px; }
+		.card[data-depth='1'] { transform: translate3d(6px, 13px, 0) scale(0.966) rotate(0.9deg); }
+		.card[data-depth='2'] { transform: translate3d(12px, 24px, 0) scale(0.932) rotate(1.8deg); }
+		.card[data-depth='3'] { transform: translate3d(17px, 34px, 0) scale(0.9) rotate(2.6deg); }
+		.val { font-size: 1.95rem; }
+		.foot b { font-size: 0.92rem; }
+		.prog { width: 26px; }
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.card { transition: none; }
+		.card.leaving { animation: none; }
+	}
+</style>
+
+<script>
+	for (const deck of document.querySelectorAll<HTMLElement>('[data-deck]')) {
+		const cards = [...deck.querySelectorAll<HTMLElement>('[data-card]')];
+		const dots = [...deck.querySelectorAll<HTMLElement>('[data-dot]')];
+		if (cards.length < 2) continue;
+		let front = 0;
+		let timer: number | null = null;
+		const HOLD = 4200;
+		deck.style.setProperty('--hold', `${HOLD}ms`);
+
+		function restartProgress() {
+			const bar = dots[front]?.querySelector<HTMLElement>('.prog i');
+			if (!bar) return;
+			deck.classList.add('held');
+			bar.style.width = '0';
+			void bar.offsetWidth;
+			deck.classList.remove('held');
+		}
+
+		function paint() {
+			dots.forEach((d) => {
+				const bar = d.querySelector<HTMLElement>('.prog i');
+				if (bar && !d.classList.contains('on')) bar.style.width = '0';
+			});
+			cards.forEach((c, i) => {
+				const depth = (i - front + cards.length) % cards.length;
+				c.dataset.depth = String(depth);
+				c.setAttribute('aria-hidden', depth === 0 ? 'false' : 'true');
+			});
+			dots.forEach((d, i) => d.classList.toggle('on', i === front));
+
+			// the hero CTA points at whatever card is face-up
+			const sym = cards[front].querySelector('.sym')?.firstChild?.textContent?.trim() ?? '';
+			const cta = document.querySelector<HTMLAnchorElement>('[data-deck-cta]');
+			const label = document.querySelector<HTMLElement>('[data-deck-sym]');
+			if (label) label.textContent = sym;
+			// all four deck symbols have their own dashboard page
+			if (cta && sym) cta.setAttribute('href', `/${sym.toLowerCase()}/`);
+
+			requestAnimationFrame(restartProgress);
+		}
+		const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+		let animating = false;
+
+		function go(i: number, dealt = false) {
+			const next = (i + cards.length) % cards.length;
+			if (next === front) return;
+			if (reduce || !dealt) { front = next; paint(); return; }
+			// only the natural "advance by one" gets the deal animation
+			const leaving = cards[front];
+			animating = true;
+			leaving.classList.add('leaving');
+			front = next;
+			paint();
+			const done = () => {
+				leaving.classList.remove('leaving');
+				animating = false;
+			};
+			leaving.addEventListener('animationend', done, { once: true });
+			setTimeout(done, 700);
+		}
+		const start = () => { if (timer == null) timer = window.setInterval(() => { if (!animating) go(front + 1, true); }, HOLD); };
+		const stop = () => { if (timer != null) { clearInterval(timer); timer = null; } };
+
+		const freeze = () => {
+			const bar = dots[front]?.querySelector<HTMLElement>('.prog i');
+			if (bar) {
+				const w = getComputedStyle(bar).width;
+				deck.classList.add('held');
+				bar.style.width = w;
+			}
+		};
+		deck.addEventListener('pointerenter', () => { stop(); freeze(); });
+		deck.addEventListener('pointerleave', () => { deck.classList.remove('held'); restartProgress(); start(); });
+		deck.addEventListener('focusin', stop);
+		deck.addEventListener('focusout', start);
+		dots.forEach((d, i) =>
+			d.addEventListener('click', () => { go(i); stop(); start(); }),
+		);
+		// clicking the front card advances too
+		cards.forEach((c) =>
+			c.addEventListener('click', () => { if (c.dataset.depth !== '0') go(cards.indexOf(c)); }),
+		);
+		document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
+
+		// swipe left/right on touch
+		let x0 = 0, y0 = 0, tracking = false;
+		deck.addEventListener('touchstart', (e) => {
+			const t = e.changedTouches[0];
+			x0 = t.clientX; y0 = t.clientY; tracking = true;
+			stop();
+		}, { passive: true });
+		deck.addEventListener('touchend', (e) => {
+			if (!tracking) return;
+			tracking = false;
+			const t = e.changedTouches[0];
+			const dx = t.clientX - x0;
+			const dy = t.clientY - y0;
+			// horizontal intent only, so page scrolling isn't hijacked
+			if (Math.abs(dx) > 42 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+				go(front + (dx < 0 ? 1 : -1), dx < 0);
+			}
+			start();
+		}, { passive: true });
+
+		paint();
+		if (!reduce) start();
+	}
+</script>
+

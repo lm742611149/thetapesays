@@ -1,0 +1,196 @@
+---
+/**
+ * What it costs to mine a coin, and the price at which each rig stops being
+ * worth running.
+ *
+ * The shutdown price is the power bill expressed as a BTC price: at that level
+ * a machine's electricity costs exactly what it mines, and below it every
+ * further block loses cash. Hardware is deliberately excluded — it is sunk, and
+ * a miner deciding whether to keep the fleet on today is not deciding whether
+ * to have bought it.
+ *
+ * Reads the document OnChain already fetched rather than calling out again.
+ */
+import Busy from './Busy.astro';
+import { RIGS, POWER } from '../../functions/_lib/onchain.js';
+---
+
+<div class="mc" data-miner>
+	<Busy />
+
+	<div class="head">
+		<div class="hero">
+			<i class="label">Hashprice</i>
+			<b data-mc="hashprice">—</b>
+			<span class="unit">per PH/s per day</span>
+		</div>
+		<dl class="side">
+			<div><dt>Mined per day</dt><dd data-mc="mined">—</dd></div>
+			<div><dt>Fees' share</dt><dd data-mc="feeshare">—</dd></div>
+			<div><dt>Miner revenue</dt><dd data-mc="revenue">—</dd></div>
+		</dl>
+	</div>
+
+	<div class="tw">
+		<table>
+			<thead>
+				<tr>
+					<th>Rig</th>
+					<th class="r">J/TH</th>
+					{POWER.map((p: number) => <th class="r">${p.toFixed(2)}/kWh</th>)}
+				</tr>
+			</thead>
+			<tbody data-mc-rows>
+				{RIGS.map((rig: { name: string; jth: number }) => (
+					<tr>
+						<td class="mono n">{rig.name}</td>
+						<td class="r mono dim">{rig.jth}</td>
+						{POWER.map((p: number) => <td class="r" data-cell={`${rig.name}|${p}`}>—</td>)}
+					</tr>
+				))}
+			</tbody>
+		</table>
+	</div>
+
+	<p class="src">
+		Shutdown price = power cost of one terahash-day ÷ what one terahash-day mines, at the
+		network's current hashrate and issuance. Efficiency figures are wall draw from public
+		spec sheets; hosting, pool fees and hardware amortisation are <em>not</em> included, so a
+		fleet's real break-even sits above these. Percentages are BTC's distance above each level
+		at <span data-mc="price">—</span>.
+	</p>
+</div>
+
+<style>
+	.mc { position: relative; }
+	.head {
+		display: flex;
+		align-items: flex-end;
+		justify-content: space-between;
+		gap: 22px;
+		flex-wrap: wrap;
+		margin-bottom: 16px;
+	}
+	.hero { display: flex; flex-direction: column; gap: 3px; }
+	.hero i { font-size: 0.64rem; }
+	.hero b {
+		font-family: var(--font-mono), monospace;
+		font-size: 2.3rem;
+		font-weight: 700;
+		color: var(--accent);
+		line-height: 1;
+		letter-spacing: -0.03em;
+		font-variant-numeric: tabular-nums;
+	}
+	.hero .unit {
+		font-family: var(--font-mono), monospace;
+		font-size: 0.66rem;
+		color: var(--fg-mute);
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+	}
+	.side { display: flex; gap: 26px; margin: 0; flex-wrap: wrap; }
+	.side div { display: flex; flex-direction: column; gap: 3px; }
+	.side dt {
+		font-family: var(--font-mono), monospace;
+		font-size: 0.62rem;
+		color: var(--fg-mute);
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+	}
+	.side dd {
+		margin: 0;
+		font-family: var(--font-mono), monospace;
+		font-size: 1.02rem;
+		font-weight: 700;
+		color: #fff;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.tw { overflow-x: auto; }
+	table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+	th, td { padding: 9px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+	th {
+		font-family: var(--font-mono), monospace;
+		font-size: 0.62rem;
+		font-weight: 500;
+		color: var(--fg-mute);
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		text-align: left;
+	}
+	.r, th.r { text-align: right; }
+	tbody tr:last-child td { border-bottom: 0; }
+	.mono { font-family: var(--font-mono), monospace; font-variant-numeric: tabular-nums; }
+	.n { color: #fff; font-weight: 700; }
+	.dim { color: var(--fg-mute); }
+	td[data-cell] {
+		font-family: var(--font-mono), monospace;
+		font-variant-numeric: tabular-nums;
+		color: #fff;
+	}
+	/* The margin is stated in the cell; colour only reinforces it. */
+	td :global(.m) { display: block; font-size: 0.66rem; font-weight: 700; }
+	td :global(.m.up) { color: var(--up); }
+	td :global(.m.down) { color: var(--down); }
+	td:global(.off) { background: var(--down-bg); }
+
+	.src {
+		margin: 12px 0 0;
+		font-family: var(--font-mono), monospace;
+		font-size: 0.66rem;
+		line-height: 1.7;
+		color: var(--fg-mute);
+	}
+	.src em { color: var(--fg-dim); font-style: normal; font-weight: 700; }
+
+	@media (max-width: 560px) {
+		.hero b { font-size: 1.9rem; }
+		th, td { padding: 8px 9px; }
+	}
+</style>
+
+<script>
+	import { withBusy } from '../lib/busy';
+
+	const root = document.querySelector<HTMLElement>('[data-miner]');
+	if (root) {
+		const q = (k: string) => root.querySelector<HTMLElement>(`[data-mc="${k}"]`);
+		const usd = (v: number) => '$' + Math.round(v).toLocaleString('en-US');
+
+		function paint(d: any) {
+			const m = d.miner;
+			q('hashprice')!.textContent = '$' + m.hashprice.toFixed(2);
+			q('mined')!.textContent = m.minedBtcDay.toFixed(1) + ' BTC';
+			q('feeshare')!.textContent = m.feeShare.toFixed(2) + '%';
+			q('revenue')!.textContent = '$' + (m.revenueUsdDay / 1e6).toFixed(1) + 'M/day';
+			q('price')!.textContent = usd(d.price);
+
+			for (const rig of m.grid) {
+				for (const c of rig.cells) {
+					const el = root!.querySelector<HTMLElement>(`[data-cell="${rig.name}|${c.power}"]`);
+					if (!el) continue;
+					const pct = c.margin * 100;
+					const cls = c.margin >= 0 ? 'up' : 'down';
+					el.innerHTML =
+						`${usd(c.shutdown)}<span class="m ${cls}">${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%</span>`;
+					// a rig underwater on power is the one thing worth flagging outright
+					el.classList.toggle('off', c.margin < 0);
+					el.title = c.margin >= 0
+						? `BTC is ${pct.toFixed(0)}% above this rig's power break-even`
+						: `Underwater: BTC is ${Math.abs(pct).toFixed(0)}% below break-even`;
+				}
+			}
+		}
+
+		// OnChain owns the fetch; take its document whenever one lands
+		const seed = (window as any).__onchain;
+		if (seed) paint(seed);
+		else withBusy(root, () => new Promise<void>((resolve) => {
+			window.addEventListener('onchain', () => resolve(), { once: true });
+			// don't veil forever if the chain feed never answers
+			setTimeout(resolve, 12000);
+		}));
+		window.addEventListener('onchain', (e) => paint((e as CustomEvent).detail));
+	}
+</script>

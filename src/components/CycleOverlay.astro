@@ -1,0 +1,81 @@
+---
+/** Halving cycles indexed to 100 at each halving, drawn on one log-ish scale. */
+interface Cycle { n: number; date: string; base: number | null; partial: boolean; points: { d: number; v: number }[] }
+interface Props { cycles: Cycle[] }
+const { cycles } = Astro.props;
+const W = 900, H = 300, PL = 6, PR = 52, PT = 12, PB = 24;
+const maxDay = Math.min(1460, Math.max(...cycles.flatMap((c) => c.points.map((p) => p.d))));
+const maxV = Math.max(...cycles.flatMap((c) => c.points.filter((p) => p.d <= maxDay).map((p) => p.v)));
+const lo = 40;
+// log scale — cycle 2 ran 18x while this one is near flat
+const L = (v: number) => Math.log10(Math.max(lo, v));
+const X = (d: number) => PL + (d / maxDay) * (W - PL - PR);
+const Y = (v: number) => PT + (1 - (L(v) - L(lo)) / (L(maxV) - L(lo))) * (H - PT - PB);
+const COLORS: Record<number, string> = { 2: '#3f4654', 3: '#7aa2ff', 4: '#f0b90b' };
+const path = (c: Cycle) =>
+	c.points.filter((p) => p.d <= maxDay).map((p, i) => `${i ? 'L' : 'M'}${X(p.d).toFixed(1)} ${Y(p.v).toFixed(1)}`).join(' ');
+const ticks = [100, 200, 400, 800, 1600].filter((v) => v <= maxV * 1.05);
+---
+
+<figure class="cyc">
+	<svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label="Halving cycles compared">
+		{ticks.map((v) => (
+			<>
+				<line class="g" x1={PL} y1={Y(v).toFixed(1)} x2={W - PR} y2={Y(v).toFixed(1)} />
+				<text class="ax" x={W - PR + 7} y={(Y(v) + 3.4).toFixed(1)}>{v}%</text>
+			</>
+		))}
+		{[365, 730, 1095, 1460].filter((d) => d <= maxDay).map((d) => (
+			<>
+				<line class="gv" x1={X(d).toFixed(1)} y1={PT} x2={X(d).toFixed(1)} y2={H - PB} />
+				<text class="ax mid" x={X(d).toFixed(1)} y={H - 8}>{d / 365}y</text>
+			</>
+		))}
+		{cycles.map((c) => (
+			<path class="cl" d={path(c)} stroke={COLORS[c.n] ?? '#666'}
+				stroke-width={c.n === 4 ? 2.4 : 1.6} stroke-dasharray={c.partial ? '5 4' : undefined} />
+		))}
+		{cycles.map((c) => {
+			const last = c.points.filter((p) => p.d <= maxDay).at(-1);
+			return last ? (
+				<circle cx={X(last.d).toFixed(1)} cy={Y(last.v).toFixed(1)} r={c.n === 4 ? 4 : 3}
+					fill={COLORS[c.n] ?? '#666'} />
+			) : null;
+		})}
+	</svg>
+	<figcaption>
+		{cycles.map((c) => {
+			const last = c.points.at(-1);
+			return (
+				<span>
+					<i style={`background:${COLORS[c.n]}`} />
+					#{c.n} · {c.date.slice(0, 4)}
+					{c.partial && <em>partial</em>}
+					<b>{last ? Math.round(last.v) : '—'}%</b>
+				</span>
+			);
+		})}
+	</figcaption>
+</figure>
+
+<style>
+	.cyc { margin: 0; }
+	svg { width: 100%; height: 300px; display: block; overflow: visible; }
+	.g, .gv { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
+	.ax { font-family: var(--font-mono), monospace; font-size: 9.5px; fill: #59606e; }
+	.mid { text-anchor: middle; }
+	.cl {
+		fill: none; stroke-linejoin: round; stroke-linecap: round;
+		stroke-dasharray: 3200; animation: cycDraw 1.3s cubic-bezier(0.3, 0.7, 0.3, 1) both;
+	}
+	@keyframes cycDraw { from { stroke-dashoffset: 3200; } to { stroke-dashoffset: 0; } }
+	figcaption {
+		display: flex; gap: 18px; flex-wrap: wrap; margin-top: 12px;
+		font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--fg-mute);
+	}
+	figcaption span { display: inline-flex; align-items: center; gap: 6px; }
+	figcaption i { width: 14px; height: 2.5px; border-radius: 1px; }
+	figcaption b { color: #fff; }
+	figcaption em { font-style: normal; font-size: 0.62rem; color: #4f5766; }
+	@media (prefers-reduced-motion: reduce) { .cl { animation: none; stroke-dasharray: none; } }
+</style>

@@ -1,0 +1,68 @@
+---
+/**
+ * Page-wide candle backdrop. Real BTC daily bars at very low opacity, pinned
+ * behind everything. Purely decorative: aria-hidden, no pointer events, and it
+ * never reflows because it is fixed and sized in viewport units.
+ */
+import data from '../data/btc.json';
+
+const bars: number[][] = ((data as any).charts?.BTC ?? []).slice(-150);
+const W = 1600, H = 620, PAD = 10;
+const hi = Math.max(...bars.map((b) => b[2]));
+const lo = Math.min(...bars.map((b) => b[3]));
+const X = (i: number) => (i / (bars.length - 1)) * (W - PAD * 2) + PAD;
+const Y = (v: number) => PAD + (1 - (v - lo) / (hi - lo || 1)) * (H - PAD * 2);
+const step = (W - PAD * 2) / bars.length;
+const bw = Math.max(3, step * 0.56);
+---
+
+<div class="backdrop" aria-hidden="true">
+	<svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid slice">
+		{
+			bars.map((b, i) => {
+				const [, o, h, l, c] = b;
+				const up = c >= o;
+				const x = X(i);
+				const top = Math.min(Y(o), Y(c));
+				const hgt = Math.max(1.5, Math.abs(Y(c) - Y(o)));
+				return (
+					<g class={up ? 'u' : 'd'}>
+						<line x1={x.toFixed(1)} y1={Y(h).toFixed(1)} x2={x.toFixed(1)} y2={Y(l).toFixed(1)} />
+						<rect x={(x - bw / 2).toFixed(1)} y={top.toFixed(1)} width={bw.toFixed(1)} height={hgt.toFixed(1)} />
+					</g>
+				);
+			})
+		}
+	</svg>
+</div>
+
+<style>
+	.backdrop {
+		position: fixed;
+		inset: 0;
+		z-index: -1;
+		pointer-events: none;
+		overflow: hidden;
+		/* fades out toward the top so it never fights the nav or the hero copy */
+		mask-image: linear-gradient(180deg, transparent, #000 14%, #000 86%, transparent);
+	}
+	.backdrop svg {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		opacity: 0.16;
+	}
+	.u line, .u rect { fill: var(--up); stroke: var(--up); }
+	.d line, .d rect { fill: var(--down); stroke: var(--down); }
+	line { stroke-width: 1.2; }
+	rect { stroke-width: 0; }
+
+	@media (max-width: 760px) {
+		.backdrop svg { opacity: 0.11; }
+	}
+	@media (prefers-reduced-motion: no-preference) {
+		.backdrop { animation: bdIn 1.6s 0.2s ease both; }
+		@keyframes bdIn { from { opacity: 0; } }
+	}
+</style>

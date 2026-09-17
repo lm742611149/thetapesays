@@ -1,0 +1,84 @@
+---
+/** Share-of-total ring. Slices in fixed order, remainder folded into "other". */
+interface Slice { name: string; pct: number; color?: string }
+interface Props { slices: Slice[]; center?: string; sub?: string; max?: number }
+const { slices, center, sub, max = 6 } = Astro.props;
+
+const PALETTE = ['#f0b90b', '#7aa2ff', '#26d07c', '#f6465d', '#c3cbd9', '#8fd14f'];
+const top = slices.slice(0, max);
+const rest = slices.slice(max).reduce((s, x) => s + x.pct, 0);
+const parts = rest > 0.1 ? [...top, { name: 'other', pct: +rest.toFixed(2) }] : top;
+
+const R = 62, SW = 20, C = 2 * Math.PI * R;
+let acc = 0;
+const arcs = parts.map((p, i) => {
+	const len = (p.pct / 100) * C;
+	const off = -acc;
+	acc += len;
+	return { ...p, len, off, color: p.color ?? (i < PALETTE.length ? PALETTE[i] : '#4a5160') };
+});
+---
+
+<figure class="donut">
+	<div class="ringwrap">
+		<svg viewBox="0 0 160 160" role="img" aria-label="Share of total">
+			{arcs.map((a) => (
+				<circle
+					class="seg" cx="80" cy="80" r={R} fill="none"
+					stroke={a.color} stroke-width={SW}
+					stroke-dasharray={`${a.len.toFixed(2)} ${(C - a.len).toFixed(2)}`}
+					stroke-dashoffset={a.off.toFixed(2)}
+					data-name={a.name}
+				/>
+			))}
+		</svg>
+		{center && (
+			<div class="mid">
+				<span class="c">{center}</span>
+				{sub && <span class="s">{sub}</span>}
+			</div>
+		)}
+	</div>
+	<ul class="key">
+		{arcs.map((a) => (
+			<li>
+				<i style={`background:${a.color}`} />
+				<span class="n">{a.name}</span>
+				<span class="p">{a.pct.toFixed(1)}%</span>
+			</li>
+		))}
+	</ul>
+</figure>
+
+<style>
+	.donut { margin: 0; display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 20px; align-items: center; }
+	.ringwrap { position: relative; width: 160px; height: 160px; }
+	svg { width: 160px; height: 160px; transform: rotate(-90deg); display: block; }
+	.seg {
+		transition: stroke-width 0.16s ease;
+		animation: segIn 0.9s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+	}
+	@keyframes segIn { from { stroke-dasharray: 0 999; } }
+	.seg:hover { stroke-width: 24; }
+	.mid {
+		position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 2px;
+	}
+	.mid .c {
+		font-family: var(--font-mono), monospace; font-size: 1.3rem; font-weight: 700; color: #fff;
+		line-height: 1; letter-spacing: -0.02em;
+	}
+	.mid .s { font-family: var(--font-mono), monospace; font-size: 0.6rem; color: var(--fg-mute); text-transform: uppercase; letter-spacing: 0.1em; }
+
+	.key { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+	.key li {
+		display: grid; grid-template-columns: 10px minmax(0, 1fr) 54px;
+		align-items: center; gap: 9px;
+		font-family: var(--font-mono), monospace; font-size: 0.74rem;
+	}
+	.key i { width: 9px; height: 9px; border-radius: 2px; }
+	.n { color: var(--fg-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.p { text-align: right; color: #fff; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+	@media (max-width: 560px) { .donut { grid-template-columns: 1fr; justify-items: center; } .key { width: 100%; } }
+	@media (prefers-reduced-motion: reduce) { .seg { animation: none; } }
+</style>

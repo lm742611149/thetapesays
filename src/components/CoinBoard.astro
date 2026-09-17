@@ -1,0 +1,349 @@
+---
+/**
+ * Live board. Prices, changes, highs, lows and volume are bound to the page's
+ * websocket via data-live attributes; the 7-day shape comes from the build
+ * snapshot since it doesn't move tick to tick. Columns are sortable.
+ */
+interface Row {
+	sym: string; price: number; chg: number;
+	high: number; low: number; volB: number; spark: number[];
+}
+interface Props { rows: Row[] }
+const { rows } = Astro.props;
+const maxVol = Math.max(...rows.map((r) => r.volB));
+const num = (n: number) =>
+	n >= 1000 ? Math.round(n).toLocaleString('en-US') : n >= 1 ? n.toFixed(2) : n.toFixed(4);
+
+/** Normalised 0-100 series -> a 64x18 path. */
+function sparkPath(v: number[]) {
+	if (!v.length) return '';
+	const W = 64, H = 18, P = 2;
+	return v
+		.map((y, i) => {
+			const x = (i / (v.length - 1)) * W;
+			const yy = P + (1 - y / 100) * (H - P * 2);
+			return `${i ? 'L' : 'M'}${x.toFixed(1)} ${yy.toFixed(1)}`;
+		})
+		.join(' ');
+}
+---
+
+<div class="cb" data-board>
+	<div class="tools">
+		<label class="find">
+			<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 L14 14"/></svg>
+			<input type="search" placeholder="filter" data-find aria-label="Filter coins" />
+		</label>
+		<div class="chips" role="group" aria-label="Filter by direction">
+			<button class="chip on" data-filter="all">all</button>
+			<button class="chip" data-filter="up">gainers</button>
+			<button class="chip" data-filter="down">losers</button>
+		</div>
+		<span class="hint label" data-count></span>
+	</div>
+	<table>
+		<thead>
+			<tr>
+				<th class="s" data-sort="sym">Coin</th>
+				<th class="r" data-sort="price">Price</th>
+				<th class="r" data-sort="chg">24h</th>
+				<th class="r hide-s" data-sort="high">High</th>
+				<th class="r hide-s" data-sort="low">Low</th>
+				<th class="hide-m">7d</th>
+				<th class="vh hide-m">Volume</th>
+				<th class="r" data-sort="vol">USD</th>
+			</tr>
+		</thead>
+		<tbody data-rows>
+			{rows.map((r, i) => (
+				<tr style={`--i:${i}`} data-row={r.sym} data-vol={r.volB} tabindex="0" role="button" aria-label={`Show ${r.sym} chart`}>
+					<td class="sym">{r.sym}</td>
+					<td class="r mono px" data-live={r.sym} data-live-field="price" data-live-fmt="plain">
+						{num(r.price)}
+					</td>
+					<td class="r chgcell">
+						<span class="arw" data-arw></span>
+						<span class={`mono ${r.chg >= 0 ? 'up' : 'down'}`} data-live={r.sym} data-live-field="chg">
+							{r.chg >= 0 ? '+' : ''}{r.chg.toFixed(2)}%
+						</span>
+					</td>
+					<td class="r mono dim hide-s" data-live={r.sym} data-live-field="high" data-live-fmt="plain">
+						{num(r.high)}
+					</td>
+					<td class="r mono dim hide-s" data-live={r.sym} data-live-field="low" data-live-fmt="plain">
+						{num(r.low)}
+					</td>
+					<td class="hide-m">
+						<svg class="sp" viewBox="0 0 64 18" preserveAspectRatio="none" aria-hidden="true">
+							<path class="spl" d={sparkPath(r.spark)} fill="none"
+								stroke={r.spark.at(-1)! >= r.spark[0] ? 'var(--up)' : 'var(--down)'}
+								stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"
+								vector-effect="non-scaling-stroke" style={`--d:${i * 40}ms`} />
+						</svg>
+					</td>
+					<td class="vh hide-m">
+						<span class="bar"><i style={`--w:${(r.volB / maxVol) * 100}%`} /></span>
+					</td>
+					<td class="r mono dim" data-live={r.sym} data-live-field="vol">
+						${r.volB.toFixed(2)}B
+					</td>
+				</tr>
+			))}
+		</tbody>
+	</table>
+</div>
+
+<style>
+	.cb { overflow-x: auto; }
+	.tools {
+		display: flex; align-items: center; gap: 10px;
+		margin-bottom: 12px; flex-wrap: wrap;
+	}
+	.find {
+		display: inline-flex; align-items: center; gap: 7px;
+		background: #0b0e13; border: 1px solid var(--line);
+		border-radius: 7px; padding: 6px 11px;
+		transition: border-color 0.14s ease;
+	}
+	.find:focus-within { border-color: var(--accent); }
+	.find svg { width: 13px; height: 13px; fill: none; stroke: var(--fg-mute); stroke-width: 1.6; }
+	.find input {
+		appearance: none; border: 0; background: none; outline: none;
+		color: var(--fg); font-family: var(--font-mono), monospace;
+		font-size: 0.78rem; width: 88px;
+	}
+	.find input::placeholder { color: #4f5766; }
+	.chips { display: inline-flex; gap: 2px; background: #0b0e13; border: 1px solid var(--line); border-radius: 7px; padding: 3px; }
+	.chip {
+		appearance: none; border: 0; background: none; cursor: pointer;
+		font-family: var(--font-mono), monospace; font-size: 0.72rem;
+		color: var(--fg-mute); padding: 5px 11px; border-radius: 5px;
+		transition: background 0.14s ease, color 0.14s ease;
+	}
+	.chip:hover { color: var(--fg); background: var(--bg-hover); }
+	.chip.on { background: var(--accent); color: #0a0a0a; font-weight: 700; }
+	.hint { margin-left: auto; font-size: 0.68rem; color: #4f5766; }
+
+	tbody tr { cursor: pointer; outline: none; }
+	tbody tr.sel { background: rgba(240, 185, 11, 0.07); }
+	tbody tr.sel .sym { color: var(--accent); }
+	tbody tr:focus-visible { box-shadow: inset 2px 0 0 var(--accent); }
+	tbody tr.hide { display: none; }
+	table { margin: 0; min-width: 660px; }
+	.r { text-align: right; }
+	.mono { font-family: var(--font-mono), monospace; }
+	th[data-sort] { cursor: pointer; user-select: none; transition: color 0.13s ease; }
+	th[data-sort]:hover { color: var(--fg); }
+	th[data-sort]::after { content: ''; font-size: 0.8em; opacity: 0.55; margin-left: 4px; }
+	th[data-sort][data-dir='asc']::after { content: '↑'; }
+	th[data-sort][data-dir='desc']::after { content: '↓'; }
+	.sym {
+		font-family: var(--font-mono), monospace; font-weight: 700;
+		color: #fff; font-size: 0.95rem;
+	}
+	.dim { color: var(--fg-mute); }
+	.px { color: #fff; }
+	tbody tr {
+		transition: background 0.12s ease;
+		position: relative;
+		animation: rowIn 0.45s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+		animation-delay: calc(var(--i) * 28ms);
+	}
+	tbody tr:hover { background: var(--bg-hover); }
+	@keyframes rowIn { from { opacity: 0; transform: translateY(6px); } }
+
+	/* a light sweeps the row when its price prints */
+	tbody tr.lit td:first-child { position: relative; }
+	tbody tr.lit::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
+		background: linear-gradient(90deg, transparent, var(--sweep, rgba(38, 208, 124, 0.13)), transparent);
+		animation: sweep 0.75s ease-out forwards;
+	}
+	@keyframes sweep {
+		from { transform: translateX(-40%); opacity: 0; }
+		35% { opacity: 1; }
+		to { transform: translateX(40%); opacity: 0; }
+	}
+
+	.chgcell { white-space: nowrap; }
+	.arw {
+		display: inline-block;
+		width: 0; height: 0;
+		margin-right: 5px;
+		border-left: 3.5px solid transparent;
+		border-right: 3.5px solid transparent;
+		opacity: 0;
+		transition: opacity 0.2s ease, transform 0.2s ease;
+	}
+	.arw.u { border-bottom: 5px solid var(--up); opacity: 1; }
+	.arw.d { border-top: 5px solid var(--down); opacity: 1; }
+
+	.spl {
+		stroke-dasharray: 160;
+		animation: splDraw 0.9s cubic-bezier(0.3, 0.7, 0.3, 1) both;
+		animation-delay: var(--d, 0ms);
+	}
+	@keyframes splDraw { from { stroke-dashoffset: 160; } to { stroke-dashoffset: 0; } }
+	.sp { width: 64px; height: 18px; display: block; }
+	.vh { width: 22%; }
+	.bar { display: block; height: 6px; background: #0a0c10; border-radius: 3px; overflow: hidden; }
+	.bar i {
+		display: block; height: 100%; width: var(--w);
+		background: linear-gradient(90deg, var(--accent), #ff8a00); border-radius: 3px;
+		animation: grow 0.8s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+		animation-delay: calc(var(--i) * 32ms);
+	}
+	@keyframes grow { from { width: 0; } }
+	@media (max-width: 860px) { .hide-m { display: none; } table { min-width: 420px; } }
+	@media (max-width: 620px) {
+		.hide-s { display: none; }
+		table { min-width: 0; width: 100%; }
+		th, td { padding: 11px 8px; }
+		.tools { gap: 8px; }
+		.find input { width: 68px; }
+		.hint { display: none; }
+	}
+	@media (hover: none) {
+		/* :hover never clears after a tap on touch, so don't rely on it */
+		tbody tr:hover { background: none; }
+		tbody tr:active { background: var(--bg-hover); }
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.bar i, tbody tr, .spl { animation: none; }
+		tbody tr.lit::after { display: none; }
+	}
+</style>
+
+<script>
+	for (const root of document.querySelectorAll<HTMLElement>('[data-board]')) {
+		const body = root.querySelector<HTMLElement>('[data-rows]')!;
+		let key = 'vol';
+		let dir: 'asc' | 'desc' = 'desc';
+		const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+		const value = (tr: HTMLElement, k: string): number | string => {
+			const sym = tr.dataset.row!;
+			if (k === 'sym') return sym;
+			if (k === 'vol') return Number(tr.dataset.vol);
+			const live = (window as any).__live?.get(sym);
+			if (live?.[k] != null) return live[k];
+			const cell = tr.querySelector<HTMLElement>(`[data-live-field="${k}"]`);
+			return Number(cell?.textContent?.replace(/[^0-9.-]/g, '') ?? 0);
+		};
+
+		/** FLIP: measure, reorder, invert, play — rows glide to their new slot. */
+		function sort() {
+			const trs = [...body.querySelectorAll<HTMLElement>('tr')];
+			const first = new Map(trs.map((tr) => [tr, tr.getBoundingClientRect().top]));
+
+			trs.sort((a, b) => {
+				const x = value(a, key), y = value(b, key);
+				const c = typeof x === 'string' ? String(x).localeCompare(String(y)) : (x as number) - (y as number);
+				return dir === 'asc' ? c : -c;
+			});
+			trs.forEach((tr) => body.appendChild(tr));
+
+			if (reduce) return;
+			for (const tr of trs) {
+				const delta = first.get(tr)! - tr.getBoundingClientRect().top;
+				if (!delta) continue;
+				tr.animate(
+					[{ transform: `translateY(${delta}px)` }, { transform: 'none' }],
+					{ duration: 420, easing: 'cubic-bezier(0.2, 0.8, 0.25, 1)' },
+				);
+			}
+		}
+
+		root.querySelectorAll<HTMLElement>('th[data-sort]').forEach((th) =>
+			th.addEventListener('click', () => {
+				const k = th.dataset.sort!;
+				if (k === key) dir = dir === 'asc' ? 'desc' : 'asc';
+				else { key = k; dir = k === 'sym' ? 'asc' : 'desc'; }
+				root.querySelectorAll('th[data-sort]').forEach((o) => o.removeAttribute('data-dir'));
+				th.dataset.dir = dir;
+				sort();
+			}),
+		);
+
+		// ---- filtering ----
+		const rows = () => [...body.querySelectorAll<HTMLElement>('tr')];
+		const countEl = root.querySelector<HTMLElement>('[data-count]');
+		let text = '';
+		let dirFilter: 'all' | 'up' | 'down' = 'all';
+
+		function applyFilter() {
+			let n = 0;
+			for (const tr of rows()) {
+				const sym = tr.dataset.row!.toLowerCase();
+				const live = (window as any).__live?.get(tr.dataset.row!);
+				const chg = live?.chg ?? Number(
+					tr.querySelector('[data-live-field="chg"]')?.textContent?.replace(/[^0-9.-]/g, '') ?? 0,
+				);
+				const okText = !text || sym.includes(text);
+				const okDir = dirFilter === 'all' || (dirFilter === 'up' ? chg >= 0 : chg < 0);
+				const show = okText && okDir;
+				tr.classList.toggle('hide', !show);
+				if (show) n++;
+			}
+			if (countEl) countEl.textContent = n === rows().length ? '' : `${n} of ${rows().length}`;
+		}
+
+		root.querySelector<HTMLInputElement>('[data-find]')?.addEventListener('input', (e) => {
+			text = (e.target as HTMLInputElement).value.trim().toLowerCase();
+			applyFilter();
+		});
+		root.querySelectorAll<HTMLElement>('[data-filter]').forEach((b) =>
+			b.addEventListener('click', () => {
+				dirFilter = b.dataset.filter as any;
+				root.querySelectorAll('[data-filter]').forEach((o) => o.classList.toggle('on', o === b));
+				applyFilter();
+			}),
+		);
+
+		// ---- row opens the detail dialog ----
+		const HAS_PAGE = new Set(['BTC', 'ETH', 'SOL', 'BNB']);
+		function pick(tr: HTMLElement) {
+			const sym = tr.dataset.row!;
+			rows().forEach((r) => r.classList.toggle('sel', r === tr));
+			// the four with a dashboard navigate; everything else opens the dialog
+			if (HAS_PAGE.has(sym)) window.location.href = `/${sym.toLowerCase()}/`;
+			else (window as any).__coinModal?.open?.(sym);
+		}
+		body.addEventListener('click', (e) => {
+			const tr = (e.target as HTMLElement).closest<HTMLElement>('tr[data-row]');
+			if (tr) pick(tr);
+		});
+		body.addEventListener('keydown', (e) => {
+			const tr = (e.target as HTMLElement).closest<HTMLElement>('tr[data-row]');
+			if (!tr) return;
+			const visible = rows().filter((r) => !r.classList.contains('hide'));
+			const i = visible.indexOf(tr);
+			if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(tr); }
+			else if (e.key === 'ArrowDown' && i < visible.length - 1) { e.preventDefault(); visible[i + 1].focus(); }
+			else if (e.key === 'ArrowUp' && i > 0) { e.preventDefault(); visible[i - 1].focus(); }
+		});
+
+		// react to live prints: sweep the row, point the arrow
+		const last: Record<string, number> = {};
+		(window as any).__live?.subscribe?.((sym: string, t: any) => {
+			const tr = body.querySelector<HTMLElement>(`[data-row="${sym}"]`);
+			if (!tr) return;
+
+			const arw = tr.querySelector<HTMLElement>('[data-arw]');
+			if (arw && t.chg != null) arw.className = `arw ${t.chg >= 0 ? 'u' : 'd'}`;
+
+			const prev = last[sym];
+            last[sym] = t.price;
+			if (reduce || prev === undefined || prev === t.price) return;
+			const up = t.price > prev;
+			tr.style.setProperty('--sweep', up ? 'rgba(38,208,124,0.13)' : 'rgba(246,70,93,0.13)');
+			tr.classList.remove('lit');
+			void tr.offsetWidth;
+			tr.classList.add('lit');
+			setTimeout(() => tr.classList.remove('lit'), 760);
+		});
+	}
+</script>

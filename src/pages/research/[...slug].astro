@@ -1,0 +1,165 @@
+---
+import type { GetStaticPaths } from 'astro';
+import Base from '../../layouts/Base.astro';
+import ReferralSlot from '../../components/ReferralSlot.astro';
+import { render } from 'astro:content';
+import { allPosts, KIND_LABEL } from '../../lib/posts';
+import { X_URL } from '../../consts';
+
+export const getStaticPaths = (async () => {
+	const posts = await allPosts();
+	return posts.map((post) => ({ params: { slug: post.id }, props: { post } }));
+}) satisfies GetStaticPaths;
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+const { title, description, pubDate, updatedDate, kind, tags, stat, statLabel } = post.data;
+const d = pubDate.toISOString().slice(0, 10);
+---
+
+<Base title={title} description={description} type="article">
+	<article class="wrap post">
+		<header>
+			<div class="meta">
+				<span class="label kind">{KIND_LABEL[kind]}</span>
+				<time class="label" datetime={d}>{d}</time>
+				{updatedDate && <span class="label upd">updated {updatedDate.toISOString().slice(0, 10)}</span>}
+			</div>
+			<h1>{title}</h1>
+			{
+				stat && (
+					<div class="bigstat">
+						<span class="n">{stat}</span>
+						<span class="l">{statLabel}</span>
+					</div>
+				)
+			}
+		</header>
+
+		<div class="prose">
+			<Content />
+		</div>
+
+		<ReferralSlot />
+
+		<footer class="pf">
+			<div class="tags">
+				{tags.map((t) => <span class="tag">{t}</span>)}
+			</div>
+			<a href={X_URL} target="_blank" rel="noopener" class="disc">
+				Disagree with the numbers? I'm easier to argue with on X →
+			</a>
+		</footer>
+
+	</article>
+</Base>
+
+<style>
+	.post {
+		max-width: 760px;
+		padding: 48px 0 0;
+	}
+	.meta {
+		display: flex;
+		gap: 12px;
+		align-items: center;
+		margin-bottom: 16px;
+		flex-wrap: wrap;
+	}
+	.kind {
+		color: var(--accent);
+	}
+	.upd {
+		color: #4f5766;
+	}
+	header h1 {
+		font-size: clamp(1.9rem, 4.6vw, 2.85rem);
+		margin-bottom: 22px;
+	}
+	.bigstat {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		padding: 18px 22px;
+		border-left: 3px solid var(--accent);
+		background: linear-gradient(90deg, var(--accent-dim), transparent 70%);
+		border-radius: 0 var(--radius) var(--radius) 0;
+		margin-bottom: 34px;
+	}
+	.bigstat .n {
+		font-family: var(--font-mono), monospace;
+		font-size: 2.3rem;
+		font-weight: 700;
+		color: #fff;
+		line-height: 1;
+		letter-spacing: -0.025em;
+	}
+	.bigstat .l {
+		font-family: var(--font-mono), monospace;
+		font-size: 0.74rem;
+		color: var(--fg-dim);
+	}
+
+	.prose {
+		font-size: 1.04rem;
+		line-height: 1.75;
+	}
+	.prose :global(h2) {
+		margin-top: 2.2em;
+	}
+	.prose :global(h3) {
+		margin-top: 1.8em;
+	}
+	.prose :global(strong) {
+		color: #fff;
+	}
+	.prose :global(table) {
+		font-size: 0.9rem;
+		margin: 1.8em 0;
+	}
+	.prose :global(em) {
+		color: var(--fg-dim);
+	}
+	.prose :global(p > em:only-child) {
+		display: block;
+		font-size: 0.82rem;
+		font-style: normal;
+		color: var(--fg-mute);
+		border-top: 1px solid var(--line);
+		padding-top: 16px;
+		margin-top: 8px;
+		line-height: 1.65;
+	}
+
+	.pf {
+		margin-top: 48px;
+		padding-top: 22px;
+		border-top: 1px solid var(--line);
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 16px;
+		flex-wrap: wrap;
+	}
+	.tags {
+		display: flex;
+		gap: 6px;
+		flex-wrap: wrap;
+	}
+	.tag {
+		font-family: var(--font-mono), monospace;
+		font-size: 0.68rem;
+		color: var(--fg-mute);
+		border: 1px solid var(--line);
+		border-radius: 3px;
+		padding: 3px 8px;
+	}
+	.disc {
+		font-size: 0.85rem;
+		color: var(--fg-dim);
+		text-decoration: none;
+	}
+	.disc:hover {
+		color: var(--accent);
+	}
+</style>

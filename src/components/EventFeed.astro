@@ -1,0 +1,374 @@
+---
+/**
+ * Terminal-style event log. One line per event, four aligned columns, no chrome.
+ * Rows expand in place for the detail and the full reading.
+ *
+ * Deliberately no clock column: only a couple of these have a timestamp I can
+ * actually source, and inventing the rest to make a column look tidy is exactly
+ * the kind of thing this log exists to not do.
+ */
+import data from '../data/events.json';
+interface Props {
+	limit?: number;
+	showUpcoming?: boolean;
+	scroll?: boolean;
+	height?: number;
+	/** Render the section heading with the feed rather than beside it. */
+	heading?: boolean;
+}
+const { limit, showUpcoming = true, scroll = false, height = 330, heading = false } = Astro.props;
+
+const today = data.updated;
+const byDay = new Map<string, any[]>();
+for (const e of data.events) {
+	if (!byDay.has(e.date)) byDay.set(e.date, []);
+	byDay.get(e.date)!.push(e);
+}
+let shown = 0;
+const days = [...byDay.entries()].filter(([, evs]) => {
+	if (limit == null) return true;
+	if (shown >= limit) return false;
+	shown += evs.length;
+	return true;
+});
+const dayLabel = (d: string) =>
+	d === today
+		? `today · ${new Date(d + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}`
+		: new Date(d + 'T00:00:00Z').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+const dcls = (d: string) => (d === 'up' ? 'u' : d === 'down' ? 'd' : '');
+---
+
+{heading && (
+	<div class="secmark">
+		<h2>Logged</h2>
+		<p>Read off a primary source, market reaction measured — what this site is for.</p>
+	</div>
+)}
+<div class:list={['logwrap', { scroll }]} style={scroll ? `--h:${height}px` : undefined} data-logwrap>
+	<div class="log" data-logtrack>
+	{
+		days.map(([date, evs]) => (
+			<section class="grp">
+				<div class="sep"><span>{dayLabel(date)}</span></div>
+				{evs.map((e: any) => (
+					<details class:list={['ln', { key: e.weight === 3 }]}>
+						<summary>
+							<span class="car" aria-hidden="true"></span>
+							<span class="dt">{date.slice(5)}</span>
+							<span class="tg" data-tag={e.tag}>{e.tag}</span>
+							<span class="tt">{e.title}</span>
+							<span class="mm">
+								{(e.metrics ?? []).slice(0, 3).map((m: any) => (
+									<span class="m">
+										<b class={dcls(m.dir)}>{m.value}</b>
+										<i>{m.label}</i>
+									</span>
+								))}
+							</span>
+						</summary>
+						<div class="body">
+							<p class="det">{e.detail}</p>
+							{e.impact && <p class="imp">{e.impact}</p>}
+							{e.link && <a class="lk" href={e.link}>full write-up →</a>}
+						</div>
+					</details>
+				))}
+			</section>
+		))
+	}
+
+	{
+		showUpcoming && (
+			<section class="grp">
+				<div class="sep ahead"><span>ahead · scheduled, not predicted</span></div>
+				{data.upcoming.map((u: any) => (
+					<div class="ln static">
+						<div class="summary">
+							<span class="car ghost" aria-hidden="true"></span>
+							<span class="dt">—</span>
+							<span class="tg" data-tag="ahead">{u.when}</span>
+							<span class="tt">{u.what}</span>
+							<span class="mm" />
+						</div>
+						<div class="body open"><p class="det">{u.why}</p></div>
+					</div>
+				))}
+			</section>
+		)
+	}
+	</div>
+</div>
+
+<style>
+	.secmark { margin: 0 0 12px; }
+	.secmark h2 { margin: 0 0 5px; font-size: 1.28rem; }
+	.secmark p {
+		margin: 0; font-size: 0.85rem; color: var(--fg-mute);
+		line-height: 1.6; max-width: 70ch;
+	}
+
+	.grp { display: block; }
+
+	/* Auto-scrolling viewport. The track is duplicated in the client script so
+	   the loop has no seam; hovering, focusing or opening a row pauses it. */
+	.logwrap.scroll {
+		height: var(--h);
+		overflow: hidden;
+		position: relative;
+		mask-image: linear-gradient(180deg, transparent, #000 18px, #000 calc(100% - 26px), transparent);
+	}
+	.logwrap.scroll > .log {
+		animation: logRoll var(--dur, 60s) linear infinite;
+	}
+	.logwrap.scroll:hover > .log,
+	.logwrap.scroll:focus-within > .log,
+	.logwrap.scroll.paused > .log { animation-play-state: paused; }
+	@keyframes logRoll { to { transform: translateY(-50%); } }
+	@media (prefers-reduced-motion: reduce) {
+		.logwrap.scroll { overflow-y: auto; mask-image: none; }
+		.logwrap.scroll > .log { animation: none; }
+		.car { transition: none; }
+		.ln[open] .body { animation: none; }
+		.ln::details-content { transition: none; }
+	}
+
+	.log {
+		/* grid: [date] [tag] [title] [metrics], gap 14, summary pads 10 left.
+		   The title column therefore starts at 10 + 46 + 14 + 64 + 14. */
+		--c-car: 10px;
+		--c-date: 46px;
+		--c-tag: 64px;
+		--gap: 14px;
+		--pad-l: 10px;
+		--indent: calc(
+			var(--pad-l) + var(--c-car) + var(--gap) + var(--c-date) + var(--gap) + var(--c-tag) + var(--gap)
+		);
+		font-family: var(--font-mono), monospace;
+		font-size: 0.82rem;
+		line-height: 1.5;
+	}
+
+	.sep {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 18px 2px 7px;
+		font-size: 0.68rem;
+		text-transform: uppercase;
+		letter-spacing: 0.16em;
+		color: var(--accent);
+	}
+	.sep:first-child { padding-top: 2px; }
+	.sep::after {
+		content: '';
+		flex: 1;
+		height: 1px;
+		background: linear-gradient(90deg, var(--line-bright), transparent);
+	}
+	.sep.ahead { color: var(--fg-mute); }
+
+	.ln { border-bottom: 1px solid #12151b; }
+	.ln > summary, .ln .summary {
+		display: grid;
+		grid-template-columns: var(--c-car) var(--c-date) var(--c-tag) minmax(0, 1fr) auto;
+		gap: var(--gap);
+		align-items: baseline;
+		padding: 8px 8px 8px var(--pad-l);
+		cursor: pointer;
+		list-style: none;
+		border-left: 2px solid transparent;
+		transition: background 0.12s ease, border-color 0.12s ease;
+	}
+	.ln > summary::-webkit-details-marker { display: none; }
+	.ln > summary::marker { content: ''; }
+	.ln > summary:hover { background: #0e1117; border-left-color: var(--line-bright); }
+	.ln[open] > summary { background: #0e1117; border-left-color: var(--accent); }
+	.ln.key > summary { border-left-color: rgba(240, 185, 11, 0.45); }
+	.ln.static .summary { cursor: default; }
+
+	.car {
+		width: 0;
+		height: 0;
+		align-self: center;
+		border-left: 4px solid #434a57;
+		border-top: 3.5px solid transparent;
+		border-bottom: 3.5px solid transparent;
+		transition: transform 0.24s cubic-bezier(0.3, 0.8, 0.3, 1), border-left-color 0.16s ease;
+	}
+	.ln > summary:hover .car { border-left-color: var(--fg-dim); }
+	.ln[open] .car { transform: rotate(90deg); border-left-color: var(--accent); }
+	.car.ghost { opacity: 0; }
+
+	.dt { color: #4f5766; font-variant-numeric: tabular-nums; }
+	.tg {
+		font-size: 0.66rem;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: var(--fg-mute);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.tg[data-tag='fed'] { color: var(--accent); }
+	.tg[data-tag='policy'] { color: #7aa2ff; }
+	.tg[data-tag='defi'], .tg[data-tag='protocol'] { color: var(--up); }
+	.tg[data-tag='ahead'] { color: var(--accent); }
+	.tt {
+		color: var(--fg);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		font-family: var(--font-body), sans-serif;
+		font-size: 0.92rem;
+	}
+	.ln[open] .tt, .ln > summary:hover .tt { color: #fff; }
+
+	.mm { display: flex; gap: 16px; white-space: nowrap; }
+	.m { display: inline-flex; align-items: baseline; gap: 5px; }
+	.m b { color: #fff; font-weight: 700; font-variant-numeric: tabular-nums; }
+	.m b.u { color: var(--up); }
+	.m b.d { color: var(--down); }
+	.m i {
+		font-style: normal;
+		font-size: 0.64rem;
+		color: var(--fg-mute);
+		letter-spacing: 0.04em;
+	}
+
+	/* Native <details> snaps open. Where the browser can interpolate to
+	   auto, animate the disclosure itself; everywhere else the inner fade
+	   still softens it. */
+	@supports (interpolate-size: allow-keywords) {
+		.log { interpolate-size: allow-keywords; }
+		.ln::details-content {
+			block-size: 0;
+			overflow: hidden;
+			transition:
+				block-size 0.26s cubic-bezier(0.3, 0.8, 0.3, 1),
+				content-visibility 0.26s allow-discrete;
+		}
+		.ln[open]::details-content { block-size: auto; }
+	}
+
+	.ln[open] .body { animation: bodyIn 0.3s cubic-bezier(0.25, 0.8, 0.3, 1) both; }
+	@keyframes bodyIn {
+		from { opacity: 0; transform: translateY(-5px); }
+	}
+
+	.body {
+		padding: 2px 14px 15px var(--indent);
+		max-width: 86ch;
+	}
+	.body.open { padding-top: 0; }
+	.det {
+		margin: 0;
+		font-family: var(--font-body), sans-serif;
+		font-size: 0.88rem;
+		color: var(--fg-dim);
+		line-height: 1.6;
+	}
+	.imp {
+		margin: 9px 0 0;
+		font-family: var(--font-body), sans-serif;
+		font-size: 0.86rem;
+		color: var(--fg);
+		line-height: 1.65;
+		padding-left: 12px;
+		border-left: 1px solid var(--line-bright);
+	}
+	.lk {
+		display: inline-block;
+		margin-top: 9px;
+		font-size: 0.7rem;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--accent);
+		text-decoration: none;
+	}
+	.lk:hover { text-decoration: underline; }
+
+	@media (max-width: 860px) {
+		.log { --c-date: 44px; --c-tag: 58px; }
+		.ln > summary, .ln .summary {
+			grid-template-columns: var(--c-car) var(--c-date) var(--c-tag) minmax(0, 1fr);
+		}
+		.mm {
+			grid-column: 4 / -1;
+			padding-left: 0;
+			margin-top: 5px;
+			gap: 14px;
+			flex-wrap: wrap;
+		}
+	}
+	@media (max-width: 560px) {
+		/* tag column is hidden here, so the title starts one column earlier */
+		.log {
+			--indent: calc(var(--pad-l) + var(--c-car) + var(--gap) + var(--c-date) + var(--gap));
+		}
+		.ln > summary, .ln .summary {
+			grid-template-columns: var(--c-car) var(--c-date) minmax(0, 1fr);
+		}
+		.mm { grid-column: 3 / -1; }
+		.tg { display: none; }
+	}
+</style>
+
+<script>
+	function initLog(wrap: HTMLElement) {
+		const track = wrap.querySelector<HTMLElement>('[data-logtrack]');
+		if (!track || wrap.dataset.ready === '1') return;
+		if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+		// Measure after layout settles — checking too early (web fonts still
+		// loading) under-reports the height and skips the whole setup.
+		if (track.scrollHeight <= wrap.clientHeight + 8) return;
+		wrap.dataset.ready = '1';
+
+		const clone = track.cloneNode(true) as HTMLElement;
+		clone.setAttribute('aria-hidden', 'true');
+		clone.removeAttribute('data-logtrack');
+		clone.style.pointerEvents = 'none';
+		for (const d of clone.querySelectorAll('details')) {
+			d.removeAttribute('open');
+			d.setAttribute('tabindex', '-1');
+		}
+		for (const a of clone.querySelectorAll('a')) a.setAttribute('tabindex', '-1');
+		track.insertAdjacentElement('beforeend', clone);
+
+		const dur = Math.max(28, Math.round(track.scrollHeight / 14));
+		wrap.style.setProperty('--dur', `${dur}s`);
+
+		const openRows = () => wrap.querySelectorAll<HTMLDetailsElement>('details[open]');
+
+		wrap.addEventListener('toggle', () => {
+			wrap.classList.toggle('paused', openRows().length > 0);
+		}, true);
+
+		// Leaving the area resets everything. Clicking a row focuses its
+		// <summary>, and that focus keeps :focus-within alive long after the
+		// pointer is gone — which parked the feed permanently. Blur it too.
+		// On touch there is no pointerleave; a tap elsewhere has to release it.
+		document.addEventListener('pointerdown', (e) => {
+			if (!wrap.contains(e.target as Node)) {
+				for (const d of openRows()) d.open = false;
+				wrap.classList.remove('paused');
+			}
+		});
+
+		wrap.addEventListener('pointerleave', () => {
+			for (const d of openRows()) d.open = false;
+			const active = document.activeElement as HTMLElement | null;
+			if (active && wrap.contains(active)) active.blur();
+			wrap.classList.remove('paused');
+		});
+	}
+
+	function bootLogs() {
+		for (const wrap of document.querySelectorAll<HTMLElement>('[data-logwrap].scroll')) initLog(wrap);
+	}
+
+	bootLogs();
+	// fonts change row heights; re-check once they land
+	if ((document as any).fonts?.ready) (document as any).fonts.ready.then(bootLogs);
+	addEventListener('load', bootLogs, { once: true });
+</script>
