@@ -4,10 +4,15 @@
  * than off an exchange, so this is the one block on the page that keeps working
  * when every venue is down.
  *
- * Fetched in the browser: hashrate and mempool move within a block, and a
- * figure baked in at build time would be stale before anyone read it.
+ * Fetched in the browser, because hashrate and mempool move within a block.
+ * The build-time reading still ships with the page: a reader whose network
+ * can't reach the upstream gets numbers and a timestamp rather than dashes,
+ * and the live fetch becomes an upgrade instead of the only path to content.
  */
 import Busy from './Busy.astro';
+import snap from '../data/btc.json';
+
+const seed = (snap as any).onchain ?? null;
 
 const TILES = [
 	{ k: 'hashrate', label: '24h hashrate', sub: 'sub-hashrate' },
@@ -33,6 +38,7 @@ const TILES = [
 	<p class="src">
 		Chain state from Blockchair, refreshed every two minutes · <span data-oc-stamp>—</span>
 	</p>
+	{seed && <script type="application/json" data-oc-seed set:html={JSON.stringify(seed)} />}
 </div>
 
 <style>
@@ -141,13 +147,20 @@ const TILES = [
 					const s = (await (await fetch(STATS_URL)).json()).data;
 					paint(derive(s));
 				} catch {
-					root!.querySelector('[data-oc-stamp]')!.textContent = 'chain feed unavailable';
+					// keep whatever is already on screen; only say so if nothing is
+					const stamp = root!.querySelector('[data-oc-stamp]')!;
+					if (stamp.textContent === '—') stamp.textContent = 'chain feed unavailable';
 				}
 			});
 		}
 
-		load(true);
-		// background refreshes stay silent — the veil is for switches a person made
+		// paint the baked-in reading first, so the refresh is never the only source
+		let seeded = false;
+		const seedEl = root.querySelector('[data-oc-seed]');
+		if (seedEl?.textContent) {
+			try { paint(JSON.parse(seedEl.textContent)); seeded = true; } catch {}
+		}
+		load(!seeded);
 		setInterval(() => load(), 120000);
 		document.addEventListener('visibilitychange', () => !document.hidden && load());
 	}

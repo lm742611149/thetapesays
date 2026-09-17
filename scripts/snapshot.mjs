@@ -12,6 +12,8 @@ import { fetchNews } from '../functions/_lib/news.js';
 import {
 	fullDaily, btcAnalytics, monthlyMatrix, coinAnalytics, chainTvl, CHAIN_SLUG,
 } from '../functions/_lib/btc-analytics.js';
+import { onchain } from '../functions/_lib/onchain.js';
+import { treasuries } from '../functions/_lib/treasuries.js';
 
 const J = async (u) => {
 	const r = await fetch(u);
@@ -160,6 +162,30 @@ try {
 		`[snapshot] etf ${etf.funds?.length ?? 0} funds · altseason ${altseason.value ?? 'n/a'} ` +
 			`(${altseason.beating ?? '?'}/${altseason.counted ?? '?'}) · options p/c ${options.pcOi ?? 'n/a'} ` +
 			`dvol ${options.dvolNow ?? 'n/a'}`,
+	);
+
+	// Chain state and treasury filings. These three panels fetch in the browser,
+	// but a reader whose network can't reach Blockchair or CoinGecko — or who
+	// arrives while CoinGecko is rate-limiting — would otherwise get an empty
+	// table. Baking a value in means the panel always has something to show and
+	// the live fetch is an upgrade rather than the only path to content.
+	const chain = await onchain().catch((e) => {
+		console.warn('[snapshot] onchain:', e.message);
+		return undefined;
+	});
+	if (chain) data.onchain = chain;
+	const books = {};
+	for (const coin of ['BTC', 'ETH']) {
+		try {
+			books[coin] = await treasuries(coin);
+		} catch (e) {
+			console.warn(`[snapshot] treasuries ${coin}:`, e.message);
+		}
+	}
+	if (Object.keys(books).length) data.treasuries = books;
+	console.log(
+		`[snapshot] chain ${chain ? Math.round(chain.chain.hashrateEh) + ' EH/s · hashprice $' + chain.miner.hashprice.toFixed(2) : 'n/a'}` +
+			` · treasuries ${Object.keys(books).join('/') || 'n/a'}`,
 	);
 
 	// A single upstream hiccup (CoinGecko rate-limiting is the usual one) used to

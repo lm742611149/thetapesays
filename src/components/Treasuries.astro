@@ -8,8 +8,12 @@
  * P&L rather than being guessed at.
  */
 import Busy from './Busy.astro';
+import snap from '../data/btc.json';
 
 const COINS = ['BTC', 'ETH'];
+// filings from the last build — CoinGecko rate-limits, and an empty table is
+// worse than a table stamped with when it was read
+const seed = (snap as any).treasuries ?? null;
 ---
 
 <div class="tr" data-treasuries>
@@ -50,6 +54,7 @@ const COINS = ['BTC', 'ETH'];
 		Disclosed holdings via CoinGecko · <span data-t="count">—</span> ·
 		<span data-t="stamp">—</span>
 	</p>
+	{seed && <script type="application/json" data-t-seed set:html={JSON.stringify(seed)} />}
 </div>
 
 <style>
@@ -110,6 +115,8 @@ const COINS = ['BTC', 'ETH'];
 		const body = root.querySelector<HTMLElement>('[data-trows]')!;
 		const q = (k: string) => root.querySelector<HTMLElement>(`[data-t="${k}"]`);
 		const cache: Record<string, any> = {};
+		/** last build's filings, per coin — the fallback when a refresh fails */
+		let baked: Record<string, any> = {};
 		let coin = 'BTC';
 
 		const n = (v: number, d = 0) =>
@@ -163,7 +170,8 @@ const COINS = ['BTC', 'ETH'];
 					cache[next] = d;
 					if (coin === next) render(d);
 				} catch {
-					if (coin === next) render(null);
+					// a failed refresh must not wipe a table that already has numbers
+					if (coin === next) render(cache[next] ?? baked[next] ?? null);
 				}
 			});
 		}
@@ -175,11 +183,21 @@ const COINS = ['BTC', 'ETH'];
 					o.classList.toggle('on', o === b);
 					o.setAttribute('aria-selected', String(o === b));
 				});
-				load(sym, true);
+				// already holding a baked copy? show it while the refresh runs
+				if (!cache[sym] && baked[sym]) render(baked[sym]);
+				load(sym, !cache[sym] && !baked[sym]);
 			}),
 		);
 
-		load('BTC', true);
+		const seedEl = root.querySelector('[data-t-seed]');
+		let seeded = false;
+		if (seedEl?.textContent) {
+			try {
+				baked = JSON.parse(seedEl.textContent) ?? {};
+				if (baked.BTC) { render(baked.BTC); seeded = true; }
+			} catch {}
+		}
+		load('BTC', !seeded);
 	}
 </script>
 
