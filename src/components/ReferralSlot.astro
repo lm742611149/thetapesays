@@ -25,8 +25,8 @@ const { variant = 'wide' } = Astro.props;
 					Support the site
 				</span>
 				<h3>
-					Sign up to <b>{REFERRAL.name}</b> with my code — you pay lower fees, and the rebate
-					keeps this site running.
+					If this site helps you, sign up to <b>{REFERRAL.name}</b> with my code. You pay lower
+					fees, and it keeps this running — I'd appreciate it.
 				</h3>
 			</div>
 
@@ -43,49 +43,42 @@ const { variant = 'wide' } = Astro.props;
 			</div>
 		</div>
 
-		<p class="fine">Referral link · costs you nothing extra</p>
+		<p class="fine">
+			Referral link<span class="dcopy"> · costs you nothing extra</span><span class="mcode"> · code {REFERRAL.code}</span>
+		</p>
 	</aside>
 )}
 
 <style>
+	/* The lit edge is a gradient painted into the border box with the panel's own
+	   background clipped to the padding box on top of it. The earlier version
+	   masked a full-bleed pseudo-element down to a 1px ring, which shows up as a
+	   solid wash of yellow in any engine that doesn't implement mask-composite. */
 	.ref {
 		position: relative;
+		border: 1px solid transparent;
 		border-radius: 14px;
 		background:
-			radial-gradient(120% 140% at 8% 0%, rgba(240, 185, 11, 0.13), transparent 58%),
-			linear-gradient(170deg, #15130c, #0c0d11 60%);
+			radial-gradient(120% 140% at 8% 0%, rgba(240, 185, 11, 0.13), transparent 58%) padding-box,
+			linear-gradient(170deg, #15130c, #0c0d11 60%) padding-box,
+			conic-gradient(
+				from var(--sweep, 0deg),
+				rgba(240, 185, 11, 0.28) 0deg,
+				#f0b90b 40deg,
+				rgba(240, 185, 11, 0.85) 70deg,
+				rgba(240, 185, 11, 0.24) 150deg,
+				rgba(240, 185, 11, 0.24) 360deg
+			) border-box;
 		padding: 22px 24px 16px;
 		overflow: hidden;
 		isolation: isolate;
+		animation: sweep 5s linear infinite;
 	}
 	.ref.wide { margin: 14px 0; }
 	.ref.inline { margin: 26px 0; padding: 18px 20px 13px; }
 
-	/* A yellow edge that stays lit, with a brighter arc travelling around it.
-	   Drawn as a masked ring so the fill underneath is untouched. */
-	.ref::before {
-		content: '';
-		position: absolute;
-		inset: 0;
-		border-radius: inherit;
-		padding: 1px;
-		background:
-			conic-gradient(
-				from var(--sweep, 0deg),
-				rgba(240, 185, 11, 0.25) 0deg,
-				#f0b90b 40deg,
-				rgba(240, 185, 11, 0.9) 70deg,
-				rgba(240, 185, 11, 0.22) 150deg,
-				rgba(240, 185, 11, 0.22) 360deg
-			);
-		mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-		mask-composite: exclude;
-		-webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-		-webkit-mask-composite: xor;
-		animation: sweep 5s linear infinite;
-		z-index: 2;
-		pointer-events: none;
-	}
+	/* Engines without @property can't interpolate an angle, so they get a static
+	   gradient edge rather than a travelling one — a downgrade, not a break. */
 	@property --sweep {
 		syntax: '<angle>';
 		inherits: false;
@@ -249,14 +242,27 @@ const { variant = 'wide' } = Astro.props;
 	}
 
 	.ref.inline h3 { font-size: 1.02rem; }
+	/* the code box carries these on a wide screen; the fine print carries them
+	   on a phone, where the box is hidden */
+	.mcode { display: none; }
 
 	@media (max-width: 620px) {
+		.ref { padding: 15px 16px 10px; }
+		.ref.wide { margin: 12px 0; }
+		.body { gap: 13px; }
+		.ref h3 { font-size: clamp(0.92rem, 3.6vw, 1.05rem); line-height: 1.45; margin: 6px 0 0; }
+		.kicker { font-size: 0.56rem; letter-spacing: 0.1em; }
 		.act { width: 100%; }
-		.cta { width: 100%; }
-		.code { justify-content: center; }
+		.cta { width: 100%; font-size: 0.88rem; min-height: 42px; }
+		/* one button, not two — the code rides along in the link and is repeated
+		   in the fine print for anyone typing it by hand */
+		.code { display: none; }
+		.mcode { display: inline; }
+		.dcopy { display: none; }
+		.fine { margin-top: 10px; padding-top: 9px; font-size: 0.58rem; }
 	}
 	@media (prefers-reduced-motion: reduce) {
-		.ref::before, .glow, .dot, .cta::after { animation: none; }
+		.ref, .glow, .dot, .cta::after { animation: none; }
 		.cta:hover { transform: none; }
 	}
 </style>
