@@ -1,0 +1,54 @@
+# Refresh the baked-in market data on a schedule.
+#
+# This used to run inside the Pages build, which meant two things: a CSS change
+# waited ~32s on roughly a hundred upstream requests before anything shipped,
+# and the data only ever refreshed when someone happened to push. Splitting it
+# out fixes both — code deploys are fast, and the snapshot updates on its own.
+#
+# The commit here triggers a Pages build (a webhook, not a workflow, so there's
+# no loop), which is how the new data reaches the site.
+name: snapshot
+
+on:
+  schedule:
+    # every six hours; daily bars and the slow series don't move faster
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: snapshot
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # snapshot.mjs imports nothing outside node: builtins and functions/_lib,
+      # so there is no install step to wait on
+      - name: Pull fresh data
+        run: node scripts/snapshot.mjs
+
+      - name: Commit if anything moved
+        run: |
+          set -euo pipefail
+          git config user.name  'tapesays-bot'
+          git config user.email 'bot@thetapesays.com'
+          if git diff --quiet -- src/data; then
+            echo "no change in src/data — nothing to commit"
+            exit 0
+          fi
+          git add src/data
+          git commit -m "data: snapshot $(date -u '+%Y-%m-%d %H:%M UTC')"
+          # a scheduled run can collide with a push; rebase rather than fail
+          git pull --rebase --autostash origin main
+          git push origin HEAD:main
