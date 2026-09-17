@@ -6,11 +6,13 @@ const path = Astro.url.pathname;
 // the trade log stays out of the nav until its prices have been reconciled
 // against the exchange record (trades.json -> verified)
 const nav = [
+	// the trade log leads: it is the only thing here nobody else can publish,
+	// and it stays hidden until its prices are reconciled (trades.json)
+	...((trades as any).verified ? [['/positions/', 'Positions']] : []),
 	['/btc/', 'Markets'],
 	['/events/', 'News'],
 	['/research/', 'Research'],
 	['/data/', 'Data'],
-	...((trades as any).verified ? [['/positions/', 'Positions']] : []),
 ];
 const on = (href: string) => path === href || (href !== '/' && path.startsWith(href));
 ---

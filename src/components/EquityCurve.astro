@@ -1,0 +1,208 @@
+---
+/**
+ * Cumulative P&L with the per-trade bars underneath it, on one shared time axis.
+ *
+ * Two stacked panels rather than one chart with two scales: cumulative currency
+ * and single-trade currency differ by an order of magnitude, and putting them on
+ * the same axis would flatten every individual trade into the baseline. Sharing
+ * the x axis keeps them readable together without inventing a second y.
+ *
+ * The drawdown band is drawn because it is the number a record gets judged on —
+ * a curve that only shows the ending value hides how it got there.
+ */
+interface Point { date: string; sym: string; pnl: number; cum: number }
+interface Props {
+	curve: Point[];
+	/** peak-to-trough on the same curve, for the shaded band */
+	drawdown?: { abs: number; pct: number };
+}
+const { curve, drawdown } = Astro.props;
+
+const W = 760, H = 300;
+const PL = 6, PR = 52, PT = 14;
+const CURVE_H = 186;          // top panel
+const GAP = 26;
+const BAR_H = 52;             // bottom panel
+const AXIS_Y = PT + CURVE_H;
+
+/**
+ * One slot per trade, not per day. Two trades closing on the same date land on
+ * the same x on a time axis — the later one covers the earlier one completely,
+ * hiding both the point and its hit target. Sequence is also the honest reading
+ * for a trade-by-trade curve: each step is one decision, not one day.
+ */
+const N = curve.length;
+const X = (i: number) => PL + (N === 1 ? 0.5 : i / (N - 1)) * (W - PL - PR);
+
+const cums = curve.map((p) => p.cum);
+const hi = Math.max(0, ...cums), lo = Math.min(0, ...cums);
+const pad = (hi - lo) * 0.12 || 1;
+const yTop = hi + pad, yBot = lo - pad;
+const Y = (v: number) => PT + (1 - (v - yBot) / (yTop - yBot)) * CURVE_H;
+
+const line = curve.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(p.cum).toFixed(1)}`).join(' ');
+const zeroY = Y(0);
+const area = `${line} L ${X(N - 1).toFixed(1)} ${zeroY.toFixed(1)} L ${X(0).toFixed(1)} ${zeroY.toFixed(1)} Z`;
+
+// peak and the trough that follows it — the visible drawdown
+let peak = -Infinity, peakAt = 0, worst = 0, ddFrom = 0, ddTo = 0;
+curve.forEach((p, i) => {
+	if (p.cum > peak) { peak = p.cum; peakAt = i; }
+	if (p.cum - peak < worst) { worst = p.cum - peak; ddFrom = peakAt; ddTo = i; }
+});
+const hasDd = worst < 0 && ddTo > ddFrom;
+
+const bars = curve.map((p) => p.pnl);
+const barMax = Math.max(...bars.map(Math.abs)) || 1;
+const barBase = AXIS_Y + GAP + BAR_H / 2;
+const barH = (v: number) => (Math.abs(v) / barMax) * (BAR_H / 2);
+const BAR_W = Math.max(6, Math.min(22, (W - PL - PR) / (N * 1.8)));
+
+const money = (v: number) => `${v >= 0 ? '+' : '−'}$${Math.abs(v).toFixed(2)}`;
+// hit targets tile the axis edge to edge, so there is no dead space between them
+const slot = (W - PL - PR) / Math.max(1, N - 1);
+const ticks = [hi, (hi + lo) / 2, lo].filter((v, i, a) => a.indexOf(v) === i);
+---
+
+<figure class="eq" data-eq>
+	<svg viewBox={`0 0 ${W} ${H}`} role="img"
+		aria-label={`Cumulative profit and loss across ${curve.length} closed trades`}>
+		{ticks.map((v) => (
+			<g>
+				<line class="grid" x1={PL} y1={Y(v).toFixed(1)} x2={W - PR} y2={Y(v).toFixed(1)} />
+				<text class="ax" x={W - PR + 7} y={(Y(v) + 3.4).toFixed(1)}>{money(v)}</text>
+			</g>
+		))}
+		<line class="zero" x1={PL} y1={zeroY.toFixed(1)} x2={W - PR} y2={zeroY.toFixed(1)} />
+
+		{hasDd && (
+			<rect class="dd" x={X(ddFrom).toFixed(1)} y={Y(curve[ddFrom].cum).toFixed(1)}
+				width={Math.max(2, X(ddTo) - X(ddFrom)).toFixed(1)}
+				height={Math.max(2, Y(curve[ddTo].cum) - Y(curve[ddFrom].cum)).toFixed(1)} />
+		)}
+
+		<path class="fill" d={area} />
+		<path class="ln" d={line} />
+
+		{curve.map((p, i) => (
+			<circle class="pt" cx={X(i).toFixed(1)} cy={Y(p.cum).toFixed(1)} r="3.2" data-i={i} />
+		))}
+
+		<line class="zero" x1={PL} y1={barBase.toFixed(1)} x2={W - PR} y2={barBase.toFixed(1)} />
+		{curve.map((p, i) => (
+			<rect class={`bar ${p.pnl >= 0 ? 'up' : 'down'}`} data-i={i}
+				x={(X(i) - BAR_W / 2).toFixed(1)}
+				y={(p.pnl >= 0 ? barBase - barH(p.pnl) : barBase).toFixed(1)}
+				width={BAR_W.toFixed(1)} height={Math.max(1.5, barH(p.pnl)).toFixed(1)} rx="1.5" />
+		))}
+		<text class="ax lbl" x={PL} y={(AXIS_Y + GAP - 4).toFixed(1)}>per trade</text>
+
+		{curve.map((p, i) => (
+			<rect class="hit" data-i={i} data-date={p.date} data-sym={p.sym}
+				data-pnl={p.pnl} data-cum={p.cum}
+				x={(X(i) - slot / 2).toFixed(1)} y={PT}
+				width={slot.toFixed(1)} height={(AXIS_Y + GAP + BAR_H - PT).toFixed(1)} />
+		))}
+
+		<text class="ax" x={PL} y={H - 4}>{curve[0].date}</text>
+		<text class="ax e" x={W - PR} y={H - 4}>{curve.at(-1)!.date}</text>
+	</svg>
+
+	<div class="tip" data-eq-tip hidden></div>
+
+	{hasDd && drawdown && (
+		<figcaption>
+			Shaded band is the deepest drawdown on this curve: {money(drawdown.abs)} off the peak
+			({Math.abs(drawdown.pct)}%),{' '}
+			{curve[ddFrom].date === curve[ddTo].date
+				? `both on ${curve[ddTo].date}`
+				: `${curve[ddFrom].date} to ${curve[ddTo].date}`}.
+		</figcaption>
+	)}
+</figure>
+
+<style>
+	.eq { margin: 0; position: relative; }
+	svg { width: 100%; height: auto; display: block; overflow: visible; }
+
+	.grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
+	.zero { stroke: var(--line-bright); stroke-width: 1; }
+	.ax {
+		font-family: var(--font-mono), monospace; font-size: 9.5px;
+		fill: var(--fg-mute); font-variant-numeric: tabular-nums;
+	}
+	.ax.e { text-anchor: end; }
+	.ax.lbl { font-size: 8.5px; letter-spacing: 0.08em; text-transform: uppercase; }
+
+	.dd { fill: rgba(246, 70, 93, 0.09); }
+	.fill { fill: rgba(240, 185, 11, 0.14); }
+	.ln {
+		fill: none; stroke: var(--accent); stroke-width: 2;
+		stroke-linejoin: round; stroke-linecap: round;
+		stroke-dasharray: 2400;
+		animation: draw 1.5s cubic-bezier(0.3, 0.7, 0.3, 1) both;
+	}
+	@keyframes draw { from { stroke-dashoffset: 2400; } }
+	.pt { fill: var(--accent); stroke: var(--bg-panel); stroke-width: 1.6; }
+
+	.bar.up { fill: var(--up); }
+	.bar.down { fill: var(--down); }
+
+	.hit { fill: transparent; cursor: crosshair; }
+	.hit:hover ~ .pt { opacity: 1; }
+
+	.tip {
+		position: absolute; z-index: 5; pointer-events: none;
+		transform: translate(-50%, -100%);
+		background: #0b0e13; border: 1px solid var(--line-bright); border-radius: 7px;
+		padding: 7px 10px; white-space: nowrap;
+		font-family: var(--font-mono), monospace; font-size: 0.68rem; line-height: 1.55;
+		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+	}
+	.tip :global(b) { color: #fff; }
+	.tip :global(.up) { color: var(--up); }
+	.tip :global(.down) { color: var(--down); }
+	.tip :global(i) { color: var(--fg-mute); font-style: normal; }
+
+	figcaption {
+		margin-top: 10px; font-family: var(--font-mono), monospace;
+		font-size: 0.66rem; color: var(--fg-mute); line-height: 1.6;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.ln { animation: none; stroke-dasharray: none; }
+	}
+</style>
+
+<script>
+	for (const fig of document.querySelectorAll<HTMLElement>('[data-eq]')) {
+		const tip = fig.querySelector<HTMLElement>('[data-eq-tip]')!;
+		const svg = fig.querySelector('svg')!;
+		const money = (v: number) => `${v >= 0 ? '+' : '−'}$${Math.abs(v).toFixed(2)}`;
+
+		for (const hit of fig.querySelectorAll<SVGRectElement>('.hit')) {
+			const show = () => {
+				const d = hit.dataset;
+				const pnl = Number(d.pnl), cum = Number(d.cum);
+				tip.innerHTML =
+					`<b>${d.sym}</b> <i>${d.date}</i><br>` +
+					`trade <span class="${pnl >= 0 ? 'up' : 'down'}">${money(pnl)}</span><br>` +
+					`<i>running</i> <b>${money(cum)}</b>`;
+				tip.hidden = false;
+				// position against the figure, not the viewport, so it tracks on scroll
+				const r = hit.getBoundingClientRect(), f = fig.getBoundingClientRect();
+				tip.style.left = `${r.left - f.left + r.width / 2}px`;
+				tip.style.top = `${r.top - f.top - 8}px`;
+				svg.querySelectorAll('.pt').forEach((p) =>
+					p.setAttribute('r', (p as SVGCircleElement).dataset.i === d.i ? '4.6' : '3.2'),
+				);
+			};
+			hit.addEventListener('pointerenter', show);
+			hit.addEventListener('pointermove', show);
+		}
+		fig.addEventListener('pointerleave', () => {
+			tip.hidden = true;
+			svg.querySelectorAll('.pt').forEach((p) => p.setAttribute('r', '3.2'));
+		});
+	}
+</script>

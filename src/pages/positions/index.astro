@@ -1,52 +1,54 @@
 ---
 /**
  * The trade log. The one page here that isn't aggregated from somewhere else,
- * and the one the home page's promise is written against: positions posted
- * before the outcome is known, losers included.
+ * and the one the home page's promise is written against.
  *
- * Rules come before trades on purpose. A record is only worth reading if the
- * thing being tested was written down first — otherwise every entry is a story
- * told after the fact. Anything not yet checked against the exchange record
- * shows as pending rather than being filled in with a plausible number.
+ * Every number comes from an exchange export via scripts/import-trades.mjs —
+ * fills and fees as they actually settled, not what the signal log said to do.
+ * Reconciling the two is exactly what this page is for: the hand-kept version
+ * had a winning ETH trade recorded as a loss and showed a position that had
+ * already been closed.
  */
 import Base from '../../layouts/Base.astro';
 import ReferralSlot from '../../components/ReferralSlot.astro';
+import EquityCurve from '../../components/EquityCurve.astro';
 import log from '../../data/trades.json';
 
-const { rules, open, closed, verified, since } = log as any;
+const { rules, open, closed, curve, stats, verified, source, since, through } = log as any;
 
-const closedTrades = closed as any[];
-const wins = closedTrades.filter((t) => t.pnlPct > 0);
-const losses = closedTrades.filter((t) => t.pnlPct <= 0);
-const avg = (xs: number[]) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : null);
-const avgWin = avg(wins.map((t) => t.pnlPct));
-const avgLoss = avg(losses.map((t) => t.pnlPct));
-const avgHeld = avg(closedTrades.map((t) => t.held));
-// A win rate off a handful of trades is noise wearing a percent sign. Say so
-// rather than printing a number that invites being quoted.
-const ENOUGH = 20;
-const thin = closedTrades.length < ENOUGH;
-
+const money = (v: number, d = 2) => `${v >= 0 ? '+' : '−'}$${Math.abs(v).toFixed(d)}`;
+const pc = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(2)}%`;
 const num = (v: number, d = 2) =>
 	v.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
-const pc = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`;
-const day = (s: string | null) => s ?? null;
+const px = (v: number) => (v >= 1 ? num(v, 2) : num(v, 4));
+
+// A win rate off a handful of trades is noise wearing a percent sign.
+const ENOUGH = 20;
+const thin = closed.length < ENOUGH;
+
+const bySym = [...new Set(closed.map((t: any) => t.sym))]
+	.map((sym) => {
+		const ts = closed.filter((t: any) => t.sym === sym);
+		return {
+			sym,
+			n: ts.length,
+			pnl: ts.reduce((s: number, t: any) => s + t.pnl, 0),
+			wins: ts.filter((t: any) => t.pnl > 0).length,
+		};
+	})
+	.sort((a, b) => b.pnl - a.pnl);
 ---
 
 <Base
 	title="Positions"
-	description="The trade log behind the site: the rules written down first, every open position with its stop, and every closed trade including the losers."
+	description={`Every closed trade from the exchange record — ${stats.trades} trades, ${stats.winRate}% win rate, ${money(stats.netPnl)} net. Rules written down first, losers included.`}
 	noindex={!verified}
 >
 	<div class="wrap page">
 		{!verified && (
 			<div class="draft">
 				<b>Draft — not published.</b>
-				<span>
-					Prices below come from the signal log and have not been reconciled against the
-					exchange record yet. Set <code>verified: true</code> in <code>src/data/trades.json</code>
-					once they have.
-				</span>
+				<span>Prices have not been reconciled against the exchange record yet.</span>
 			</div>
 		)}
 
@@ -54,17 +56,77 @@ const day = (s: string | null) => s ?? null;
 			<p class="label">every fill, including the losers</p>
 			<h1>Positions</h1>
 			<p class="lede">
-				Everything else on this site is data anyone can pull. This page is the part that costs
-				something to publish: the rules were written down first, the stop is written down at
-				entry, and the trades that went against me are here with the ones that didn't.
+				Everything else on this site is data anyone can pull. This is the part that costs
+				something to publish. Read straight off the exchange export — the fills that happened,
+				the fees they cost, and the ones that lost.
 			</p>
 		</header>
+
+		<!-- HEADLINE -->
+		<section class="block">
+			<div class="topline">
+				<div class="hero">
+					<i class="label">Net realised · {since} → {through}</i>
+					<b class={stats.netPnl >= 0 ? 'up' : 'down'}>{money(stats.netPnl)}</b>
+					<span class="unit">after ${stats.fees.toFixed(2)} in fees</span>
+				</div>
+				<dl class="kpi">
+					<div><dt>Trades</dt><dd>{stats.trades}</dd></div>
+					<div><dt>Win rate</dt><dd>{stats.winRate}%<em>{stats.wins}W / {stats.losses}L</em></dd></div>
+					<div><dt>Profit factor</dt><dd>{stats.profitFactor}<em>won per $1 lost</em></dd></div>
+					<div>
+						<dt>Max drawdown</dt>
+						<dd class="down">{money(stats.drawdown.abs)}<em>{Math.abs(stats.drawdown.pct)}% off peak</em></dd>
+					</div>
+				</dl>
+			</div>
+		</section>
+
+		<!-- CURVE -->
+		<section class="block">
+			<div class="bh">
+				<h2>What the account did</h2>
+				<span class="legend">cumulative · {stats.trades} closed trades</span>
+			</div>
+			<p class="note">
+				Realised P&amp;L, banked at each close. The bars underneath are the individual trades on
+				the same axis — one of them is most of everything above it.
+			</p>
+			<EquityCurve curve={curve} drawdown={stats.drawdown} />
+		</section>
+
+		<!-- SHAPE -->
+		<section class="block">
+			<div class="bh"><h2>The shape of it</h2></div>
+			<div class="stats">
+				<div class="st"><i class="label">Avg winner</i><b class="up">{pc(stats.avgWin)}</b></div>
+				<div class="st"><i class="label">Avg loser</i><b class="down">{pc(stats.avgLoss)}</b></div>
+				<div class="st"><i class="label">Best</i><b class="up">{pc(stats.best)}</b></div>
+				<div class="st"><i class="label">Worst</i><b class="down">{pc(stats.worst)}</b></div>
+				<div class="st"><i class="label">Avg hold</i><b>{stats.avgHeld}d</b></div>
+				<div class="st"><i class="label">Avg size</i><b>${stats.avgSize}</b></div>
+			</div>
+			<p class="thin">
+				The win rate is not what makes this work — a <b>{pc(stats.avgWin)}</b> average winner
+				against a <b>{pc(stats.avgLoss)}</b> average loser is. Losers get cut at a few percent;
+				winners are left alone. That asymmetry is the whole system.
+				{thin && (
+					<>
+						{' '}And the caveat that belongs next to all of it: <b>{stats.trades} trades is not a
+						sample.</b> Every figure on this page will move before {ENOUGH}, and wherever it
+						settles is what gets printed.
+					</>
+				)}
+			</p>
+		</section>
+
+		<ReferralSlot />
 
 		<!-- RULES -->
 		<section class="block rules">
 			<div class="bh"><h2>The rules, written down first</h2></div>
 			<p class="note">
-				These are fixed. A record only means something if the thing being tested was decided
+				Fixed in advance. A record only means something if what was being tested was decided
 				before the outcome — otherwise every entry is a story told afterwards.
 			</p>
 			<ol>
@@ -73,140 +135,100 @@ const day = (s: string | null) => s ?? null;
 		</section>
 
 		<!-- OPEN -->
-		<section class="block">
-			<div class="bh">
-				<h2>Open</h2>
-				<span class="live"><span class="pulse"></span><span class="label">live</span></span>
-			</div>
-			<p class="note">
-				Posted before the outcome is known. The stop was written at entry and does not move down.
-			</p>
-			{open.length === 0 ? (
-				<p class="none">Nothing open.</p>
-			) : (
+		{open.length > 0 && (
+			<section class="block">
+				<div class="bh">
+					<h2>Open</h2>
+					<span class="live"><span class="pulse"></span><span class="label">live</span></span>
+				</div>
 				<div class="tw">
 					<table>
 						<thead>
 							<tr>
-								<th>Position</th>
-								<th class="r">Opened</th>
-								<th class="r">Entry</th>
-								<th class="r">Stop</th>
-								<th class="r">Last</th>
-								<th class="r">To stop</th>
+								<th>Position</th><th class="r">Opened</th><th class="r">Entry</th>
+								<th class="r">Size</th><th class="r">Last</th><th class="r">Unrealised</th>
 							</tr>
 						</thead>
 						<tbody>
 							{open.map((t: any) => (
-								<tr data-open={t.sym} data-stop={t.stop} data-entry={t.entry ?? ''}>
+								<tr data-open={t.sym} data-entry={t.entry} data-qty={t.qty}>
 									<td><b class="mono">{t.sym}</b></td>
-									<td class="r mono dim">{day(t.opened) ?? <span class="pend">pending</span>}</td>
-									<td class="r mono">{t.entry ? num(t.entry) : <span class="pend">pending</span>}</td>
-									<td class="r mono">{num(t.stop)}</td>
+									<td class="r mono dim">{t.opened}</td>
+									<td class="r mono">{px(t.entry)}</td>
+									<td class="r mono dim">${num(t.size, 0)}</td>
 									<td class="r mono" data-live={t.sym} data-live-field="price" data-live-fmt="plain">—</td>
-									<td class="r mono" data-tostop>—</td>
+									<td class="r mono res" data-unreal>—</td>
 								</tr>
 							))}
 						</tbody>
 					</table>
 				</div>
-			)}
-			{open.some((t: any) => t.note) && (
-				<ul class="notes">
-					{open.filter((t: any) => t.note).map((t: any) => (
-						<li><b>{t.sym}</b> — {t.note}</li>
-					))}
-				</ul>
-			)}
-		</section>
+			</section>
+		)}
 
 		<!-- CLOSED -->
 		<section class="block">
-			<div class="bh"><h2>Closed</h2></div>
-			<p class="note">
-				All of them. A log that only shows the winners is an advertisement.
-			</p>
-			{closedTrades.length === 0 ? (
-				<p class="none">Nothing closed yet.</p>
-			) : (
-				<div class="tw">
-					<table>
-						<thead>
-							<tr>
-								<th>Position</th>
-								<th class="r">Held</th>
-								<th class="r">Entry</th>
-								<th class="r">Stop</th>
-								<th class="r">Exit</th>
-								<th class="r">Result</th>
-							</tr>
-						</thead>
-						<tbody>
-							{closedTrades.map((t: any) => (
-								<tr>
-									<td>
-										<b class="mono">{t.sym}</b>
-										<span class="dates">{t.opened} → {t.closed}</span>
-									</td>
-									<td class="r mono dim">{t.held}d</td>
-									<td class="r mono">{num(t.entry)}</td>
-									<td class="r mono dim">{num(t.stop)}</td>
-									<td class="r mono">{num(t.exit)}</td>
-									<td class={`r mono res ${t.pnlPct >= 0 ? 'up' : 'down'}`}>{pc(t.pnlPct)}</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
-				</div>
-			)}
-			{closedTrades.some((t: any) => t.note) && (
-				<ul class="notes">
-					{closedTrades.filter((t: any) => t.note).map((t: any) => (
-						<li><b>{t.sym}</b> — {t.note}</li>
-					))}
-				</ul>
-			)}
-		</section>
-
-		<ReferralSlot />
-
-		<!-- RECORD -->
-		<section class="block">
-			<div class="bh"><h2>The record so far</h2></div>
-			<div class="stats">
-				<div class="st"><i class="label">Closed</i><b>{closedTrades.length}</b></div>
-				<div class="st"><i class="label">Open</i><b>{open.length}</b></div>
-				<div class="st">
-					<i class="label">Avg winner</i>
-					<b class={avgWin != null ? 'up' : 'dim'}>{avgWin != null ? pc(avgWin) : '—'}</b>
-				</div>
-				<div class="st">
-					<i class="label">Avg loser</i>
-					<b class={avgLoss != null ? 'down' : 'dim'}>{avgLoss != null ? pc(avgLoss) : '—'}</b>
-				</div>
-				<div class="st">
-					<i class="label">Avg hold</i>
-					<b>{avgHeld != null ? `${avgHeld.toFixed(0)}d` : '—'}</b>
-				</div>
-				<div class="st"><i class="label">Logging since</i><b>{since}</b></div>
+			<div class="bh">
+				<h2>Every closed trade</h2>
+				<span class="legend">{source}</span>
 			</div>
-			{thin && (
-				<p class="thin">
-					<b>No win rate yet.</b> {closedTrades.length} closed {closedTrades.length === 1 ? 'trade' : 'trades'} is
-					not a sample — a percentage off it would be noise wearing a percent sign. This fills in
-					at {ENOUGH}, and the number that appears then will be whatever the log says.
-				</p>
-			)}
+			<p class="note">All of them. A log that only shows the winners is an advertisement.</p>
+			<div class="tw">
+				<table>
+					<thead>
+						<tr>
+							<th>Position</th>
+							<th class="r">Held</th>
+							<th class="r hide-s">Entry</th>
+							<th class="r hide-s">Exit</th>
+							<th class="r hide-s">Size</th>
+							<th class="r">P&amp;L</th>
+							<th class="r">Return</th>
+						</tr>
+					</thead>
+					<tbody>
+						{[...closed].reverse().map((t: any) => (
+							<tr>
+								<td>
+									<b class="mono">{t.sym}</b>
+									<span class="dates">{t.opened} → {t.closed}</span>
+								</td>
+								<td class="r mono dim">{t.held}d</td>
+								<td class="r mono hide-s">{px(t.entry)}</td>
+								<td class="r mono hide-s">{px(t.exit)}</td>
+								<td class="r mono dim hide-s">${num(t.size, 0)}</td>
+								<td class={`r mono res ${t.pnl >= 0 ? 'up' : 'down'}`}>{money(t.pnl)}</td>
+								<td class={`r mono res ${t.pnlPct >= 0 ? 'up' : 'down'}`}>{pc(t.pnlPct)}</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
+			</div>
+
+			<div class="bysym">
+				{bySym.map((s: any) => (
+					<div class="sy">
+						<i class="label">{s.sym}</i>
+						<b class={s.pnl >= 0 ? 'up' : 'down'}>{money(s.pnl)}</b>
+						<span>{s.wins}/{s.n} won</span>
+					</div>
+				))}
+			</div>
 		</section>
 
 		<section class="method">
-			<h3>Why this page exists</h3>
+			<h3>How to check this</h3>
 			<p>
-				A track record published after the fact is worth nothing: the trades that fit the story
-				survive and the rest quietly don't get mentioned. The only version worth reading is one
-				where the rule was fixed in advance, the stop was written at entry, and the entries go
-				up whether or not they work. That is expensive to maintain and easy to check, which is
-				the point — everything above can be verified against exchange data on the dates shown.
+				Every row is a spot fill with a date and a price. Pull the daily bars for that pair on
+				those dates and both prices have to sit inside the day's range — if one doesn't, the row
+				is wrong and I want to hear about it. Fees are the exchange's own, already deducted from
+				the P&amp;L shown. Nothing here is modelled, backfilled or restated: the file this page
+				reads is regenerated from the export rather than edited by hand.
+			</p>
+			<p>
+				A track record published after the fact is worth nothing — the trades that fit the story
+				survive and the rest quietly go unmentioned. That is why the rules sit above the trades,
+				and why the {stats.losses} losers are in the same table as the winners.
 			</p>
 		</section>
 	</div>
@@ -222,44 +244,71 @@ const day = (s: string | null) => s ?? null;
 		display: flex; flex-wrap: wrap; gap: 4px 9px; align-items: baseline;
 		margin-bottom: 26px; padding: 13px 16px;
 		border: 1px dashed var(--accent); border-radius: var(--radius);
-		background: var(--accent-dim);
-		font-size: 0.82rem; line-height: 1.6;
+		background: var(--accent-dim); font-size: 0.82rem; line-height: 1.6;
 	}
 	.draft b { color: var(--accent); }
 	.draft span { color: var(--fg-dim); }
-	.draft code {
-		font-family: var(--font-mono), monospace; font-size: 0.78rem;
-		color: var(--fg); background: #0a0c10; padding: 1px 5px; border-radius: 4px;
-	}
 
 	.block {
-		position: relative;
-		margin-bottom: 14px;
-		background: var(--bg-panel);
-		border: 1px solid var(--line);
-		border-radius: var(--radius);
-		padding: 20px 22px 22px;
+		position: relative; margin-bottom: 14px;
+		background: var(--bg-panel); border: 1px solid var(--line);
+		border-radius: var(--radius); padding: 20px 22px 22px;
 	}
-	.bh { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+	.bh {
+		display: flex; align-items: center; justify-content: space-between;
+		gap: 12px; margin-bottom: 6px; flex-wrap: wrap;
+	}
 	.bh h2 { margin: 0; font-size: 1.24rem; }
+	.legend { font-family: var(--font-mono), monospace; font-size: 0.66rem; color: var(--fg-mute); }
 	.live { display: inline-flex; align-items: center; gap: 6px; }
-	.note { font-size: 0.85rem; color: var(--fg-mute); margin: 0 0 16px; line-height: 1.6; max-width: 72ch; }
-	.none { font-family: var(--font-mono), monospace; font-size: 0.8rem; color: var(--fg-mute); margin: 0; }
+	.note { font-size: 0.85rem; color: var(--fg-mute); margin: 0 0 16px; line-height: 1.6; max-width: 74ch; }
 
-	.rules ol {
-		margin: 0; padding-left: 0; list-style: none;
-		counter-reset: r;
-		display: grid; gap: 7px;
+	.topline { display: flex; align-items: flex-end; justify-content: space-between; gap: 26px; flex-wrap: wrap; }
+	.hero { display: flex; flex-direction: column; gap: 3px; }
+	.hero i { font-size: 0.62rem; }
+	.hero b {
+		font-family: var(--font-mono), monospace; font-size: 2.6rem; font-weight: 700;
+		line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums;
 	}
+	.hero .unit { font-family: var(--font-mono), monospace; font-size: 0.66rem; color: var(--fg-mute); }
+
+	.kpi { display: flex; gap: 28px; margin: 0; flex-wrap: wrap; }
+	.kpi div { display: flex; flex-direction: column; gap: 3px; }
+	.kpi dt {
+		font-family: var(--font-mono), monospace; font-size: 0.6rem; color: var(--fg-mute);
+		text-transform: uppercase; letter-spacing: 0.09em;
+	}
+	.kpi dd {
+		margin: 0; font-family: var(--font-mono), monospace; font-size: 1.28rem; font-weight: 700;
+		color: #fff; line-height: 1.1; font-variant-numeric: tabular-nums;
+	}
+	.kpi em {
+		display: block; font-style: normal; font-size: 0.6rem; font-weight: 500;
+		color: var(--fg-mute); margin-top: 3px; letter-spacing: 0.04em;
+	}
+
+	.stats {
+		display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1px;
+		background: var(--line); border: 1px solid var(--line);
+		border-radius: var(--radius); overflow: hidden; margin-top: 12px;
+	}
+	.st { background: var(--bg-panel); padding: 13px 15px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+	.st i { font-size: 0.6rem; }
+	.st b {
+		font-family: var(--font-mono), monospace; font-size: 1.14rem; font-weight: 700;
+		color: #fff; line-height: 1.1; font-variant-numeric: tabular-nums;
+	}
+	.thin { margin: 14px 0 0; font-size: 0.83rem; line-height: 1.7; color: var(--fg-mute); max-width: 76ch; }
+	.thin b { color: var(--fg-dim); }
+
+	.rules ol { margin: 0; padding-left: 0; list-style: none; counter-reset: r; display: grid; gap: 7px; }
 	.rules li {
-		counter-increment: r;
-		display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 11px;
+		counter-increment: r; display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 11px;
 		font-size: 0.89rem; line-height: 1.55; color: var(--fg);
 	}
 	.rules li::before {
-		content: counter(r);
-		font-family: var(--font-mono), monospace; font-size: 0.68rem; font-weight: 700;
-		color: var(--accent); padding-top: 3px;
+		content: counter(r); font-family: var(--font-mono), monospace;
+		font-size: 0.68rem; font-weight: 700; color: var(--accent); padding-top: 3px;
 	}
 
 	.tw { overflow-x: auto; }
@@ -274,50 +323,34 @@ const day = (s: string | null) => s ?? null;
 	.mono { font-family: var(--font-mono), monospace; font-variant-numeric: tabular-nums; }
 	td b.mono { color: #fff; font-size: 0.92rem; }
 	.dim { color: var(--fg-mute); }
-	.pend { color: var(--fg-mute); font-size: 0.74rem; font-style: italic; }
-	.dates {
-		display: block; font-family: var(--font-mono), monospace;
-		font-size: 0.64rem; color: var(--fg-mute); margin-top: 2px;
-	}
+	.dates { display: block; font-family: var(--font-mono), monospace; font-size: 0.64rem; color: var(--fg-mute); margin-top: 2px; }
 	.res { font-weight: 700; }
 
-	.notes {
-		margin: 14px 0 0; padding: 13px 0 0; list-style: none;
-		border-top: 1px solid var(--line);
-		display: grid; gap: 7px;
+	.bysym {
+		display: flex; gap: 10px; flex-wrap: wrap;
+		margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line);
 	}
-	.notes li { font-size: 0.79rem; line-height: 1.6; color: var(--fg-mute); }
-	.notes b { color: var(--fg-dim); font-family: var(--font-mono), monospace; }
+	.sy {
+		display: flex; flex-direction: column; gap: 2px;
+		padding: 9px 14px; border: 1px solid var(--line); border-radius: 8px; background: #0a0c10;
+	}
+	.sy i { font-size: 0.58rem; }
+	.sy b { font-family: var(--font-mono), monospace; font-size: 1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+	.sy span { font-family: var(--font-mono), monospace; font-size: 0.6rem; color: var(--fg-mute); }
 
-	.stats {
-		display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
-		gap: 1px; background: var(--line);
-		border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
-		margin-top: 12px;
-	}
-	.st { background: var(--bg-panel); padding: 13px 15px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-	.st i { font-size: 0.6rem; }
-	.st b {
-		font-family: var(--font-mono), monospace; font-size: 1.14rem; font-weight: 700;
-		color: #fff; line-height: 1.1; font-variant-numeric: tabular-nums;
-	}
-	.st b.dim { color: var(--fg-mute); }
-
-	.thin {
-		margin: 14px 0 0; font-size: 0.82rem; line-height: 1.65;
-		color: var(--fg-mute); max-width: 72ch;
-	}
-	.thin b { color: var(--fg-dim); }
-
-	.method {
-		margin-top: 14px; padding: 20px 22px;
-		border: 1px dashed var(--line-bright); border-radius: var(--radius);
-	}
+	.method { margin-top: 14px; padding: 20px 22px; border: 1px dashed var(--line-bright); border-radius: var(--radius); }
 	.method h3 { margin: 0 0 10px; font-size: 1rem; }
-	.method p { margin: 0; font-size: 0.87rem; color: var(--fg-dim); line-height: 1.7; max-width: 76ch; }
+	.method p { margin: 0 0 12px; font-size: 0.87rem; color: var(--fg-dim); line-height: 1.7; max-width: 78ch; }
+	.method p:last-child { margin-bottom: 0; }
 
 	@media (max-width: 900px) {
 		.stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+		.kpi { gap: 20px; }
+	}
+	@media (max-width: 620px) {
+		.hide-s { display: none; }
+		.hero b { font-size: 2.1rem; }
+		th, td { padding: 9px 9px; }
 	}
 	@media (max-width: 520px) {
 		.stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -325,22 +358,21 @@ const day = (s: string | null) => s ?? null;
 </style>
 
 <script>
-	/**
-	 * Distance to the written stop, off the live tape. It is the only number on
-	 * this page that moves, and the only one that matters while a trade is open.
-	 */
+	/** Unrealised P&L on anything still open, off the live tape. */
 	for (const row of document.querySelectorAll<HTMLElement>('[data-open]')) {
-		const stop = Number(row.dataset.stop);
-		const cell = row.querySelector<HTMLElement>('[data-tostop]');
-		if (!cell || !Number.isFinite(stop)) continue;
+		const entry = Number(row.dataset.entry);
+		const qty = Number(row.dataset.qty);
+		const cell = row.querySelector<HTMLElement>('[data-unreal]');
+		if (!cell || !Number.isFinite(entry)) continue;
 
 		const paint = (price?: number) => {
-			if (!Number.isFinite(price!) || !price) return;
-			const room = (price - stop) / price;
-			cell.textContent = `${room >= 0 ? '+' : ''}${(room * 100).toFixed(1)}%`;
-			cell.className = `r mono res ${room >= 0 ? 'up' : 'down'}`;
+			if (!price || !Number.isFinite(price)) return;
+			const pnl = (price - entry) * qty;
+			const pct = (price / entry - 1) * 100;
+			cell.textContent =
+				`${pnl >= 0 ? '+' : '−'}$${Math.abs(pnl).toFixed(2)} (${pct >= 0 ? '+' : '−'}${Math.abs(pct).toFixed(2)}%)`;
+			cell.className = `r mono res ${pnl >= 0 ? 'up' : 'down'}`;
 		};
-
 		const live = (window as any).__live;
 		paint(live?.get(row.dataset.open!)?.price);
 		live?.subscribe?.((sym: string) => {
