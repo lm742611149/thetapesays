@@ -13,6 +13,7 @@ import ChartPro from '../components/ChartPro.astro';
 import CoinBoard from '../components/CoinBoard.astro';
 import ReferralSlot from '../components/ReferralSlot.astro';
 import EventFeed from '../components/EventFeed.astro';
+import Explain from '../components/Explain.astro';
 import HeroDeck from '../components/HeroDeck.astro';
 import { SITE_TITLE, SITE_DESC } from '../consts';
 import { allPosts } from '../lib/posts';
@@ -202,7 +203,10 @@ const advancing = m.board.filter((r: any) => r.chg >= 0).length;
 		{alt && (
 			<div class="panel block" data-reveal>
 				<div class="bh">
-					<h3>Altcoin season index</h3>
+					<h3>Altcoin season index<Explain>Last column is what actually matters: performance <b>relative to BTC</b>, not in dollars.
+		A coin up 40% in a quarter where bitcoin did 21% has underperformed the thing you could have
+		held instead. Universe is the top USDT pairs by turnover with stablecoins and wrapped
+		assets removed, priced off Binance daily closes.</Explain></h3>
 					<span class="legend">{alt.lookback}-day window · recomputed each build</span>
 				</div>
 				<AltSeason
@@ -216,7 +220,10 @@ const advancing = m.board.filter((r: any) => r.chg >= 0).length;
 		<!-- funding across venues -->
 		<div class="panel block" data-reveal>
 			<div class="bh">
-				<h3>Funding across venues</h3>
+				<h3>Funding across venues<Explain>Positive means longs pay shorts. <b>Compare the annualised column, not the raw rate</b> —
+		Hyperliquid settles hourly and the rest every eight hours, so the same headline number is
+		worth eight times as much there. Spread is the gap between the best and worst venue on an
+		annualised basis, before fees and before the margin you'd need on both legs.</Explain></h3>
 				<a href="/research/funding-rate-carry-is-mostly-gone/" class="more label">what it pays →</a>
 			</div>
 			<FundingBoard />
@@ -227,7 +234,12 @@ const advancing = m.board.filter((r: any) => r.chg >= 0).length;
 		<!-- open interest across venues -->
 		<div class="panel block" data-reveal>
 			<div class="bh">
-				<h3>Open interest across venues</h3>
+				<h3>Open interest across venues<Explain>Open interest is the number of contracts still open — <b>size, not activity</b>. Rising OI with
+		rising price means new money is coming in long; rising OI into a falling price means shorts are
+		building; a sharp drop in OI without much price movement is positions being closed, which is
+		what a liquidation cascade looks like after the fact. Every venue publishes this in its own unit
+		— coins, contracts, or notional — so all of it is normalised to coins here and valued at one
+		common mark, otherwise the comparison measures basis instead of size.</Explain></h3>
 				<span class="legend">live · normalised to coins</span>
 			</div>
 			<OiBoard />
@@ -237,7 +249,13 @@ const advancing = m.board.filter((r: any) => r.chg >= 0).length;
 		{opts && (
 			<div class="panel block" data-reveal>
 				<div class="bh">
-					<h3>What options are pricing</h3>
+					<h3>What options are pricing<Explain>Implied vol is what the option market charges for the next move, annualised. A curve that
+				<b> slopes up</b> means the market sees no near-term event and is charging more for time;
+				one that <b>inverts</b> means something is expected soon and the front is bid. DVOL's
+				percentile is the honest context for the level — a reading means
+				nothing until you know it sits
+				 where it sits in its own 120-day range.
+				Source Deribit, which is where most of the crypto options book lives.</Explain></h3>
 					<span class="legend">Deribit · {opts.currency}</span>
 				</div>
 				<OptionsBoard
@@ -263,7 +281,11 @@ const advancing = m.board.filter((r: any) => r.chg >= 0).length;
 		{etf && (
 			<div class="panel block" data-reveal>
 				<div class="bh">
-					<h3>US spot ETF tape</h3>
+					<h3>US spot ETF tape<Explain>This is the <b>tape, not the flow</b>. Volume counts every share that changed hands;
+				creations and redemptions — the number headlines quote as "ETFs bought $X" — come from a
+				paid dataset and are deliberately absent rather than guessed at from price and volume.
+				What the tape does tell you is participation: the <b>vs 20d</b> column above 1.00x means a
+				fund traded heavier than its own recent norm. Source Nasdaq, close of the latest session.</Explain></h3>
 					<span class="legend">dollar volume · not flow</span>
 				</div>
 				<EtfTape funds={etf.funds} total={etf.total} totalM={etf.totalM} totalAvgM={etf.totalAvgM} asOf={etf.asOf} />
@@ -276,7 +298,7 @@ const advancing = m.board.filter((r: any) => r.chg >= 0).length;
 				<h3>News</h3>
 				<a href="/events/" class="more label">full log →</a>
 			</div>
-			<EventFeed scroll height={330} showUpcoming={false} />
+			<EventFeed scroll height={495} showUpcoming={false} />
 		</div>
 
 		<!-- board -->

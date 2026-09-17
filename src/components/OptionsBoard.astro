@@ -147,6 +147,7 @@ const gridY = [yMin, (yMin + yMax) / 2, yMax];
 					standing open interest, which is position.
 				</p>
 			)}
+	<p class="note">What the option market charges for the next move, annualised. <b>Slope</b> says when it expects it.</p>
 		</div>
 
 		<div class="tw">
@@ -174,16 +175,6 @@ const gridY = [yMin, (yMin + yMax) / 2, yMax];
 			</table>
 		</div>
 	</div>
-
-	<p class="note">
-		Implied vol is what the option market charges for the next move, annualised. A curve that
-		<b> slopes up</b> means the market sees no near-term event and is charging more for time;
-		one that <b>inverts</b> means something is expected soon and the front is bid. DVOL's
-		percentile is the honest context for the level — {dvolNow ? n1(dvolNow) : 'a reading'} means
-		nothing until you know it sits
-		{dvolPctile !== null ? ` at the ${dvolPctile}th percentile of the last 120 days` : ' in its own range'}.
-		Source Deribit, which is where most of the crypto options book lives.
-	</p>
 </div>
 
 <style>

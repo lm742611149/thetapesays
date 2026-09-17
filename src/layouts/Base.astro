@@ -46,6 +46,18 @@ const { title, description, image, type, noindex, keywords, schema } = Astro.pro
 	<script>
 			import { initTracking } from '../lib/track';
 			initTracking();
+
+			/**
+			 * A fresh navigation should start at the top. The browser restores the
+			 * previous scroll offset for a URL it has seen before, which on a nav
+			 * click reads as "the new page opened halfway down". Back and forward
+			 * still restore, because those are the ones people expect to.
+			 */
+			const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+			if (nav?.type === 'navigate' && !location.hash && scrollY > 0) {
+				// instant, not smooth — global scroll-behavior would animate it
+				window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+			}
 		</script>
 	</body>
 </html>

@@ -114,13 +114,7 @@ const day = (t: number) => new Date(t).toISOString().slice(5, 10);
 				</table>
 			</div>
 
-			<p class="note">
-				This is the <b>tape, not the flow</b>. Volume counts every share that changed hands;
-				creations and redemptions — the number headlines quote as "ETFs bought $X" — come from a
-				paid dataset and are deliberately absent rather than guessed at from price and volume.
-				What the tape does tell you is participation: the <b>vs 20d</b> column above 1.00x means a
-				fund traded heavier than its own recent norm. Source Nasdaq, close of {asOf ? day(asOf) : '—'}.
-			</p>
+	<p class="note">The <b>tape, not the flow</b>: shares traded, not creations and redemptions.</p>
 		</>
 	)}
 </div>

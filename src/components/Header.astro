@@ -70,7 +70,18 @@ const on = (href: string) => path === href || (href !== '/' && path.startsWith(h
 		display: flex;
 		align-items: center;
 		gap: 4px;
+		/* the row is wider than a phone; let it scroll rather than clipping the
+		   last item (the X link) off the edge with no way to reach it */
+		min-width: 0;
+		overflow-x: auto;
+		overscroll-behavior-x: contain;
+		scrollbar-width: none;
+		-webkit-overflow-scrolling: touch;
+		/* keeps the focus ring and the X button's border from being shaved */
+		padding: 2px 0;
 	}
+	nav::-webkit-scrollbar { display: none; }
+	nav a { flex: none; }
 	nav a {
 		font-size: 0.85rem;
 		color: var(--fg-dim);
@@ -93,15 +104,24 @@ const on = (href: string) => path === href || (href !== '/' && path.startsWith(h
 		height: 30px;
 		padding: 0;
 		margin-left: 4px;
-		border: 1px solid var(--line);
+		color: var(--accent);
+		border: 1px solid rgba(240, 185, 11, 0.4);
+		background: var(--accent-dim);
+	}
+	nav a.x:hover {
+		color: #14100a;
+		background: var(--accent);
+		border-color: var(--accent);
 	}
 	@media (max-width: 620px) {
 		.brand span {
 			display: none;
 		}
 		nav a {
-			padding: 6px 8px;
-			font-size: 0.8rem;
+			padding: 6px 7px;
+			font-size: 0.78rem;
 		}
+		/* the scroll needs somewhere to end, or the X sits flush to the edge */
+		nav { padding-right: 2px; }
 	}
 </style>
