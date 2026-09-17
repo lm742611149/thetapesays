@@ -43,6 +43,19 @@ const bySym = [...new Set(closed.map((t: any) => t.sym))]
 	title="Positions"
 	description={`Every closed trade from the exchange record — ${stats.trades} trades, ${stats.winRate}% win rate, ${money(stats.netPnl)} net. Rules written down first, losers included.`}
 	noindex={!verified}
+	keywords={[
+		'crypto trading track record', 'public trade log', 'verified trading results',
+		'spot trading system', 'trading rules', 'profit factor', 'max drawdown',
+	]}
+	schema={{
+		'@type': 'Dataset',
+		name: 'The Tape Says — published trade log',
+		description: `Every closed spot trade from the exchange record: ${stats.trades} trades between ${since} and ${through}, ${stats.winRate}% win rate, ${money(stats.netPnl)} net after fees.`,
+		creator: { '@id': 'https://thetapesays.com/#person' },
+		isAccessibleForFree: true,
+		temporalCoverage: `${since}/${through}`,
+		variableMeasured: ['entry price', 'exit price', 'holding period', 'realised P&L', 'fees'],
+	}}
 >
 	<div class="wrap page">
 		{!verified && (

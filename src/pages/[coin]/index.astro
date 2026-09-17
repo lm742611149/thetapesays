@@ -44,6 +44,10 @@ const worstDay = [...d.dow].sort((a: any, b: any) => a.avg - b.avg)[0];
 <Base
 	title={`${meta.name} dashboard`}
 	description={`${meta.name} analytics — drawdown, realised volatility cone, monthly returns, weekday effect${d.ratio ? ', ratio to BTC' : ''}${d.tvl ? ', chain TVL' : ''}. Every figure computed from public endpoints.`}
+	keywords={[
+		`${SYM} price`, `${SYM} volatility`, `${SYM} drawdown`, `${meta.name} analytics`,
+		`${SYM} monthly returns`, 'crypto dashboard',
+	]}
 >
 	<div class="wrap page" data-coin={SYM}>
 		<!-- ============ HEAD ============ -->

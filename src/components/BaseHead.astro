@@ -1,6 +1,6 @@
 ---
 import { Font } from 'astro:assets';
-import { SITE_TITLE } from '../consts';
+import { SITE_TITLE, SITE_DESC, X_HANDLE, X_URL } from '../consts';
 import '../styles/global.css';
 
 interface Props {
@@ -10,17 +10,71 @@ interface Props {
 	type?: string;
 	/** Keep a page out of search results without taking it offline. */
 	noindex?: boolean;
+	/** Page-level terms. Search engines ignore the meta; the JSON-LD `about`
+	    built from it is what machine readers actually pick up. */
+	keywords?: string[];
+	/** Extra JSON-LD for this page, merged into the graph below. */
+	schema?: Record<string, any>;
 }
-const { title, description, image = '/og-default.png', type = 'website', noindex = false } = Astro.props;
+const {
+	title, description, image = '/og-default.png', type = 'website',
+	noindex = false, keywords = [], schema,
+} = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const full = title === SITE_TITLE ? title : `${title} — ${SITE_TITLE}`;
+
+/**
+ * One @graph rather than several loose blocks: the site, the person behind it
+ * and this page, with the page pointing back at both. That triple is what lets
+ * an answer engine attribute a figure to a named source instead of quoting it
+ * anonymously — which is the whole reason this site publishes its windows.
+ */
+const graph: Record<string, any>[] = [
+	{
+		'@type': 'WebSite',
+		'@id': new URL('/#website', Astro.site).href,
+		url: Astro.site?.href,
+		name: SITE_TITLE,
+		description: SITE_DESC,
+		publisher: { '@id': new URL('/#person', Astro.site).href },
+		inLanguage: 'en',
+	},
+	{
+		'@type': 'Person',
+		'@id': new URL('/#person', Astro.site).href,
+		name: SITE_TITLE,
+		url: Astro.site?.href,
+		sameAs: [X_URL],
+	},
+	{
+		'@type': type === 'article' ? 'Article' : 'WebPage',
+		'@id': `${canonical.href}#page`,
+		url: canonical.href,
+		name: full,
+		description,
+		isPartOf: { '@id': new URL('/#website', Astro.site).href },
+		...(keywords.length ? { keywords: keywords.join(', ') } : {}),
+		...(type === 'article' ? { author: { '@id': new URL('/#person', Astro.site).href } } : {}),
+	},
+];
+// A page-supplied node of the same kind is extra detail about this page, not a
+// second thing on it — merge rather than emit two Articles for one URL.
+if (schema) {
+	const page = graph[2];
+	if (schema['@type'] === page['@type']) Object.assign(page, schema);
+	else graph.push(schema);
+}
+const jsonld = { '@context': 'https://schema.org', '@graph': graph };
 ---
 
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>{full}</title>
 <meta name="description" content={description} />
-{noindex && <meta name="robots" content="noindex, nofollow" />}
+{keywords.length > 0 && <meta name="keywords" content={keywords.join(', ')} />}
+{noindex
+	? <meta name="robots" content="noindex, nofollow" />
+	: <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />}
 <link rel="canonical" href={canonical} />
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <link rel="alternate" type="application/rss+xml" title={SITE_TITLE} href="/rss.xml" />
@@ -39,4 +93,10 @@ const full = title === SITE_TITLE ? title : `${title} — ${SITE_TITLE}`;
 <meta property="og:image" content={new URL(image, Astro.site)} />
 <meta property="og:site_name" content={SITE_TITLE} />
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:creator" content="@TheTapeSays" />
+<meta name="twitter:site" content={`@${X_HANDLE}`} />
+<meta name="twitter:creator" content={`@${X_HANDLE}`} />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content={description} />
+
+<script type="application/ld+json" set:html={JSON.stringify(jsonld)} />

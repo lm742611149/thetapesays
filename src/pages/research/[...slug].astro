@@ -17,7 +17,24 @@ const { title, description, pubDate, updatedDate, kind, tags, stat, statLabel } 
 const d = pubDate.toISOString().slice(0, 10);
 ---
 
-<Base title={title} description={description} type="article">
+<Base
+	title={title}
+	description={description}
+	type="article"
+	keywords={tags}
+	schema={{
+		'@type': 'Article',
+		headline: title,
+		description,
+		datePublished: d,
+		...(updatedDate ? { dateModified: updatedDate.toISOString().slice(0, 10) } : {}),
+		author: { '@id': 'https://thetapesays.com/#person' },
+		publisher: { '@id': 'https://thetapesays.com/#person' },
+		keywords: tags.join(', '),
+		articleSection: KIND_LABEL[kind],
+		isAccessibleForFree: true,
+	}}
+>
 	<article class="wrap post">
 		<header>
 			<div class="meta">

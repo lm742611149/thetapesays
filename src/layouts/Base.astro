@@ -16,14 +16,17 @@ interface Props {
 	image?: string;
 	type?: string;
 	noindex?: boolean;
+	keywords?: string[];
+	schema?: Record<string, any>;
 }
-const { title, description, image, type, noindex } = Astro.props;
+const { title, description, image, type, noindex, keywords, schema } = Astro.props;
 ---
 
 <!doctype html>
 <html lang="en">
 	<head>
-		<BaseHead title={title} description={description} image={image} type={type} noindex={noindex} />
+		<BaseHead title={title} description={description} image={image} type={type}
+			noindex={noindex} keywords={keywords} schema={schema} />
 	</head>
 	<body>
 		<Loader />
@@ -40,6 +43,10 @@ const { title, description, image, type, noindex } = Astro.props;
 		<Live />
 		<NewsTicker />
 		<CoinModal />
+	<script>
+			import { initTracking } from '../lib/track';
+			initTracking();
+		</script>
 	</body>
 </html>
 

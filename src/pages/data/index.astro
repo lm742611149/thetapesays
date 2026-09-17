@@ -12,7 +12,30 @@ const { stablecoins, fundingHistory, coveredCall } = snap;
 
 <Base
 	title="Data"
-	description="Live funding rates, stablecoin float by chain, and the backtest tables behind the research — each with its source and window."
+	description="Bitcoin network state, miner shutdown prices, live funding across six venues, listed-company treasuries and stablecoin float — each with its source and window."
+	keywords={[
+		'bitcoin hashrate', 'bitcoin difficulty', 'miner shutdown price',
+		'bitcoin mining cost', 'hashprice', 'funding rate comparison',
+		'bitcoin treasury companies', 'stablecoin supply by chain', 'mempool fees',
+	]}
+	schema={{
+		'@type': 'Dataset',
+		name: 'The Tape Says — crypto market and Bitcoin network data',
+		description:
+			'Bitcoin network state (hashrate, difficulty, mempool, issuance), derived miner economics ' +
+			'(hashprice and per-rig shutdown prices at three power costs), perpetual funding rates across ' +
+			'six venues, listed-company BTC and ETH treasuries, and stablecoin float by chain.',
+		license: 'https://creativecommons.org/licenses/by/4.0/',
+		creator: { '@id': 'https://thetapesays.com/#person' },
+		isAccessibleForFree: true,
+		keywords: ['bitcoin', 'hashrate', 'mining economics', 'funding rates', 'stablecoins', 'treasuries'],
+		variableMeasured: [
+			'24h network hashrate (EH/s)', 'mining difficulty', 'hashprice (USD per PH/s per day)',
+			'shutdown price by rig efficiency and power cost (USD)', 'perpetual funding rate by venue',
+			'listed-company BTC and ETH holdings', 'stablecoin supply by chain',
+		],
+		temporalCoverage: new Date().toISOString().slice(0, 10),
+	}}
 >
 	<div class="wrap page">
 		<header class="ph">

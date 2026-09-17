@@ -1,0 +1,11 @@
+# Cloudflare Pages project config. The Git integration reads this on build, so
+# the analytics binding lives in the repo rather than only in the dashboard.
+name = "thetapesays"
+compatibility_date = "2026-09-18"
+pages_build_output_dir = "dist"
+
+# Usage events from functions/api/beacon.js. Analytics Engine is append-only and
+# free at this volume; query it with the SQL API (see scripts/analytics.sh).
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
+dataset = "tapesays_events"
