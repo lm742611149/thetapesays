@@ -39,6 +39,17 @@ const since = moved?.since
 
 {rows.length > 0 && (
 	<section class="panel moved" data-reveal>
+		<script
+			type="application/json"
+			data-moved-config
+			set:html={JSON.stringify({
+				denoms: (moved as any).denoms ?? {},
+				rows: rows.map((r) => ({
+					key: r.key, fmt: r.fmt, dp: r.dp, base: r.base ?? null,
+					scale: r.scale ?? null, live: r.live ?? null,
+				})),
+			})}
+		/>
 		<div class="bh">
 			<h3>What moved</h3>
 			<span class="legend">
@@ -47,13 +58,13 @@ const since = moved?.since
 		</div>
 		<div class="grid">
 			{rows.map((r) => (
-				<div class:list={['cell', { hot: r.notable }]}>
+				<div class:list={['cell', { hot: r.notable }]} data-mv={r.key}>
 					<i class="label">{r.label}</i>
-					<b class="mono">{level(r.value, r.fmt)}</b>
+					<b class="mono" data-mf="value">{level(r.value, r.fmt)}</b>
 					{r.delta === undefined ? (
-						<em class="none" title="no reading from 24h ago yet">—</em>
+						<em class="none" data-mf="delta" title="no reading from 24h ago yet">—</em>
 					) : (
-						<em class={r.delta > 0 ? 'u' : r.delta < 0 ? 'd' : ''}>
+						<em class={r.delta > 0 ? 'u' : r.delta < 0 ? 'd' : ''} data-mf="delta">
 							{delta(r)}
 							{r.notable && <span class="flag" title="a 2-sigma move against its own last 30 days">·2σ</span>}
 						</em>
@@ -61,8 +72,8 @@ const since = moved?.since
 					<div class:list={['track', { empty: r.pos === undefined }]} title={r.scale?.note ?? 'no range for this one yet — it gets one once the record is four weeks long'}>
 						{r.pos !== undefined && (
 							<>
-								<span class="fill" style={`width:${(r.pos * 100).toFixed(1)}%`} />
-								<span class="pin" style={`left:${(r.pos * 100).toFixed(1)}%`} />
+								<span class="fill" data-mf="fill" style={`width:${(r.pos * 100).toFixed(1)}%`} />
+								<span class="pin" data-mf="pin" style={`left:${(r.pos * 100).toFixed(1)}%`} />
 								{(r.scale?.marks ?? []).map((mk: number) => (
 									<i
 										class="mk"
@@ -82,6 +93,126 @@ const since = moved?.since
 		</p>
 	</section>
 )}
+
+<script>
+	/**
+	 * Reprices the panel in the browser.
+	 *
+	 * Four of these are a price divided by something slow: Mayer is price over a
+	 * 200-day average, the 200-week multiple over a 200-week average, drawdown
+	 * over the all-time high, AHR999 over a cost basis and an age-fitted value.
+	 * Those divisors move a fraction of a percent per day and the price moves
+	 * constantly, so the server ships the divisors and the browser does the
+	 * division against the socket. Nothing has to refetch history for that.
+	 *
+	 * The other four have no price in them — sentiment, dominance, hashrate,
+	 * stablecoin float — so they come from their endpoints on load.
+	 *
+	 * The 24h baseline stays as the snapshot computed it. It is a reading from
+	 * yesterday and yesterday does not change; only today's side of the
+	 * subtraction is live.
+	 */
+	type Row = {
+		key: string; fmt: string; dp: number; base: number | null;
+		scale: { min: number; max: number; marks?: number[] } | null; live: string | null;
+	};
+	const cfgEl = document.querySelector('[data-moved-config]');
+	const cfg: { denoms: any; rows: Row[] } | null = cfgEl ? JSON.parse(cfgEl.textContent || 'null') : null;
+
+	if (cfg) {
+		const byKey = new Map(cfg.rows.map((r) => [r.key, r]));
+		const D = cfg.denoms ?? {};
+
+		const level = (v: number, fmt: string) =>
+			fmt === 'usd0' ? `$${Math.round(v).toLocaleString('en-US')}`
+			: fmt === 'usdB' ? `$${v.toFixed(1)}B`
+			: fmt === 'eh' ? `${Math.round(v)} EH/s`
+			: fmt === 'pct1' ? `${v.toFixed(1)}%`
+			: fmt === 'pct2' ? `${v.toFixed(2)}%`
+			: fmt === 'x2' ? `${v.toFixed(2)}x`
+			: fmt === 'n3' ? v.toFixed(3)
+			: Math.round(v).toString();
+
+		/** Percentage points where the metric is already a percentage. */
+		const deltaText = (r: Row, v: number) => {
+			if (r.base == null || !Number.isFinite(r.base) || r.base === 0) return null;
+			const d = v - r.base;
+			const sign = (x: number) => (x >= 0 ? '+' : '');
+			const text =
+				r.fmt === 'pct1' || r.fmt === 'pct2' ? `${sign(d)}${d.toFixed(r.dp)}pp`
+				: r.fmt === 'n0' ? `${sign(d)}${d.toFixed(0)}`
+				: `${sign((d / Math.abs(r.base)) * 100)}${((d / Math.abs(r.base)) * 100).toFixed(r.dp)}%`;
+			return { text, dir: d > 0 ? 'u' : d < 0 ? 'd' : '' };
+		};
+
+		function paint(key: string, v: number) {
+			const r = byKey.get(key);
+			const cell = document.querySelector<HTMLElement>(`[data-mv="${key}"]`);
+			if (!r || !cell || !Number.isFinite(v)) return;
+
+			const val = cell.querySelector<HTMLElement>('[data-mf="value"]');
+			if (val) val.textContent = level(v, r.fmt);
+
+			const dNode = cell.querySelector<HTMLElement>('[data-mf="delta"]');
+			const d = deltaText(r, v);
+			if (dNode && d) {
+				// the 2-sigma flag is a child; replacing textContent would drop it
+				const flag = dNode.querySelector('.flag');
+				dNode.textContent = d.text;
+				if (flag) dNode.appendChild(flag);
+				dNode.classList.remove('none', 'u', 'd');
+				if (d.dir) dNode.classList.add(d.dir);
+			}
+
+			if (r.scale && r.scale.max > r.scale.min) {
+				const pos = Math.min(1, Math.max(0, (v - r.scale.min) / (r.scale.max - r.scale.min)));
+				const fill = cell.querySelector<HTMLElement>('[data-mf="fill"]');
+				const pin = cell.querySelector<HTMLElement>('[data-mf="pin"]');
+				if (fill) fill.style.width = `${(pos * 100).toFixed(1)}%`;
+				if (pin) pin.style.left = `${(pos * 100).toFixed(1)}%`;
+			}
+		}
+
+		function fromPrice(price: number) {
+			if (!Number.isFinite(price) || price <= 0) return;
+			if (D.ahrDca && D.ahrGrowth) paint('ahr999', (price / D.ahrDca) * (price / D.ahrGrowth));
+			if (D.ma200d) paint('mayer', price / D.ma200d);
+			if (D.ma200w) paint('ma200w', price / D.ma200w);
+			if (D.athPrice) paint('ath', (price / D.athPrice - 1) * 100);
+		}
+
+		async function fromEndpoints() {
+			const get = async (u: string) => {
+				try {
+					const r = await fetch(u, { cache: 'no-store' });
+					return r.ok ? await r.json() : null;
+				} catch { return null; }
+			};
+			const [dash, chain, stable] = await Promise.all([
+				get('/api/dashboard'), get('/api/onchain'), get('/api/stablecoins'),
+			]);
+			if (Number.isFinite(dash?.fng?.value)) paint('fng', dash.fng.value);
+			if (Number.isFinite(chain?.chain?.dominance)) paint('dominance', chain.chain.dominance);
+			if (Number.isFinite(chain?.chain?.hashrateEh)) paint('hashrate', chain.chain.hashrateEh);
+			if (Number.isFinite(stable?.totalB)) paint('stableB', stable.totalB);
+		}
+
+		function attach(tries = 0) {
+			const live = (window as any).__live;
+			if (live?.subscribe) {
+				live.subscribe((sym: string, t: { price: number }) => { if (sym === 'BTC') fromPrice(t.price); });
+				const now = live.get?.('BTC')?.price;
+				if (now) fromPrice(now);
+				return;
+			}
+			if (tries < 40) setTimeout(() => attach(tries + 1), 150);
+		}
+		attach();
+		fromEndpoints();
+		// the slow four only need an occasional nudge; the socket covers the rest
+		setInterval(fromEndpoints, 60000);
+	}
+</script>
 
 <style>
 	/* .panel is global; the padding that makes it a "block" lives in index.astro's

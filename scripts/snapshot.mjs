@@ -16,7 +16,7 @@ import { onchain } from '../functions/_lib/onchain.js';
 import { buildUpcoming } from '../functions/_lib/calendar.js';
 import { treasuries } from '../functions/_lib/treasuries.js';
 import { stablecoins } from '../functions/_lib/stablecoins.js';
-import { readPoint, readPriors, appendHistory, buildMoved } from '../functions/_lib/moved.js';
+import { readPoint, readPriors, appendHistory, buildMoved, readDenoms } from '../functions/_lib/moved.js';
 import { buildDca } from '../functions/_lib/dca.js';
 
 const J = async (u) => {
@@ -242,6 +242,7 @@ try {
 			}
 		}
 		const moved = buildMoved(rows, point, { priors: readPriors(data), scales });
+		moved.denoms = readDenoms(data);
 		writeFileSync('src/data/moved.json', JSON.stringify(moved));
 		const withDelta = moved.rows.filter((r) => r.delta !== undefined).length;
 		console.log(`[snapshot] moved ${withDelta}/${moved.rows.length} with a 24h baseline · ${rows.length} rows kept`);

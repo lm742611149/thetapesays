@@ -76,6 +76,17 @@ export async function stablecoins({ top = 6, lines = ['Ethereum', 'Tron'] } = {}
 	}));
 
 	// ---- history, from the chart endpoint ----
+	if (!lines.length) {
+		// caller only wants the current split; the history endpoint is the
+		// expensive half and nothing live reads it
+		return {
+			source: 'DefiLlama',
+			asOf: new Date().toISOString().slice(0, 10),
+			totalB: +(total / 1e9).toFixed(1),
+			chains,
+		};
+	}
+
 	const totalSeries = weekly(allRows);
 	const byT = new Map(totalSeries.map((p) => [p.t, p.v]));
 	const shares = lines.map((name, i) => ({

@@ -39,20 +39,41 @@ export const KEEP_MS = 30 * 86400000;
  * on the first day.
  */
 export const TRACKED = [
-	{ key: 'ahr999',    label: 'AHR999',         fmt: 'n3',   dp: 1, bigger: 'up',
+	{ key: 'ahr999',    label: 'AHR999',         fmt: 'n3',   dp: 1, bigger: 'up', live: 'price',
 	  scale: { min: 0, max: 3, marks: [0.45, 1.2], note: 'under 0.45 is the accumulation band' } },
-	{ key: 'mayer',     label: 'Mayer',          fmt: 'n3',   dp: 1, bigger: 'up',
+	{ key: 'mayer', live: 'price',     label: 'Mayer',          fmt: 'n3',   dp: 1, bigger: 'up',
 	  scale: { min: 0, max: 3, marks: [1, 2.4], note: '1.0 is the 200-day average; 2.4 has marked tops' } },
-	{ key: 'ma200w',    label: '200W mult',      fmt: 'x2',   dp: 1, bigger: 'up',
+	{ key: 'ma200w', live: 'price',    label: '200W mult',      fmt: 'x2',   dp: 1, bigger: 'up',
 	  scale: { min: 0, max: 3, marks: [1, 2], note: 'under 1 has only happened in deep bears' } },
-	{ key: 'ath',       label: 'From ATH',       fmt: 'pct1', dp: 1, bigger: 'up',
+	{ key: 'ath', live: 'price',       label: 'From ATH',       fmt: 'pct1', dp: 1, bigger: 'up',
 	  scale: { min: -100, max: 0, marks: [-50], note: 'drawdown from the all-time high' } },
-	{ key: 'fng',       label: 'Fear & greed',   fmt: 'n0',   dp: 0, bigger: 'up',
+	{ key: 'fng', live: 'fetch',       label: 'Fear & greed',   fmt: 'n0',   dp: 0, bigger: 'up',
 	  scale: { min: 0, max: 100, marks: [25, 75], note: 'index definition, 0 to 100' } },
-	{ key: 'dominance', label: 'BTC dominance',  fmt: 'pct2', dp: 1, bigger: 'up', scale: null },
-	{ key: 'hashrate',  label: 'Hashrate',       fmt: 'eh',   dp: 1, bigger: 'up', scale: null },
-	{ key: 'stableB',   label: 'Stablecoins',    fmt: 'usdB', dp: 1, bigger: 'up', scale: null },
+	{ key: 'dominance', live: 'fetch', label: 'BTC dominance',  fmt: 'pct2', dp: 1, bigger: 'up', scale: null },
+	{ key: 'hashrate', live: 'fetch',  label: 'Hashrate',       fmt: 'eh',   dp: 1, bigger: 'up', scale: null },
+	{ key: 'stableB', live: 'fetch',   label: 'Stablecoins',    fmt: 'usdB', dp: 1, bigger: 'up', scale: null },
 ];
+
+/**
+ * The denominators behind the price-derived metrics.
+ *
+ * Mayer is price over a 200-day average, the 200-week multiple is price over a
+ * 200-week average, drawdown is price over the all-time high, and AHR999 is
+ * price over a 200-day cost basis times price over an age-fitted value. Each of
+ * those divisors moves by a fraction of a percent per day; the price moves all
+ * the time. So the browser gets the divisors and does the division, rather than
+ * the page waiting six hours for a number whose fast half it already has.
+ */
+export function readDenoms(data) {
+	const n = (v) => (Number.isFinite(v) ? +v : undefined);
+	return {
+		ma200d: n(data?.ma200d),
+		ma200w: n(data?.ma200w),
+		athPrice: n(data?.ath?.price),
+		ahrDca: n(data?.ahr999?.dca),
+		ahrGrowth: n(data?.ahr999?.growth),
+	};
+}
 
 /** Pull the tracked numbers out of a snapshot document. */
 export function readPoint(data, stable) {
@@ -159,7 +180,7 @@ export function buildMoved(rows, current, { now = Date.now(), priors = {}, scale
 			pos = Math.min(1, Math.max(0, (v - scale.min) / (scale.max - scale.min)));
 		}
 
-		out.push({ ...m, scale: scale ?? null, pos, value: v, delta, pct, sigma, notable: (sigma ?? 0) >= 2 });
+		out.push({ ...m, scale: scale ?? null, pos, value: v, base: Number.isFinite(b) ? b : null, delta, pct, sigma, notable: (sigma ?? 0) >= 2 });
 	}
 	return { asOf: now, since: base?.t, rows: out };
 }
