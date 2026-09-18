@@ -35,7 +35,8 @@ const live = REFERRAL?.live && REFERRAL.href && REFERRAL.code;
 			</span>
 
 			<a class="cta" href={REFERRAL.href} rel="sponsored noopener" target="_blank" data-ref-cta>
-				Open an account
+				<span class="long">Open an account</span>
+				<span class="short">Sign up</span>
 				<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
 			</a>
 		</div>
@@ -107,6 +108,7 @@ const live = REFERRAL?.live && REFERRAL.href && REFERRAL.code;
 		transition: filter 0.15s ease;
 	}
 	.cta:hover { filter: brightness(1.1); }
+	.cta .short { display: none; }
 	.cta svg {
 		width: 15px; height: 15px; fill: none; stroke: currentColor;
 		stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
@@ -116,12 +118,26 @@ const live = REFERRAL?.live && REFERRAL.href && REFERRAL.code;
 	@media (max-width: 900px) {
 		.pitch { display: none; }
 	}
+	/**
+	 * A fixed bar's overflow does not show up in scrollWidth, so it will happily
+	 * push its own contents off-screen without the page looking broken. At 390px
+	 * the full label plus the code plus the padding does not fit, so the label
+	 * shortens and the code is allowed to shrink rather than holding its width
+	 * and shoving the button out.
+	 */
 	@media (max-width: 560px) {
 		.refbar { height: var(--refbar, 52px); }
-		.in { gap: 10px; padding: 0 12px; }
+		.in { gap: 9px; padding: 0 11px; }
 		.who { display: none; }
-		.code { flex: 1 1 auto; justify-content: center; }
+		.code {
+			flex: 1 1 auto; min-width: 0; justify-content: center;
+			padding: 6px 8px; overflow: hidden;
+		}
+		.code b { font-size: 0.8rem; }
 		.cp { display: none; }
+		.cta { padding: 8px 12px; font-size: 0.82rem; gap: 5px; }
+		.cta .long { display: none; }
+		.cta .short { display: inline; }
 	}
 </style>
 
