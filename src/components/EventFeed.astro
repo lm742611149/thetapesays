@@ -303,9 +303,27 @@ const dcls = (d: string) => (d === 'up' ? 'u' : d === 'down' ? 'd' : '');
 		}
 		.ln > summary, .ln .summary {
 			grid-template-columns: var(--c-car) var(--c-date) minmax(0, 1fr);
+			/* multi-line titles: the row's parts align to the first line, not to
+			   a baseline that no longer describes the tallest cell */
+			align-items: start;
 		}
 		.mm { grid-column: 3 / -1; }
 		.tg { display: none; }
+		/**
+		 * The headline wraps here rather than being cut. At this width the title
+		 * cell is under 200px and the longest of these needs nearly 400, so an
+		 * ellipsis was taking half of every one of them — "US mortgage purchase
+		 * applications back to…" loses the entire point of the sentence. Two
+		 * lines fit almost all of them; the rest still clamp, but after saying
+		 * something.
+		 */
+		.tt {
+			white-space: normal;
+			display: -webkit-box;
+			-webkit-line-clamp: 2;
+			-webkit-box-orient: vertical;
+			line-height: 1.3;
+		}
 	}
 </style>
 
