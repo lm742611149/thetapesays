@@ -14,6 +14,7 @@
 import Sparkline from './Sparkline.astro';
 import { allPosts } from '../lib/posts';
 import log from '../data/trades.json';
+import dca from '../data/dca.json';
 import market from '../data/btc.json';
 import events from '../data/events.json';
 
@@ -31,6 +32,22 @@ const usd = (n: number) =>
 	n >= 1000 ? '$' + Math.round(n).toLocaleString('en-US') : '$' + n.toFixed(n >= 1 ? 2 : 4);
 
 // hero curve for the trade log slide
+/**
+ * Two return curves on one axis: the actual weekly buying, and the same total
+ * bought on day one. Both are percentages of the same capital, so they share a
+ * scale honestly — the comparison is the whole point of the panel, and it would
+ * be meaningless on two axes.
+ */
+const dcaCurve: any[] = (dca as any).curve ?? [];
+const DW = 320, DH = 96, DP = 6;
+const dAll = dcaCurve.flatMap((p) => [p.dca, p.lump]);
+const dLo = Math.min(0, ...dAll), dHi = Math.max(0, ...dAll);
+const dx = (i: number) => (i / Math.max(1, dcaCurve.length - 1)) * DW;
+const dy = (v: number) => DP + (1 - (v - dLo) / (dHi - dLo || 1)) * (DH - DP * 2);
+const dPath = (k: 'dca' | 'lump') =>
+	dcaCurve.map((p, i) => `${i ? 'L' : 'M'}${dx(i).toFixed(1)} ${dy(p[k]).toFixed(1)}`).join(' ');
+const dZero = dy(0);
+
 const cums = curve.map((p: any) => p.cum);
 const CW = 320, CH = 96, CP = 4;
 const clo = Math.min(0, ...cums), chi = Math.max(0, ...cums);
@@ -52,6 +69,20 @@ const date = (s: string) =>
  * hashrate and a hashprice do, and they change on their own.
  */
 const slides = [
+	{
+		key: 'dca',
+		tab: 'DCA',
+		kicker: `${(dca as any).buys} buys · six months · every fill`,
+		title: `${pc((dca as any).ret, 1)} buying weekly. ${pc((dca as any).lumpRet, 1)} buying it all at once.`,
+		sub:
+			`${(dca as any).buys} buys across six coins from ${(dca as any).from} to ${(dca as any).to}, ` +
+			`$${(dca as any).invested.toLocaleString('en-US')} in. The same money and the same split bought on ` +
+			`day one is worth $${(dca as any).lumpValue.toLocaleString('en-US')} today; buying through the ` +
+			`drawdown is worth $${(dca as any).value.toLocaleString('en-US')}. And the money was only at work ` +
+			`${(dca as any).weightedDays} of ${(dca as any).spanDays} days.`,
+		cta: 'See the record',
+		href: '/positions/',
+	},
 	verified && {
 		key: 'positions',
 		tab: 'Positions',
@@ -126,6 +157,29 @@ const slides = [
 		<div class="vis">
 			{slides.map((s, i) => (
 				<article class:list={['card', { on: i === 0 }]} data-card={i}>
+					{s.key === 'dca' && dcaCurve.length > 5 && (
+						<>
+							<div class="ch">
+								<span class="ct">Weekly buying vs all at once</span>
+								<span class="cm">{(dca as any).from} → {(dca as any).to}</span>
+							</div>
+							<div class="big">
+								<b class="up">{pc((dca as any).ret, 1)}</b>
+								<span class="tag">vs {pc((dca as any).lumpRet, 1)}</span>
+							</div>
+							<svg class="curve" viewBox={`0 0 ${DW} ${DH}`} preserveAspectRatio="none" aria-hidden="true">
+								<line class="z" x1="0" y1={dZero.toFixed(1)} x2={DW} y2={dZero.toFixed(1)} />
+								<path class="ln alt" d={dPath('lump')} />
+								<path class="ln" d={dPath('dca')} />
+							</svg>
+							<div class="foot">
+								<span><i>Invested</i><b>${(dca as any).invested.toLocaleString('en-US')}</b></span>
+								<span><i>Worth now</i><b class="up">${(dca as any).value.toLocaleString('en-US')}</b></span>
+								<span><i>Edge</i><b class="up">{pc((dca as any).edge, 1).replace('%', 'pp')}</b></span>
+							</div>
+						</>
+					)}
+
 					{s.key === 'positions' && (
 						<>
 							<div class="ch">
@@ -314,6 +368,11 @@ const slides = [
 	.curve .ln {
 		fill: none; stroke: var(--accent); stroke-width: 2;
 		stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke;
+	}
+	/* the alternative that was not taken — present for comparison, so it reads
+	   as the reference line rather than a second result */
+	.curve .ln.alt {
+		stroke: #5c6472; stroke-width: 1.5; stroke-dasharray: 4 3;
 	}
 
 	.foot {
