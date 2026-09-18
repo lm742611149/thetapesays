@@ -16,7 +16,15 @@ interface Series { name: string; points: Pt[]; color: string }
 interface Props { series: Series[]; height?: number; label?: string }
 const { series, height = 168, label } = Astro.props;
 
-const W = 900, PL = 4, PR = 132, PT = 12, PB = 18;
+/**
+ * PR has to clear two things stacked on the right: the axis labels drawn inside
+ * the viewBox, and the end labels which are HTML positioned against the
+ * figure's right edge. The viewBox scales with the container and the labels do
+ * not, so the gap between them has to be generous or they collide at wide
+ * widths. PL is breathing room — a curve starting hard against the panel's
+ * inner edge reads as clipped.
+ */
+const W = 900, PL = 14, PR = 176, PT = 16, PB = 22;
 const H = height;
 
 const all = series.flatMap((s) => s.points.map((p) => p.v));
@@ -121,7 +129,7 @@ const grid = Array.from({ length: ticks + 1 }, (_, i) => lo + ((hi - lo) * i) / 
 	.cross { stroke: var(--line-bright); stroke-width: 1; stroke-dasharray: 3 3; }
 
 	/* end labels sit outside the plot, in text ink — the swatch carries identity */
-	.ends { position: absolute; inset: 0 0 0 auto; width: 128px; margin: 0; padding: 0; list-style: none; }
+	.ends { position: absolute; inset: 0 0 0 auto; width: 132px; margin: 0; padding: 0; list-style: none; }
 	.ends li {
 		position: absolute; right: 0; display: flex; align-items: center; gap: 6px;
 		font-size: 0.72rem; white-space: nowrap;
