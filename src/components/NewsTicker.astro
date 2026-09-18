@@ -18,7 +18,7 @@ const seed = ((data as any).news ?? []).slice(0, 18);
 			{[0, 1].map((copy) => (
 				<div class="run" aria-hidden={copy === 1 ? 'true' : undefined}>
 					{seed.map((n: any) => (
-						<a class="it" href={n.link} target="_blank" rel="noopener">
+						<a class="it" href={n.link} target="_blank" rel="nofollow noopener">
 							<span class="src">{n.source}</span>
 							<span class="ttl">{n.title}</span>
 						</a>
@@ -143,7 +143,7 @@ const seed = ((data as any).news ?? []).slice(0, 18);
 					.slice(0, 18)
 					.map(
 						(n: any) =>
-							`<a class="it" href="${n.link}" target="_blank" rel="noopener">` +
+							`<a class="it" href="${n.link}" target="_blank" rel="nofollow noopener">` +
 							`<span class="src">${n.source}</span>` +
 							`<span class="ttl">${n.title.replace(/[<>&]/g, (c: string) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c]!)}</span></a>`,
 					)

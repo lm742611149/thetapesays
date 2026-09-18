@@ -2,6 +2,10 @@
 /**
  * Aggregated headlines grouped by day. Kept visually distinct from the hand-kept
  * event log: this is a wire, nobody checked what any of it did to the tape.
+ *
+ * Links are nofollow. Thirty rotating links into four large outlets would hand a
+ * new domain's standing straight to them, and a wire is not an endorsement — the
+ * headline is here so a reader can see what was said, not as a vote for it.
  */
 import data from '../data/btc.json';
 interface Props {
@@ -48,7 +52,7 @@ const hhmm = (ts: number) => new Date(ts).toISOString().slice(11, 16);
 					<span class="n">{list.length}</span>
 				</div>
 				{list.slice(0, perDay).map((it) => (
-					<a class="ln" href={it.link} target="_blank" rel="noopener">
+					<a class="ln" href={it.link} target="_blank" rel="nofollow noopener">
 						<span class="tm">{hhmm(it.ts)}</span>
 						<span class="sr">{it.source}</span>
 						<span class="tt">{it.title}</span>
