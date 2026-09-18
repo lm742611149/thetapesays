@@ -2,12 +2,17 @@
 import Base from '../../layouts/Base.astro';
 import ReferralSlot from '../../components/ReferralSlot.astro';
 import snap from '../../data/snapshots.json';
+import stableLive from '../../data/stablecoins.json';
 import Busy from '../../components/Busy.astro';
 import OnChain from '../../components/OnChain.astro';
 import MinerCosts from '../../components/MinerCosts.astro';
 import Treasuries from '../../components/Treasuries.astro';
 
-const { stablecoins, fundingHistory, coveredCall } = snap;
+// The stablecoin split refreshes on the six-hourly run; the two study series
+// below it are one-off measurements that do not move, and keep their own dates.
+const { fundingHistory, coveredCall } = snap;
+const stablecoins: any = stableLive ?? snap.stablecoins;
+const twoChains = stablecoins.chains[0].pct + stablecoins.chains[1].pct;
 ---
 
 <Base
@@ -139,11 +144,11 @@ const { stablecoins, fundingHistory, coveredCall } = snap;
 			</p>
 			<div class="chains">
 				{
-					stablecoins.chains.map((c) => (
+					stablecoins.chains.map((c: any) => (
 						<div class="chain">
 							<span class="cn">{c.name}</span>
 							<div class="track">
-								<div class="fill alt" style={`width:${(c.pct / 48.14) * 100}%`} />
+								<div class="fill alt" style={`width:${(c.pct / stablecoins.chains[0].pct) * 100}%`} />
 							</div>
 							<span class="cv">${c.b}B</span>
 							<span class="cp">{c.pct}%</span>
@@ -151,7 +156,7 @@ const { stablecoins, fundingHistory, coveredCall } = snap;
 					))
 				}
 			</div>
-			<p class="fine">Ethereum and Tron together are 79.06% of everything.</p>
+			<p class="fine">Ethereum and Tron together are {twoChains.toFixed(2)}% of everything.</p>
 		</section>
 
 		<!-- COVERED CALL -->
