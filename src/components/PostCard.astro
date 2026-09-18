@@ -96,7 +96,9 @@ const d = pubDate.toISOString().slice(0, 10);
 		font-size: 1.12rem;
 		font-weight: 600;
 		letter-spacing: -0.01em;
-		color: var(--accent);
+		/* the same yellow, lightened — it belongs to the title above it and must
+		   not compete with it */
+		color: color-mix(in srgb, var(--accent) 58%, #f3f5f8);
 		line-height: 1.1;
 	}
 	.feat .num {
@@ -113,13 +115,15 @@ const d = pubDate.toISOString().slice(0, 10);
 		letter-spacing: -0.017em;
 		margin: 0 0 8px;
 		line-height: 1.25;
+		color: var(--accent);
 	}
 	.feat h3 {
 		font-size: 1.72rem;
 		letter-spacing: -0.024em;
 	}
+	/* the title is already the accent, so hover has to move the other way */
 	.card:hover h3 {
-		color: var(--accent);
+		color: #fff;
 	}
 	p {
 		margin: 0;
