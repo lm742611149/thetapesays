@@ -55,18 +55,36 @@ function measureDepth() {
 	if (d > maxDepth) maxDepth = d;
 }
 
+/**
+ * The visit record is the denominator of every rate in the reports, so there
+ * has to be exactly one per page life — and there was not. endVisit runs on
+ * both `hidden` and `pagehide`, and `hidden` runs again every time the reader
+ * comes back and leaves again, so a single visit landed three or four times.
+ * That drags average dwell down and bounce rate up at the same time, which is
+ * worse than either alone: two numbers wrong in opposite directions cannot be
+ * reasoned back to the truth.
+ *
+ * Sending once undercounts a reader who leaves and returns to keep reading.
+ * That is a bias in one direction with a known sign, which is the kind of
+ * wrongness a number can carry and still be worth publishing.
+ */
+let visitSent = false;
+
 function endVisit() {
 	if (visibleSince) {
 		dwell += Date.now() - visibleSince;
 		visibleSince = 0;
 	}
 	measureDepth();
-	// one record per visit, sent last, so a bounce and a read are distinguishable
-	post([
-		{ event: 'visit', dwell: Math.round(dwell / 1000), depth: maxDepth, t: Date.now() },
-		...queue,
-	]);
+	// interactions still go out on every exit — it is only the visit that is
+	// once, so something clicked after a return trip is not lost
+	const batch = queue;
 	queue = [];
+	if (!visitSent) {
+		visitSent = true;
+		batch.unshift({ event: 'visit', dwell: Math.round(dwell / 1000), depth: maxDepth, t: Date.now() });
+	}
+	post(batch);
 }
 
 export function initTracking() {
