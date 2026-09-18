@@ -16,6 +16,7 @@ import { onchain } from '../functions/_lib/onchain.js';
 import { buildUpcoming } from '../functions/_lib/calendar.js';
 import { treasuries } from '../functions/_lib/treasuries.js';
 import { stablecoins } from '../functions/_lib/stablecoins.js';
+import { readPoint, readPriors, appendHistory, buildMoved } from '../functions/_lib/moved.js';
 
 const J = async (u) => {
 	const r = await fetch(u);
@@ -78,6 +79,7 @@ async function board() {
 }
 
 const out = 'src/data/btc.json';
+const HIST = 'src/data/history.json';
 try {
 	const [data, daily, brd, charts, news] = await Promise.all([
 		buildMetrics(),
@@ -190,6 +192,26 @@ try {
 		);
 	} catch (e) {
 		console.warn('[snapshot] stablecoins:', e.message);
+	}
+
+	// What changed since yesterday. The site was all levels and no differences,
+	// which answers "where are we" — a question you ask once — and never "what
+	// happened", which is the one worth coming back for. Most of these have no
+	// history upstream, so the record is kept here.
+	try {
+		const stable = existsSync('src/data/stablecoins.json')
+			? JSON.parse(readFileSync('src/data/stablecoins.json', 'utf8'))
+			: undefined;
+		const prev = existsSync(HIST) ? JSON.parse(readFileSync(HIST, 'utf8')).rows : [];
+		const point = readPoint(data, stable);
+		const rows = appendHistory(prev, point);
+		writeFileSync(HIST, JSON.stringify({ updated: point.t, rows }));
+		const moved = buildMoved(rows, point, { priors: readPriors(data) });
+		writeFileSync('src/data/moved.json', JSON.stringify(moved));
+		const withDelta = moved.rows.filter((r) => r.delta !== undefined).length;
+		console.log(`[snapshot] moved ${withDelta}/${moved.rows.length} with a 24h baseline · ${rows.length} rows kept`);
+	} catch (e) {
+		console.warn('[snapshot] moved:', e.message);
 	}
 
 	// The "ahead" rail. Derived every run so a passed date drops out on its own

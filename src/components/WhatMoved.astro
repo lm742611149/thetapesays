@@ -1,0 +1,95 @@
+---
+/**
+ * The difference row.
+ *
+ * Every other panel on this page reports a level. A level answers "where are
+ * we", which a reader asks once; this answers "what happened since yesterday",
+ * which is the question that brings them back.
+ *
+ * A metric with no baseline yet prints its level and a dash. The rolling record
+ * started on 2026-09-18, so most of these fill in over the first day — writing
+ * a zero in the meantime would be inventing the one thing the panel exists to
+ * report.
+ */
+import moved from '../data/moved.json';
+
+const rows: any[] = moved?.rows ?? [];
+const withDelta = rows.filter((r) => r.delta !== undefined).length;
+
+const level = (v: number, fmt: string) =>
+	fmt === 'usd0' ? `$${Math.round(v).toLocaleString('en-US')}`
+	: fmt === 'usdB' ? `$${v.toFixed(1)}B`
+	: fmt === 'eh' ? `${Math.round(v)} EH/s`
+	: fmt === 'pct1' ? `${v.toFixed(1)}%`
+	: fmt === 'pct2' ? `${v.toFixed(2)}%`
+	: fmt === 'x2' ? `${v.toFixed(2)}x`
+	: fmt === 'n3' ? v.toFixed(3)
+	: Math.round(v).toString();
+
+/** Percent for anything that compounds, points for things already in percent. */
+const delta = (r: any) =>
+	r.fmt === 'pct1' || r.fmt === 'pct2' || r.fmt === 'n0'
+		? `${r.delta >= 0 ? '+' : ''}${r.delta.toFixed(r.dp)}${r.fmt === 'n0' ? '' : 'pp'}`
+		: `${r.pct >= 0 ? '+' : ''}${r.pct.toFixed(r.dp)}%`;
+
+const since = moved?.since
+	? new Date(moved.since).toISOString().slice(0, 16).replace('T', ' ') + ' UTC'
+	: null;
+---
+
+{rows.length > 0 && (
+	<section class="moved" data-reveal>
+		<div class="bh">
+			<h3>What moved</h3>
+			<span class="legend">
+				{withDelta === rows.length ? 'against 24h ago' : `${withDelta} of ${rows.length} have a 24h baseline`}
+			</span>
+		</div>
+		<div class="grid">
+			{rows.map((r) => (
+				<div class:list={['cell', { hot: r.notable }]}>
+					<i class="label">{r.label}</i>
+					<b class="mono">{level(r.value, r.fmt)}</b>
+					{r.delta === undefined ? (
+						<em class="none" title="no reading from 24h ago yet">—</em>
+					) : (
+						<em class={r.delta > 0 ? 'u' : r.delta < 0 ? 'd' : ''}>
+							{delta(r)}
+							{r.notable && <span class="flag" title="a 2-sigma move against its own last 30 days">·2σ</span>}
+						</em>
+					)}
+				</div>
+			))}
+		</div>
+		<p class="fine">
+			{since
+				? `Measured against the reading from ${since}.`
+				: 'Baselines start filling in as the record builds; a dash means there is no reading from 24h ago yet.'}
+		</p>
+	</section>
+)}
+
+<style>
+	.moved { margin-bottom: 14px; }
+	.bh { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+	.bh h3 { margin: 0; font-size: 1.02rem; }
+	.grid {
+		display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+	}
+	.cell {
+		background: var(--bg-panel-solid); padding: 11px 13px 12px;
+		display: flex; flex-direction: column; gap: 3px; min-width: 0;
+	}
+	/* a flagged move earns a mark on the edge, not a repainted cell */
+	.cell.hot { box-shadow: inset 2px 0 0 var(--accent); }
+	.label { font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-mute); font-style: normal; }
+	b { font-size: 1.04rem; font-weight: 600; letter-spacing: -0.01em; }
+	em { font-style: normal; font-size: 0.76rem; font-family: var(--font-mono), monospace; color: var(--fg-dim); }
+	em.u { color: #26d07c; }
+	em.d { color: #f6465d; }
+	em.none { color: #4a5160; }
+	.flag { margin-left: 5px; color: var(--accent); font-size: 0.7rem; }
+	.fine { margin: 9px 0 0; font-size: 0.74rem; color: var(--fg-mute); }
+	@media (max-width: 860px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+</style>

@@ -18,6 +18,7 @@ import EventFeed from '../components/EventFeed.astro';
 import Explain from '../components/Explain.astro';
 import TrackRecord from '../components/TrackRecord.astro';
 import HeroCarousel from '../components/HeroCarousel.astro';
+import WhatMoved from '../components/WhatMoved.astro';
 import { SITE_TITLE, SITE_DESC } from '../consts';
 import { allPosts } from '../lib/posts';
 import m from '../data/btc.json';
@@ -123,6 +124,8 @@ const advancing = m.board.filter((r: any) => r.chg >= 0).length;
 				<em>{m.halving.blocksLeft.toLocaleString()} blocks</em>
 			</div>
 		</div>
+
+		<WhatMoved />
 
 		<!-- the trade log, in brief -->
 		<div class="panel block feature" data-reveal>
