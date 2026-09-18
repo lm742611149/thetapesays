@@ -86,6 +86,10 @@ const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','
 </figure>
 
 <style>
+	/* `hidden` is an HTML attribute: SVG elements get no UA rule for it, so the
+	   crosshair's dot stayed painted at the origin until the first pointer move.
+	   Hide it in CSS instead of trusting the attribute. */
+	.hov[hidden] { display: none; }
 	.pc {
 		margin: 0;
 		position: relative;
