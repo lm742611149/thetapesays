@@ -23,15 +23,16 @@ const live = REFERRAL?.live && REFERRAL.href && REFERRAL.code;
 		<div class="in">
 			<span class="mark" aria-hidden="true"></span>
 
-			<span class="who">Trade on {REFERRAL.name}</span>
+			<span class="who">50% fee rebate</span>
 
 			<span class="pitch">
-				Sign up with my code and you pay lower fees. It also keeps this site running.
+				Sign up on {REFERRAL.name} with my code and half of every trading fee you pay comes
+				back to you, automatically.
 			</span>
 
 			{/* phones drop the code chip — the link already carries it — so the
 			    space goes to a line that says what the button is for */}
-			<span class="pitchm">Pay lower fees on {REFERRAL.name}</span>
+			<span class="pitchm">50% of your trading fees back</span>
 
 			<span class="code" data-refcode={REFERRAL.code} title="Copy the code">
 				<i class="cl">Code</i>
