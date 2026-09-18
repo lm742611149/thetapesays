@@ -22,7 +22,19 @@ const H = height;
 const all = series.flatMap((s) => s.points.map((p) => p.v));
 let hi = Math.max(...all), lo = Math.min(...all);
 const pad = (hi - lo) * 0.12 || 1;
-hi += pad; lo = Math.max(0, lo - pad);
+/**
+ * The floor follows the data. This used to clamp at zero, which was harmless
+ * for a share-of-total (never negative) and wrong the moment a return series
+ * arrived: every point below zero mapped outside the viewBox and, with
+ * overflow visible, drew straight across whatever sat under the chart. A
+ * series that stays positive still gets a zero floor, so those charts are
+ * unchanged.
+ */
+const anyNegative = all.some((v) => v < 0);
+hi += pad;
+lo = anyNegative ? lo - pad : Math.max(0, lo - pad);
+/** A return series needs its zero marked; a share-of-total does not have one. */
+const showZero = lo < 0 && hi > 0;
 
 const n = Math.max(...series.map((s) => s.points.length));
 const X = (i: number) => PL + (i / (n - 1)) * (W - PL - PR);
@@ -57,6 +69,9 @@ const grid = Array.from({ length: ticks + 1 }, (_, i) => lo + ((hi - lo) * i) / 
 				<text class="ax" x={W - PR + 7} y={(Y(v) + 3.4).toFixed(1)}>{v.toFixed(0)}%</text>
 			</>
 		))}
+		{showZero && (
+			<line class="zero" x1={PL} y1={Y(0).toFixed(1)} x2={W - PR} y2={Y(0).toFixed(1)} />
+		)}
 		{drawn.map((s) => (
 			<>
 				<path class="pl" d={s.d} fill="none" stroke={s.color} />
@@ -92,6 +107,7 @@ const grid = Array.from({ length: ticks + 1 }, (_, i) => lo + ((hi - lo) * i) / 
 	.sl { margin: 0; position: relative; height: var(--h, 170px); }
 	svg { width: 100%; height: 100%; display: block; overflow: visible; }
 	.g { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
+	.zero { stroke: var(--line-bright); stroke-width: 1; }
 	.ax { font-family: var(--font-mono), monospace; font-size: 9.5px; fill: #59606e; }
 	.pl {
 		stroke-width: 2; stroke-linejoin: round; stroke-linecap: round;
