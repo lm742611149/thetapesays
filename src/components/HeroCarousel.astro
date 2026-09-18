@@ -106,7 +106,13 @@ const slides = [
 			{slides.map((s, i) => (
 				<div class:list={['pane', { on: i === 0 }]} data-pane={i}>
 					<p class="label kicker">{s.kicker}</p>
-					<h1>{s.title}</h1>
+					{/*
+					  Every slide rendered its headline as an h1, so the page shipped four
+					  of them and named no subject at all. The first slide is the one that
+					  is visible before any script runs, so it keeps the h1; the rest are
+					  h2. Styling is on the container, not the tag, so nothing moves.
+					*/}
+					{i === 0 ? <h1>{s.title}</h1> : <h2>{s.title}</h2>}
 					<p class="sub">{s.sub}</p>
 					<div class="cta">
 						<a href={s.href} class="btn primary">{s.cta}</a>
@@ -240,7 +246,9 @@ const slides = [
 	}
 
 	.kicker { margin: 0 0 15px; color: var(--accent); }
-	.hero-car h1 {
+	/* the slide headline is an h1 on the first pane and an h2 after it — same type */
+	.hero-car h1,
+	.hero-car h2 {
 		margin: 0 0 18px;
 		font-size: clamp(2.1rem, 5.4vw, 3.3rem);
 		font-weight: 700;
