@@ -29,6 +29,10 @@ const live = REFERRAL?.live && REFERRAL.href && REFERRAL.code;
 				Sign up with my code and you pay lower fees. It also keeps this site running.
 			</span>
 
+			{/* phones drop the code chip — the link already carries it — so the
+			    space goes to a line that says what the button is for */}
+			<span class="pitchm">Pay lower fees on {REFERRAL.name}</span>
+
 			<span class="code" data-refcode={REFERRAL.code} title="Copy the code">
 				<i class="cl">Code</i>
 				<b>{REFERRAL.code}</b>
@@ -84,6 +88,7 @@ const live = REFERRAL?.live && REFERRAL.href && REFERRAL.code;
 		font-size: 0.88rem; color: #2a1f02; font-weight: 500; line-height: 1.3;
 		min-width: 0; flex: 1 1 auto;
 	}
+	.pitchm { display: none; }
 	.code {
 		display: inline-flex; align-items: baseline; gap: 8px; flex: none;
 		padding: 6px 12px; border-radius: 8px; cursor: pointer;
@@ -129,17 +134,21 @@ const live = REFERRAL?.live && REFERRAL.href && REFERRAL.code;
 	 * shortens and the code is allowed to shrink rather than holding its width
 	 * and shoving the button out.
 	 */
+	/**
+	 * Phones get the offer and the button, nothing else. The code chip goes —
+	 * the referral link already carries the code, so asking someone to copy it
+	 * on a phone is a step that buys nothing — and the width it was taking goes
+	 * to a line that says what the button does.
+	 */
 	@media (max-width: 560px) {
-		.refbar { height: var(--refbar, 52px); }
-		.in { gap: 9px; padding: 0 11px; }
-		.who { display: none; }
-		.code {
-			flex: 1 1 auto; min-width: 0; justify-content: center;
-			padding: 6px 8px; overflow: hidden;
+		.refbar { height: var(--refbar, 54px); }
+		.in { gap: 10px; padding: 0 13px; }
+		.who, .code, .pitch { display: none; }
+		.pitchm {
+			display: block; flex: 1 1 auto; min-width: 0;
+			font-size: 0.88rem; font-weight: 600; color: #120d02; line-height: 1.25;
 		}
-		.code b { font-size: 0.8rem; }
-		.cp { display: none; }
-		.cta { padding: 8px 12px; font-size: 0.82rem; gap: 5px; }
+		.cta { padding: 9px 14px; font-size: 0.85rem; gap: 6px; }
 		.cta .long { display: none; }
 		.cta .short { display: inline; }
 	}
