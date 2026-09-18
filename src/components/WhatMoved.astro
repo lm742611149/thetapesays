@@ -58,7 +58,7 @@ const since = moved?.since
 							{r.notable && <span class="flag" title="a 2-sigma move against its own last 30 days">·2σ</span>}
 						</em>
 					)}
-					<div class="track" title={r.scale?.note ?? 'no published range for this one yet'}>
+					<div class:list={['track', { empty: r.pos === undefined }]} title={r.scale?.note ?? 'no range for this one yet — it gets one once the record is four weeks long'}>
 						{r.pos !== undefined && (
 							<>
 								<span class="fill" style={`width:${(r.pos * 100).toFixed(1)}%`} />
@@ -136,8 +136,15 @@ const since = moved?.since
 	 * the same height while three of them wait for a range.
 	 */
 	.track {
-		position: relative; height: 3px; margin-top: 9px;
+		position: relative; height: 4px; margin-top: 9px;
 		background: var(--line); border-radius: 2px; overflow: hidden;
+	}
+	/* a solid empty track reads as "this level is at zero"; dashed reads as
+	   "there is no ruler here yet", which is what it means */
+	.track.empty {
+		background: repeating-linear-gradient(
+			90deg, var(--line) 0 4px, transparent 4px 8px
+		);
 	}
 	.fill {
 		position: absolute; left: 0; top: 0; bottom: 0;
