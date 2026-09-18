@@ -72,7 +72,9 @@ const since = moved?.since
 <style>
 	/* .panel is global; the padding that makes it a "block" lives in index.astro's
 	   scoped styles and cannot reach in here, so it is restated to match. */
-	.moved { padding: 20px 22px 22px; margin-bottom: 14px; }
+	/* the stat row above sets no bottom margin of its own, so this panel carries
+	   both sides of the gap; 14px is what every other block on the page uses */
+	.moved { padding: 20px 22px 22px; margin: 14px 0; }
 	.bh {
 		display: flex; align-items: baseline; justify-content: space-between;
 		gap: 14px; margin-bottom: 14px; flex-wrap: wrap;
