@@ -105,6 +105,8 @@ const atWorkPct = Math.round((d.weightedDays / d.spanDays) * 100);
 							<th class="r">Invested</th>
 							<th class="r">Average</th>
 							<th class="r">Now</th>
+							<th class="r">Worth</th>
+							<th class="r">P&amp;L</th>
 							<th class="r">Return</th>
 						</tr>
 					</thead>
@@ -116,12 +118,61 @@ const atWorkPct = Math.round((d.weightedDays / d.spanDays) * 100);
 								<td class="r mono">${num(c.invested)}</td>
 								<td class="r mono">{px(c.avg)}</td>
 								<td class="r mono">{px(c.spot)}</td>
+								<td class="r mono">${num(c.value)}</td>
+								<td class={`r mono ${c.pnl >= 0 ? 'up' : 'down'}`}>{c.pnl >= 0 ? '+' : '−'}${num(Math.abs(c.pnl))}</td>
 								<td class={`r mono ${c.ret >= 0 ? 'up' : 'down'}`}>{pc(c.ret, 1)}</td>
 							</tr>
 						))}
 					</tbody>
 				</table>
 			</div>
+		</section>
+
+		<section class="block">
+			<div class="bh">
+				<h2>Every buy, priced against now</h2>
+				<span class="legend">
+					{d.fillsInProfit} of {d.buys} in profit · {d.fillsInLoss} under water
+				</span>
+			</div>
+			<p class="pnote top">
+				The last {d.recent.length} fills. Each row is what the exchange filled, what it is worth
+				at the current price, and the difference — so the average above is not a number you have
+				to take on faith, it is the column on the left averaged out. Prices refresh with the
+				site's six-hourly snapshot, which is also when every figure on this page is recomputed.
+			</p>
+			<div class="tbl-wrap">
+				<table class="dtbl fills">
+					<thead>
+						<tr>
+							<th>When</th>
+							<th>Coin</th>
+							<th class="r">Quantity</th>
+							<th class="r">Filled at</th>
+							<th class="r">Cost</th>
+							<th class="r">P&amp;L</th>
+							<th class="r">Change</th>
+						</tr>
+					</thead>
+					<tbody>
+						{d.recent.map((f: any) => (
+							<tr>
+								<td class="mono dim">{new Date(f.t).toISOString().slice(0, 16).replace('T', ' ')}</td>
+								<td>{f.sym}</td>
+								<td class="r mono">{f.qty}</td>
+								<td class="r mono">{px(f.px)}</td>
+								<td class="r mono">${num(f.usdt)}</td>
+								<td class={`r mono ${f.pnl >= 0 ? 'up' : 'down'}`}>{f.pnl >= 0 ? '+' : '−'}${num(Math.abs(f.pnl))}</td>
+								<td class={`r mono ${f.ret >= 0 ? 'up' : 'down'}`}>{pc(f.ret, 1)}</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
+			</div>
+			<p class="fine">
+				Showing {d.recent.length} of {d.buys}. The other {d.buys - d.recent.length} are in the
+				same file this page reads, and the averages above use all of them.
+			</p>
 		</section>
 
 		<ReferralSlot />
@@ -205,6 +256,10 @@ const atWorkPct = Math.round((d.weightedDays / d.spanDays) * 100);
 	}
 	.dtbl tbody tr:last-child td { border-bottom: 0; }
 	.dtbl .r { text-align: right; }
+	.dtbl.fills { font-size: 0.82rem; }
+	.dtbl .dim { color: var(--fg-mute); font-size: 0.78rem; }
+	.pnote.top { margin: 0 0 14px; }
+	.fine { margin: 12px 0 0; font-size: 0.78rem; color: var(--fg-mute); }
 	.mono { font-family: var(--font-mono), monospace; }
 	.up { color: #26d07c; }
 	.down { color: #f6465d; }

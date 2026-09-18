@@ -72,6 +72,7 @@ const slides = [
 	{
 		key: 'dca',
 		tab: 'DCA',
+		tint: '#f0b90b',
 		kicker: `${(dca as any).buys} buys · six months · every fill`,
 		title: `${pc((dca as any).ret, 1)} buying weekly. ${pc((dca as any).lumpRet, 1)} buying it all at once.`,
 		sub:
@@ -86,6 +87,7 @@ const slides = [
 	verified && {
 		key: 'positions',
 		tab: 'Positions',
+		tint: '#26d07c',
 		kicker: 'the trade log · every fill',
 		title: `${money(stats.netPnl)} across ${stats.trades} trades.`,
 		sub: `${stats.wins} won, ${stats.losses} lost, profit factor ${stats.profitFactor}, worst drawdown ${money(stats.drawdown.abs)}. Entry, exit and fee on every one of them, straight off the exchange record.`,
@@ -95,6 +97,7 @@ const slides = [
 	{
 		key: 'data',
 		tab: 'Data',
+		tint: '#f7931a',
 		kicker: 'bitcoin network · funding · treasuries',
 		title: chain
 			? `${Math.round(chain.chain.hashrateEh)} EH/s. $${chain.miner.hashprice.toFixed(0)} a petahash.`
@@ -106,6 +109,7 @@ const slides = [
 	{
 		key: 'research',
 		tab: 'Research',
+		tint: '#ffd24a',
 		kicker: 'latest research',
 		title: lead?.data?.stat ? `${lead.data.stat}` : 'Backtests you can rerun.',
 		sub: lead?.data?.statLabel
@@ -117,6 +121,7 @@ const slides = [
 	{
 		key: 'news',
 		tab: 'News',
+		tint: '#e0913a',
 		kicker: 'event log · measured reaction',
 		title: latestEvent?.title
 			? `${latestEvent.title.length > 52 ? latestEvent.title.slice(0, 50).trim() + '…' : latestEvent.title}`
@@ -156,7 +161,7 @@ const slides = [
 		<!-- visual -->
 		<div class="vis">
 			{slides.map((s, i) => (
-				<article class:list={['card', { on: i === 0 }]} data-card={i}>
+				<article class:list={['card', { on: i === 0 }]} data-card={i} style={`--tint:${s.tint}`}>
 					{s.key === 'dca' && dcaCurve.length > 5 && (
 						<>
 							<div class="ch">
@@ -323,14 +328,39 @@ const slides = [
 
 
 	/* the visual */
+	/**
+	 * Each slide carries its own tint, stepped around the site's yellow rather
+	 * than picked freely — the trade log green because the figure on it is a
+	 * P&L, the data card toward bitcoin orange, research brighter, news darker.
+	 * It lands as a wash in the corner and a lit top edge, not as a coloured
+	 * panel: the card still has to read as the same object across five slides.
+	 */
 	.card {
-		background: linear-gradient(170deg, rgba(18,21,27,0.86), rgba(11,13,18,0.9));
+		position: relative;
+		background:
+			radial-gradient(
+				120% 90% at 92% 4%,
+				color-mix(in srgb, var(--tint, var(--accent)) 13%, transparent),
+				transparent 62%
+			),
+			linear-gradient(170deg, rgba(18,21,27,0.86), rgba(11,13,18,0.9));
 		backdrop-filter: blur(4px);
 		border: 1px solid var(--line-bright);
 		border-radius: 14px;
 		padding: 18px 20px 16px;
 		box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55);
 		align-self: start;
+		overflow: hidden;
+	}
+	.card::before {
+		content: '';
+		position: absolute; inset: 0 0 auto 0; height: 2px;
+		background: linear-gradient(
+			90deg,
+			var(--tint, var(--accent)),
+			color-mix(in srgb, var(--tint, var(--accent)) 30%, transparent) 46%,
+			transparent 78%
+		);
 	}
 	.ch { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 	.ct {
@@ -352,6 +382,7 @@ const slides = [
 	.big b.stat { color: var(--accent); font-size: 2rem; }
 	.tag { font-family: var(--font-mono), monospace; font-size: 0.86rem; font-weight: 700; color: var(--fg-mute); }
 	.tag.up { color: var(--up); }
+	.card .tag:not(.up):not(.down) { color: color-mix(in srgb, var(--tint, var(--accent)) 72%, #fff); }
 	.tag.down { color: var(--down); }
 
 	.statl {
@@ -364,9 +395,9 @@ const slides = [
 
 	.curve { width: 100%; height: 96px; display: block; overflow: visible; }
 	.curve .z { stroke: var(--line-bright); stroke-width: 1; }
-	.curve .fill { fill: rgba(240, 185, 11, 0.14); }
+	.curve .fill { fill: color-mix(in srgb, var(--tint, var(--accent)) 15%, transparent); }
 	.curve .ln {
-		fill: none; stroke: var(--accent); stroke-width: 2;
+		fill: none; stroke: var(--tint, var(--accent)); stroke-width: 2;
 		stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke;
 	}
 	/* the alternative that was not taken — present for comparison, so it reads

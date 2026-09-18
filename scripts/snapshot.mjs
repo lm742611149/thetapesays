@@ -17,6 +17,7 @@ import { buildUpcoming } from '../functions/_lib/calendar.js';
 import { treasuries } from '../functions/_lib/treasuries.js';
 import { stablecoins } from '../functions/_lib/stablecoins.js';
 import { readPoint, readPriors, appendHistory, buildMoved } from '../functions/_lib/moved.js';
+import { buildDca } from '../functions/_lib/dca.js';
 
 const J = async (u) => {
 	const r = await fetch(u);
@@ -192,6 +193,23 @@ try {
 		);
 	} catch (e) {
 		console.warn('[snapshot] stablecoins:', e.message);
+	}
+
+	// The standing order, repriced. The fill list is fixed; every price on /dca
+	// is derived here, so "now" actually means now rather than whenever the
+	// exchange export was last imported.
+	try {
+		if (existsSync('src/data/dca-fills.json')) {
+			const { fills } = JSON.parse(readFileSync('src/data/dca-fills.json', 'utf8'));
+			const d = await buildDca(fills);
+			writeFileSync('src/data/dca.json', JSON.stringify(d));
+			console.log(
+				`[snapshot] dca ${d.buys} buys · $${d.invested} in, $${d.value} now (${d.ret > 0 ? '+' : ''}${d.ret}%) ` +
+					`vs lump ${d.lumpRet > 0 ? '+' : ''}${d.lumpRet}% · ${d.fillsInProfit}/${d.buys} fills in profit`,
+			);
+		}
+	} catch (e) {
+		console.warn('[snapshot] dca:', e.message);
 	}
 
 	// What changed since yesterday. The site was all levels and no differences,

@@ -81,14 +81,16 @@ const grid = Array.from({ length: ticks + 1 }, (_, i) => lo + ((hi - lo) * i) / 
 </figure>
 
 <style>
-	.sl { margin: 0; position: relative; }
 	/**
-	 * Explicit height, not auto. With preserveAspectRatio="none" and
-	 * overflow: visible, an auto height leaves the box shorter than the drawing
-	 * and the curves render straight over whatever follows — on /dca that was
-	 * the per-coin table. The host can still stretch it by overriding --h.
+	 * The height lives on the figure, which is where --h is declared, and the
+	 * svg just fills it. Putting `height: var(--h)` on the svg instead looked
+	 * equivalent and was not: the variable did not reach it, the declaration
+	 * became invalid and height fell back to auto, so the box came out at the
+	 * viewBox ratio (307px for a 230px chart) while overflow: visible drew the
+	 * curves straight across the paragraph underneath.
 	 */
-	svg { width: 100%; height: var(--h); display: block; overflow: visible; }
+	.sl { margin: 0; position: relative; height: var(--h, 170px); }
+	svg { width: 100%; height: 100%; display: block; overflow: visible; }
 	.g { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
 	.ax { font-family: var(--font-mono), monospace; font-size: 9.5px; fill: #59606e; }
 	.pl {
