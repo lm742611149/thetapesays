@@ -61,30 +61,21 @@ const { variant = 'wide' } = Astro.props;
 		background:
 			radial-gradient(120% 140% at 8% 0%, rgba(240, 185, 11, 0.13), transparent 58%) padding-box,
 			linear-gradient(170deg, #15130c, #0c0d11 60%) padding-box,
-			conic-gradient(
-				from var(--sweep, 0deg),
-				rgba(240, 185, 11, 0.28) 0deg,
-				#f0b90b 40deg,
-				rgba(240, 185, 11, 0.85) 70deg,
-				rgba(240, 185, 11, 0.24) 150deg,
-				rgba(240, 185, 11, 0.24) 360deg
+			linear-gradient(115deg,
+				#f0b90b 0%,
+				rgba(240, 185, 11, 0.75) 26%,
+				rgba(240, 185, 11, 0.3) 58%,
+				rgba(240, 185, 11, 0.22) 100%
 			) border-box;
 		padding: 22px 24px 16px;
 		overflow: hidden;
 		isolation: isolate;
-		animation: sweep 5s linear infinite;
 	}
 	.ref.wide { margin: 14px 0; }
 	.ref.inline { margin: 26px 0; padding: 18px 20px 13px; }
 
 	/* Engines without @property can't interpolate an angle, so they get a static
 	   gradient edge rather than a travelling one — a downgrade, not a break. */
-	@property --sweep {
-		syntax: '<angle>';
-		inherits: false;
-		initial-value: 0deg;
-	}
-	@keyframes sweep { to { --sweep: 360deg; } }
 
 	/* slow breathing wash behind the copy */
 	.glow {
@@ -262,7 +253,7 @@ const { variant = 'wide' } = Astro.props;
 		.fine { margin-top: 10px; padding-top: 9px; font-size: 0.58rem; }
 	}
 	@media (prefers-reduced-motion: reduce) {
-		.ref, .glow, .dot, .cta::after { animation: none; }
+		.glow, .dot, .cta::after { animation: none; }
 		.cta:hover { transform: none; }
 	}
 </style>

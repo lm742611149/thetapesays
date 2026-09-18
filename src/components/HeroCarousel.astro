@@ -1,0 +1,426 @@
+---
+/**
+ * The hero, as a rotation through what the site actually holds: the trade log
+ * first, then the data, the research and the event log.
+ *
+ * Both halves turn together. A stack of four price cards behind one another
+ * looked busy and said the same thing four times; one panel at a time, with the
+ * copy and the call to action moving with it, gives each section a turn at
+ * being the reason someone stays.
+ *
+ * Every slide is rendered server-side and switched with a class — no layout
+ * shift, and the first one is readable before any JavaScript runs.
+ */
+import Sparkline from './Sparkline.astro';
+import { allPosts } from '../lib/posts';
+import log from '../data/trades.json';
+import market from '../data/btc.json';
+import events from '../data/events.json';
+
+const { stats, curve, verified, since, through } = log as any;
+const board: any[] = (market as any).board ?? [];
+const charts: Record<string, number[][]> = (market as any).charts ?? {};
+const posts = await allPosts();
+const lead = posts[0];
+const latestEvent = (events as any).events?.[0];
+
+const money = (v: number) => `${v >= 0 ? '+' : '−'}$${Math.abs(v).toFixed(2)}`;
+const pc = (v: number, d = 2) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(d)}%`;
+const usd = (n: number) =>
+	n >= 1000 ? '$' + Math.round(n).toLocaleString('en-US') : '$' + n.toFixed(n >= 1 ? 2 : 4);
+
+// hero curve for the trade log slide
+const cums = curve.map((p: any) => p.cum);
+const CW = 320, CH = 96, CP = 4;
+const clo = Math.min(0, ...cums), chi = Math.max(0, ...cums);
+const cx = (i: number) => (i / Math.max(1, curve.length - 1)) * CW;
+const cy = (v: number) => CP + (1 - (v - clo) / (chi - clo || 1)) * (CH - CP * 2);
+const cLine = curve.map((p: any, i: number) => `${i ? 'L' : 'M'}${cx(i).toFixed(1)} ${cy(p.cum).toFixed(1)}`).join(' ');
+const cZero = cy(0);
+const cArea = `${cLine} L ${CW} ${cZero.toFixed(1)} L 0 ${cZero.toFixed(1)} Z`;
+
+const btc = board.find((b) => b.sym === 'BTC');
+const btcSpark = (charts.BTC ?? []).slice(-45).map((b) => b[4]);
+
+const date = (s: string) =>
+	new Date(s + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+
+/** Slide copy. `tab` is the switcher label; `cta` is the promise being made. */
+const slides = [
+	verified && {
+		key: 'positions',
+		tab: 'Positions',
+		kicker: 'every fill, including the losers',
+		title: 'My trades, on the record.',
+		sub: `Rules written down first, stop written at entry, and every closed position published — the ${stats.losses} that lost alongside the ${stats.wins} that didn't.`,
+		cta: 'See the positions',
+		href: '/positions/',
+	},
+	{
+		key: 'data',
+		tab: 'Data',
+		kicker: 'first-hand market data',
+		title: 'Pulled myself. Source named.',
+		sub: 'Funding across six venues, open interest, the Bitcoin network, miner shutdown prices and who else is holding it. Every figure says where it came from and over what window.',
+		cta: 'Open the data',
+		href: '/data/',
+	},
+	{
+		key: 'research',
+		tab: 'Research',
+		kicker: 'backtests you can rerun',
+		title: 'Measured, not asserted.',
+		sub: 'Each piece names its dataset and its window, so the finding can be checked rather than taken on trust. When one turns out wrong, that goes up too.',
+		cta: 'Read the research',
+		href: '/research/',
+	},
+	{
+		key: 'news',
+		tab: 'News',
+		kicker: 'what the tape actually did',
+		title: 'The reaction, not the headline.',
+		sub: 'Every entry read off a primary source and paired with the measured move against exchange data. If an event moved nothing, it says so.',
+		cta: 'See the log',
+		href: '/events/',
+	},
+].filter(Boolean) as any[];
+---
+
+<div class="hero-car" data-car>
+	<div class="in">
+		<!-- copy -->
+		<div class="copy">
+			{slides.map((s, i) => (
+				<div class:list={['pane', { on: i === 0 }]} data-pane={i}>
+					<p class="label kicker">{s.kicker}</p>
+					<h1>{s.title}</h1>
+					<p class="sub">{s.sub}</p>
+					<div class="cta">
+						<a href={s.href} class="btn primary">{s.cta}</a>
+						<a href="/data/" class="btn">Browse the data</a>
+					</div>
+				</div>
+			))}
+		</div>
+
+		<!-- visual -->
+		<div class="vis">
+			{slides.map((s, i) => (
+				<article class:list={['card', { on: i === 0 }]} data-card={i}>
+					{s.key === 'positions' && (
+						<>
+							<div class="ch">
+								<span class="ct">Realised P&amp;L</span>
+								<span class="cm">{since} → {through}</span>
+							</div>
+							<div class="big">
+								<b class={stats.netPnl >= 0 ? 'up' : 'down'}>{money(stats.netPnl)}</b>
+								<span class="tag">{stats.trades} closed</span>
+							</div>
+							<svg class="curve" viewBox={`0 0 ${CW} ${CH}`} preserveAspectRatio="none" aria-hidden="true">
+								<line class="z" x1="0" y1={cZero.toFixed(1)} x2={CW} y2={cZero.toFixed(1)} />
+								<path class="fill" d={cArea} />
+								<path class="ln" d={cLine} />
+							</svg>
+							<div class="foot">
+								<span><i>Win rate</i><b>{stats.winRate}%</b></span>
+								<span><i>Profit factor</i><b>{stats.profitFactor}</b></span>
+								<span><i>Max drawdown</i><b class="down">{money(stats.drawdown.abs)}</b></span>
+							</div>
+						</>
+					)}
+
+					{s.key === 'data' && btc && (
+						<>
+							<div class="ch">
+								<span class="ct">BTC<span class="pair">/USD</span></span>
+								<span class="live"><span class="pulse" /><span class="cm">live</span></span>
+							</div>
+							<div class="big">
+								<b data-live="BTC" data-live-field="price">{usd(btc.price)}</b>
+								<span class={`tag ${btc.chg >= 0 ? 'up' : 'down'}`} data-live="BTC" data-live-field="chg">
+									{pc(btc.chg)}
+								</span>
+							</div>
+							{btcSpark.length > 5 && <Sparkline values={btcSpark} id="hero-btc" height={96} />}
+							<div class="foot">
+								<span><i>24h high</i><b data-live="BTC" data-live-field="high" data-live-fmt="plain">{usd(btc.high).slice(1)}</b></span>
+								<span><i>24h low</i><b data-live="BTC" data-live-field="low" data-live-fmt="plain">{usd(btc.low).slice(1)}</b></span>
+								<span><i>Venues</i><b>6</b></span>
+							</div>
+						</>
+					)}
+
+					{s.key === 'research' && lead && (
+						<>
+							<div class="ch">
+								<span class="ct">Latest</span>
+								<span class="cm">{date(lead.data.pubDate.toISOString().slice(0, 10))}</span>
+							</div>
+							{lead.data.stat && (
+								<div class="big">
+									<b class="stat">{lead.data.stat}</b>
+								</div>
+							)}
+							{lead.data.statLabel && <p class="statl">{lead.data.statLabel}</p>}
+							<p class="headline">{lead.data.title}</p>
+							<div class="foot single">
+								<span><i>Tagged</i><b>{(lead.data.tags ?? []).slice(0, 3).join(' · ')}</b></span>
+							</div>
+						</>
+					)}
+
+					{s.key === 'news' && latestEvent && (
+						<>
+							<div class="ch">
+								<span class="ct">Logged</span>
+								<span class="cm">{date(latestEvent.date)}</span>
+							</div>
+							<p class="headline lead">{latestEvent.title}</p>
+							{latestEvent.impact && <p class="impact">{latestEvent.impact}</p>}
+							<div class="foot single">
+								<span><i>Source</i><b>read first-hand</b></span>
+							</div>
+						</>
+					)}
+				</article>
+			))}
+		</div>
+	</div>
+
+	<div class="dots" data-dots>
+		{slides.map((s, i) => (
+			<button class:list={['dot', { on: i === 0 }]} data-dot={i} aria-label={`Show ${s.tab}`}>
+				<span class="tk">{s.tab}</span>
+				<span class="prog"><i /></span>
+			</button>
+		))}
+	</div>
+</div>
+
+<style>
+	.hero-car { display: block; }
+	.in {
+		display: grid;
+		grid-template-columns: minmax(0, 1.05fr) minmax(330px, 0.95fr);
+		gap: 48px;
+		align-items: center;
+	}
+
+	/* Panes stack in one grid cell so the tallest sets the height and switching
+	   never reflows the page. */
+	.copy, .vis { display: grid; }
+	.pane, .card { grid-area: 1 / 1; }
+
+	.pane, .card {
+		opacity: 0;
+		visibility: hidden;
+		transform: translateY(8px);
+		transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.2, 0.8, 0.3, 1), visibility 0.4s;
+		pointer-events: none;
+	}
+	.pane.on, .card.on {
+		opacity: 1;
+		visibility: visible;
+		transform: none;
+		pointer-events: auto;
+	}
+
+	.kicker { margin: 0 0 15px; color: var(--accent); }
+	.hero-car h1 {
+		margin: 0 0 18px;
+		font-size: clamp(2.1rem, 5.4vw, 3.3rem);
+		font-weight: 700;
+		letter-spacing: -0.03em;
+		line-height: 1.06;
+	}
+	.sub { margin: 0 0 24px; color: var(--fg-dim); max-width: 52ch; }
+	.cta { display: flex; gap: 10px; flex-wrap: wrap; }
+
+	.btn {
+		display: inline-block; padding: 11px 20px; border-radius: 7px;
+		border: 1px solid var(--line-bright); font-size: 0.94rem; font-weight: 500;
+		text-decoration: none; color: var(--fg); transition: all 0.15s ease;
+	}
+	.btn:hover { border-color: var(--accent); color: var(--accent); }
+	.btn.primary { background: var(--accent); border-color: var(--accent); color: #0a0a0a; font-weight: 600; }
+	.btn.primary:hover { background: #f8c633; border-color: #f8c633; color: #0a0a0a; }
+
+
+	/* the visual */
+	.card {
+		background: linear-gradient(170deg, rgba(18,21,27,0.86), rgba(11,13,18,0.9));
+		backdrop-filter: blur(4px);
+		border: 1px solid var(--line-bright);
+		border-radius: 14px;
+		padding: 18px 20px 16px;
+		box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55);
+		align-self: start;
+	}
+	.ch { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+	.ct {
+		font-family: var(--font-mono), monospace; font-size: 0.95rem;
+		font-weight: 700; color: #fff; letter-spacing: 0.02em;
+	}
+	.pair { color: var(--fg-mute); font-weight: 400; }
+	.cm {
+		font-family: var(--font-mono), monospace; font-size: 0.66rem;
+		color: var(--fg-mute); letter-spacing: 0.04em;
+	}
+	.live { display: inline-flex; align-items: center; gap: 6px; }
+
+	.big { display: flex; align-items: baseline; gap: 11px; margin: 11px 0 4px; flex-wrap: wrap; }
+	.big b {
+		font-family: var(--font-mono), monospace; font-size: 2.3rem; font-weight: 700;
+		color: #fff; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums;
+	}
+	.big b.stat { color: var(--accent); font-size: 2rem; }
+	.tag { font-family: var(--font-mono), monospace; font-size: 0.86rem; font-weight: 700; color: var(--fg-mute); }
+	.tag.up { color: var(--up); }
+	.tag.down { color: var(--down); }
+
+	.statl {
+		margin: 2px 0 0; font-family: var(--font-mono), monospace;
+		font-size: 0.66rem; color: var(--fg-mute); text-transform: uppercase; letter-spacing: 0.07em;
+	}
+	.headline { margin: 14px 0 0; font-size: 1.04rem; line-height: 1.45; color: #fff; font-weight: 700; }
+	.headline.lead { margin-top: 12px; }
+	.impact { margin: 8px 0 0; font-size: 0.82rem; line-height: 1.55; color: var(--fg-dim); }
+
+	.curve { width: 100%; height: 96px; display: block; overflow: visible; }
+	.curve .z { stroke: var(--line-bright); stroke-width: 1; }
+	.curve .fill { fill: rgba(240, 185, 11, 0.14); }
+	.curve .ln {
+		fill: none; stroke: var(--accent); stroke-width: 2;
+		stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke;
+	}
+
+	.foot {
+		display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+		margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line);
+	}
+	.foot.single { grid-template-columns: 1fr; }
+	.foot span { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+	.foot i {
+		font-family: var(--font-mono), monospace; font-size: 0.6rem; font-style: normal;
+		text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-mute);
+	}
+	.foot b {
+		font-family: var(--font-mono), monospace; font-size: 0.95rem;
+		color: #fff; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums;
+		overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+	}
+
+	/* switcher */
+	.dots { display: flex; gap: 16px; margin-top: 30px; }
+	.dot {
+		appearance: none; border: 0; background: transparent; cursor: pointer;
+		padding: 6px 2px 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+	}
+	.tk {
+		font-family: var(--font-mono), monospace; font-size: 0.66rem; font-weight: 700;
+		letter-spacing: 0.12em; text-transform: uppercase; color: #4f5766;
+		transition: color 0.25s ease;
+	}
+	.prog { display: block; width: 52px; height: 2px; border-radius: 1px; background: #1b1f27; overflow: hidden; }
+	.prog i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 1px; }
+	.dot:hover .tk { color: var(--fg-dim); }
+	.dot.on .tk { color: var(--accent); }
+	.dot.on .prog i { width: 100%; transition: width var(--hold, 7s) linear; }
+	.hero-car.held .dot.on .prog i { transition: none; }
+
+	@media (max-width: 940px) {
+		.in { grid-template-columns: 1fr; gap: 30px; }
+		.dots { margin-top: 24px; gap: 13px; }
+		.prog { width: 40px; }
+	}
+	@media (max-width: 560px) {
+		.dots { gap: 10px; }
+		.tk { font-size: 0.6rem; letter-spacing: 0.08em; }
+		.prog { width: 30px; }
+		.big b { font-size: 1.95rem; }
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.pane, .card { transition: none; }
+	}
+</style>
+
+<script>
+	for (const car of document.querySelectorAll<HTMLElement>('[data-car]')) {
+		const panes = [...car.querySelectorAll<HTMLElement>('[data-pane]')];
+		const cards = [...car.querySelectorAll<HTMLElement>('[data-card]')];
+		const dots = [...car.querySelectorAll<HTMLElement>('[data-dot]')];
+		if (panes.length < 2) continue;
+
+		let at = 0;
+		let timer: number | null = null;
+		// long enough to read a sentence, which is the point of the copy moving
+		const HOLD = 7000;
+		car.style.setProperty('--hold', `${HOLD}ms`);
+
+		function restartProgress() {
+			const bar = dots[at]?.querySelector<HTMLElement>('.prog i');
+			if (!bar) return;
+			car.classList.add('held');
+			bar.style.width = '0';
+			void bar.offsetWidth;
+			car.classList.remove('held');
+		}
+
+		function paint() {
+			dots.forEach((d) => {
+				const bar = d.querySelector<HTMLElement>('.prog i');
+				if (bar && !d.classList.contains('on')) bar.style.width = '0';
+			});
+			panes.forEach((p, i) => p.classList.toggle('on', i === at));
+			cards.forEach((c, i) => {
+				c.classList.toggle('on', i === at);
+				c.setAttribute('aria-hidden', i === at ? 'false' : 'true');
+			});
+			dots.forEach((d, i) => d.classList.toggle('on', i === at));
+			requestAnimationFrame(restartProgress);
+		}
+
+		const go = (i: number) => {
+			const next = (i + panes.length) % panes.length;
+			if (next === at) return;
+			at = next;
+			paint();
+		};
+		const start = () => { if (timer == null) timer = window.setInterval(() => go(at + 1), HOLD); };
+		const stop = () => { if (timer != null) { clearInterval(timer); timer = null; } };
+
+		const freeze = () => {
+			const bar = dots[at]?.querySelector<HTMLElement>('.prog i');
+			if (bar) {
+				const w = getComputedStyle(bar).width;
+				car.classList.add('held');
+				bar.style.width = w;
+			}
+		};
+		car.addEventListener('pointerenter', () => { stop(); freeze(); });
+		car.addEventListener('pointerleave', () => { car.classList.remove('held'); restartProgress(); start(); });
+		car.addEventListener('focusin', stop);
+		car.addEventListener('focusout', start);
+		dots.forEach((d, i) => d.addEventListener('click', () => { go(i); stop(); start(); }));
+		document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
+
+		// swipe, horizontal intent only so page scrolling isn't hijacked
+		let x0 = 0, y0 = 0, tracking = false;
+		car.addEventListener('touchstart', (e) => {
+			const t = e.changedTouches[0];
+			x0 = t.clientX; y0 = t.clientY; tracking = true; stop();
+		}, { passive: true });
+		car.addEventListener('touchend', (e) => {
+			if (!tracking) return;
+			tracking = false;
+			const t = e.changedTouches[0];
+			const dx = t.clientX - x0, dy = t.clientY - y0;
+			if (Math.abs(dx) > 42 && Math.abs(dx) > Math.abs(dy) * 1.4) go(at + (dx < 0 ? 1 : -1));
+			start();
+		}, { passive: true });
+
+		paint();
+		if (!matchMedia('(prefers-reduced-motion: reduce)').matches) start();
+	}
+</script>

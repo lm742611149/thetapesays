@@ -14,7 +14,8 @@ import CoinBoard from '../components/CoinBoard.astro';
 import ReferralSlot from '../components/ReferralSlot.astro';
 import EventFeed from '../components/EventFeed.astro';
 import Explain from '../components/Explain.astro';
-import HeroDeck from '../components/HeroDeck.astro';
+import TrackRecord from '../components/TrackRecord.astro';
+import HeroCarousel from '../components/HeroCarousel.astro';
 import { SITE_TITLE, SITE_DESC } from '../consts';
 import { allPosts } from '../lib/posts';
 import m from '../data/btc.json';
@@ -73,21 +74,8 @@ const advancing = m.board.filter((r: any) => r.chg >= 0).length;
 >
 	<!-- ============ HERO ============ -->
 	<section class="hero">
-		<div class="wrap hero-in">
-			<div class="hero-copy">
-				<p class="label kicker">first-hand market data</p>
-				<h1>Numbers first.<br /><span class="dim">Opinions after.</span></h1>
-				<p class="sub">
-					I pull the data myself, publish the window and the source, and post the position
-					before the outcome is known. When one loses, that post goes up too.
-				</p>
-				<div class="cta">
-					<a href="/research/" class="btn primary">Read the research</a>
-					<a href="/btc/" class="btn" data-deck-cta><span data-deck-sym>BTC</span> dashboard</a>
-				</div>
-			</div>
-
-			<HeroDeck />
+		<div class="wrap">
+			<HeroCarousel />
 		</div>
 	</section>
 
@@ -130,6 +118,15 @@ const advancing = m.board.filter((r: any) => r.chg >= 0).length;
 				<b class="mono">{Math.round(m.halving.days)}<span class="of">d</span></b>
 				<em>{m.halving.blocksLeft.toLocaleString()} blocks</em>
 			</div>
+		</div>
+
+		<!-- the trade log, in brief -->
+		<div class="panel block" data-reveal>
+			<div class="bh">
+				<h3>My positions</h3>
+				<span class="legend">every fill, losers included</span>
+			</div>
+			<TrackRecord />
 		</div>
 
 		<!-- gauges -->
@@ -361,31 +358,8 @@ const advancing = m.board.filter((r: any) => r.chg >= 0).length;
 			radial-gradient(900px 340px at 12% -10%, rgba(240, 185, 11, 0.07), transparent 65%),
 			radial-gradient(700px 300px at 85% 0%, rgba(38, 208, 124, 0.045), transparent 60%);
 	}
-	.hero-in {
-		display: grid;
-		grid-template-columns: minmax(0, 1.05fr) minmax(330px, 0.95fr);
-		gap: 48px;
-		align-items: center;
-	}
-	.kicker { margin: 0 0 15px; color: var(--accent); }
 
-	.hero h1 {
-		margin: 0 0 18px;
-		font-size: clamp(2.3rem, 6.4vw, 3.9rem);
-		font-weight: 700;
-		letter-spacing: -0.03em;
-	}
 	.dim { color: var(--fg-mute); }
-	.sub { max-width: 58ch; font-size: 1.06rem; color: var(--fg-dim); margin: 0 0 26px; }
-	.cta { display: flex; gap: 10px; flex-wrap: wrap; }
-	.btn {
-		display: inline-block; padding: 11px 20px; border-radius: 7px;
-		border: 1px solid var(--line-bright); font-size: 0.94rem; font-weight: 500;
-		text-decoration: none; color: var(--fg); transition: all 0.15s ease;
-	}
-	.btn:hover { border-color: var(--accent); color: var(--accent); }
-	.btn.primary { background: var(--accent); border-color: var(--accent); color: #0a0a0a; font-weight: 600; }
-	.btn.primary:hover { background: #ffc247; border-color: #ffc247; color: #0a0a0a; }
 
 	.mkt { padding-top: 34px; }
 	.panel.block { padding: 20px 22px 22px; margin-bottom: 14px; }
@@ -463,8 +437,7 @@ const advancing = m.board.filter((r: any) => r.chg >= 0).length;
 	.grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 12px; }
 
 	@media (max-width: 940px) {
-		.hero-in { grid-template-columns: 1fr; gap: 34px; }
-	}
+		}
 	@media (max-width: 1000px) {
 		.statrow { grid-template-columns: repeat(3, 1fr); }
 		.gauges { grid-template-columns: 1fr; }
