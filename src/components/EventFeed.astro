@@ -74,8 +74,7 @@ const dcls = (d: string) => (d === 'up' ? 'u' : d === 'down' ? 'd' : '');
 
 	{
 		showUpcoming && ahead.upcoming.length > 0 && (
-			<section class="grp">
-				<div class="sep ahead"><span>ahead · scheduled, not predicted</span></div>
+			<section class="grp" data-ahead-group>
 				{ahead.upcoming.map((u: any) => (
 					<details class="ln" data-ahead data-at={u.at} data-precision={u.precision}>
 						<summary>
@@ -328,9 +327,8 @@ const dcls = (d: string) => (d === 'up' ? 'u' : d === 'down' ? 'd' : '');
 			if (!relativeWhen(at, Date.now(), row.dataset.precision || 'day')) row.remove();
 		}
 		// the whole group goes if nothing is left ahead
-		for (const sep of document.querySelectorAll<HTMLElement>('.sep.ahead')) {
-			const grp = sep.closest('.grp');
-			if (grp && !grp.querySelector('[data-ahead]')) grp.remove();
+		for (const grp of document.querySelectorAll<HTMLElement>('[data-ahead-group]')) {
+			if (!grp.querySelector('[data-ahead]')) grp.remove();
 		}
 	}
 
