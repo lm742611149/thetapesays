@@ -83,7 +83,8 @@ export async function buildDca(fills, { recent = 30 } = {}) {
 			return {
 				sym: s, buys: count[s],
 				invested: +weight[s].toFixed(2),
-				qty: +held[s].toFixed(held[s] >= 1000 ? 0 : 4),
+				// full precision: this is multiplied by a live price in the browser
+				qty: +held[s].toFixed(8),
 				avg: +avg.toFixed(dp(avg)),
 				spot: +spot[s].toFixed(dp(spot[s])),
 				value: +(held[s] * spot[s]).toFixed(2),
@@ -96,7 +97,7 @@ export async function buildDca(fills, { recent = 30 } = {}) {
 	// every buy priced against now — the table that makes the average checkable
 	const fillsOut = rows.map((f) => ({
 		t: f.t, sym: f.sym,
-		qty: +f.qty.toFixed(f.qty >= 1000 ? 0 : 4),
+		qty: +f.qty.toFixed(8),
 		px: +f.px.toFixed(dp(f.px)),
 		usdt: +f.usdt.toFixed(2),
 		pnl: +(f.qty * spot[f.sym] - f.usdt).toFixed(2),

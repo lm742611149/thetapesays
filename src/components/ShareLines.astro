@@ -17,14 +17,13 @@ interface Props { series: Series[]; height?: number; label?: string }
 const { series, height = 168, label } = Astro.props;
 
 /**
- * PR has to clear two things stacked on the right: the axis labels drawn inside
- * the viewBox, and the end labels which are HTML positioned against the
- * figure's right edge. The viewBox scales with the container and the labels do
- * not, so the gap between them has to be generous or they collide at wide
- * widths. PL is breathing room — a curve starting hard against the panel's
- * inner edge reads as clipped.
+ * The key sits under the chart, not against its right edge. Pinned to the edge
+ * it had to clear the axis labels, and those are drawn inside a viewBox that
+ * scales with the container while the key does not — so the gap between them
+ * changed with the panel width and the key ran into the border on a wide one.
+ * Underneath, the plot gets that width back and nothing can collide.
  */
-const W = 900, PL = 14, PR = 176, PT = 16, PB = 22;
+const W = 900, PL = 14, PR = 58, PT = 16, PB = 22;
 const H = height;
 
 const all = series.flatMap((s) => s.points.map((p) => p.v));
@@ -54,22 +53,14 @@ const drawn = series.map((s) => {
 	return { ...s, d, lastV: last.v, lx: X(s.points.length - 1), ly: Y(last.v) };
 });
 
-// end labels collide when two lines finish close together; push them apart
-const MIN_GAP = 15;
-const order = [...drawn].sort((a, b) => a.ly - b.ly);
-for (let i = 1; i < order.length; i++) {
-	const gap = order[i].ly - order[i - 1].ly;
-	if (gap < MIN_GAP) order[i].ly = order[i - 1].ly + MIN_GAP;
-}
-
 const ticks = 3;
 const grid = Array.from({ length: ticks + 1 }, (_, i) => lo + ((hi - lo) * i) / ticks);
 ---
 
-<figure class="sl" style={`--h:${H}px`} data-sl
+<figure class="sl" data-sl
 	data-series={JSON.stringify(series.map((s) => ({ n: s.name, c: s.color, p: s.points.map((p) => [p.t, p.v]) })))}
 	data-geom={JSON.stringify({ W, H, PL, PR, PT, PB, lo, hi })}>
-	<svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img"
+	<svg style={`--h:${H}px`} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img"
 		aria-label={label ?? `share over time: ${series.map((s) => s.name).join(', ')}`}>
 		{grid.map((v) => (
 			<>
@@ -91,9 +82,9 @@ const grid = Array.from({ length: ticks + 1 }, (_, i) => lo + ((hi - lo) * i) / 
 			{drawn.map((s) => <circle class="hd" data-for={s.name} r="3.5" fill="#fff" />)}
 		</g>
 	</svg>
-	<ul class="ends">
+	<ul class="key">
 		{drawn.map((s) => (
-			<li style={`top:${((s.ly - 7) / H) * 100}%`}>
+			<li>
 				<i style={`background:${s.color}`} />
 				<span class="nm">{s.name}</span>
 				<b>{s.lastV.toFixed(1)}%</b>
@@ -112,8 +103,8 @@ const grid = Array.from({ length: ticks + 1 }, (_, i) => lo + ((hi - lo) * i) / 
 	 * viewBox ratio (307px for a 230px chart) while overflow: visible drew the
 	 * curves straight across the paragraph underneath.
 	 */
-	.sl { margin: 0; position: relative; height: var(--h, 170px); }
-	svg { width: 100%; height: 100%; display: block; overflow: visible; }
+	.sl { margin: 0; position: relative; }
+	svg { width: 100%; height: var(--h, 170px); display: block; overflow: visible; }
 	.g { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
 	.zero { stroke: var(--line-bright); stroke-width: 1; }
 	.ax { font-family: var(--font-mono), monospace; font-size: 9.5px; fill: #59606e; }
@@ -128,15 +119,16 @@ const grid = Array.from({ length: ticks + 1 }, (_, i) => lo + ((hi - lo) * i) / 
 	.hov[hidden] { display: none; }
 	.cross { stroke: var(--line-bright); stroke-width: 1; stroke-dasharray: 3 3; }
 
-	/* end labels sit outside the plot, in text ink — the swatch carries identity */
-	.ends { position: absolute; inset: 0 0 0 auto; width: 132px; margin: 0; padding: 0; list-style: none; }
-	.ends li {
-		position: absolute; right: 0; display: flex; align-items: center; gap: 6px;
-		font-size: 0.72rem; white-space: nowrap;
+	/* the key reads as data, in text ink — the swatch carries identity, and the
+	   latest value travels with the name so the chart needs no end labels */
+	.key {
+		display: flex; flex-wrap: wrap; gap: 6px 22px;
+		margin: 10px 0 0; padding: 0; list-style: none;
 	}
-	.ends i { width: 8px; height: 8px; border-radius: 2px; flex: none; }
-	.ends .nm { color: var(--fg-mute); }
-	.ends b { font-family: var(--font-mono), monospace; color: var(--fg); font-weight: 600; }
+	.key li { display: flex; align-items: baseline; gap: 7px; font-size: 0.74rem; white-space: nowrap; }
+	.key i { width: 8px; height: 8px; border-radius: 2px; flex: none; transform: translateY(-1px); }
+	.key .nm { color: var(--fg-mute); }
+	.key b { font-family: var(--font-mono), monospace; color: var(--fg); font-weight: 600; }
 
 	.tip {
 		position: absolute; pointer-events: none; z-index: 3;
@@ -149,7 +141,8 @@ const grid = Array.from({ length: ticks + 1 }, (_, i) => lo + ((hi - lo) * i) / 
 	.tip i { width: 7px; height: 7px; border-radius: 2px; flex: none; }
 	.tip .d { color: var(--fg-mute); margin-top: 2px; }
 	@media (max-width: 620px) {
-		.ends li { font-size: 0.66rem; }
+		.key { gap: 5px 16px; }
+		.key li { font-size: 0.7rem; }
 	}
 </style>
 

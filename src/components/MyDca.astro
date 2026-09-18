@@ -56,6 +56,11 @@ const has = Array.isArray(d?.curve) && d.curve.length > 5;
 )}
 
 <style>
+	/* .panel.block's padding is one of those index.astro scoped rules too, so
+	   without this the panel has no inner spacing at all — the key ran into the
+	   right border and the footnote sat on the bottom edge */
+	.mydca { padding: 20px 22px 22px; }
+
 	/* .bh/.more live in index.astro's scoped styles and cannot reach a component,
 	   so the heading row is restated here — same lesson as WhatMoved */
 	.bh {
