@@ -23,16 +23,16 @@ const live = REFERRAL?.live && REFERRAL.href && REFERRAL.code;
 		<div class="in">
 			<span class="mark" aria-hidden="true"></span>
 
-			<span class="who">50% fee rebate</span>
+			<span class="who">Up to 50% fee rebate</span>
 
 			<span class="pitch">
-				Sign up on {REFERRAL.name} with my code and half of every trading fee you pay comes
-				back to you, automatically.
+				Sign up on {REFERRAL.name} with my code and up to half of every trading fee you pay
+				comes back to you, automatically.
 			</span>
 
 			{/* phones drop the code chip — the link already carries it — so the
 			    space goes to a line that says what the button is for */}
-			<span class="pitchm">50% of your trading fees back</span>
+			<span class="pitchm">Up to 50% of your trading fees back</span>
 
 			<span class="code" data-refcode={REFERRAL.code} title="Copy the code">
 				<i class="cl">Code</i>
@@ -113,6 +113,7 @@ const live = REFERRAL?.live && REFERRAL.href && REFERRAL.code;
 	}
 	.cta {
 		display: inline-flex; align-items: center; gap: 7px; flex: none;
+		margin-left: auto;
 		background: #120d02; color: #ffd24a;
 		font-weight: 700; font-size: 0.87rem; letter-spacing: -0.01em;
 		padding: 10px 16px; border-radius: 9px; text-decoration: none;
@@ -126,9 +127,15 @@ const live = REFERRAL?.live && REFERRAL.href && REFERRAL.code;
 		stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
 	}
 
-	/* the pitch is the first thing to go; the code and the button are the point */
-	@media (max-width: 900px) {
-		.pitch { display: none; }
+	/**
+	 * The code chip goes before the sentence does. It was the other way round,
+	 * which left a middle width showing a bare code with nothing saying what it
+	 * was for — and with the sentence gone there was nothing to fill the middle,
+	 * so everything huddled at the left edge. The link carries the code anyway;
+	 * the sentence is the only part that makes anyone want it.
+	 */
+	@media (max-width: 1100px) {
+		.code { display: none; }
 	}
 	/**
 	 * A fixed bar's overflow does not show up in scrollWidth, so it will happily
