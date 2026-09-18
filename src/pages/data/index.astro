@@ -1,6 +1,5 @@
 ---
 import Base from '../../layouts/Base.astro';
-import ReferralSlot from '../../components/ReferralSlot.astro';
 import snap from '../../data/snapshots.json';
 import stableLive from '../../data/stablecoins.json';
 import Busy from '../../components/Busy.astro';
@@ -110,8 +109,6 @@ const twoChains = stablecoins.chains[0].pct + stablecoins.chains[1].pct;
 				</table>
 			</div>
 		</section>
-
-		<ReferralSlot />
 
 		<!-- FUNDING HISTORY -->
 		<section class="block">

@@ -1,0 +1,151 @@
+---
+/**
+ * The one referral placement on the site.
+ *
+ * It replaces the slots that sat inside the content on nine pages. Those
+ * interrupted the reading and, measured over a week, were clicked once — by me.
+ * A permanent bar below the content costs no attention mid-article and is on
+ * every page instead of some of them.
+ *
+ * Deliberately not a yellow slab. On a dark terminal-style site a saturated
+ * block reads as an ad unit, and the only asset here is not looking like a
+ * promo account. The yellow is in the top edge, the code and the button; the
+ * bar itself stays the site's own dark.
+ */
+import { REFERRAL } from '../consts';
+
+const live = REFERRAL?.live && REFERRAL.href && REFERRAL.code;
+---
+
+{live && (
+	<aside class="refbar" data-refbar>
+		<div class="in">
+			<span class="mark" aria-hidden="true"></span>
+
+			<span class="who">Trade on {REFERRAL.name}</span>
+
+			<span class="pitch">
+				Sign up with my code and you pay lower fees. It also keeps this site running.
+			</span>
+
+			<span class="code" data-refcode={REFERRAL.code} title="Copy the code">
+				<i class="cl">Code</i>
+				<b>{REFERRAL.code}</b>
+				<span class="cp" data-refcopy>copy</span>
+			</span>
+
+			<a class="cta" href={REFERRAL.href} rel="sponsored noopener" target="_blank" data-ref-cta>
+				Open an account
+				<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+			</a>
+		</div>
+	</aside>
+)}
+
+<style>
+	.refbar {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: var(--newsbar, 36px);
+		height: var(--refbar, 58px);
+		z-index: 40;
+		background: linear-gradient(180deg, #0d1016 0%, #0a0c11 100%);
+		border-top: 1px solid color-mix(in srgb, var(--accent) 38%, transparent);
+		box-shadow: 0 -10px 26px rgba(0, 0, 0, 0.5);
+	}
+	/**
+	 * Full-bleed on purpose: the bar has the whole width, so the parts spread to
+	 * the edges rather than huddling in a centred column. Identity left, offer
+	 * in the middle, the two things you act on at the right.
+	 */
+	.in {
+		height: 100%;
+		display: flex;
+		align-items: center;
+		gap: 16px;
+		padding: 0 18px;
+	}
+	.mark {
+		width: 9px; height: 9px; border-radius: 50%; flex: none;
+		background: var(--accent);
+		box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 70%, transparent);
+	}
+	.who {
+		font-family: var(--font-mono), monospace;
+		font-size: 0.74rem; letter-spacing: 0.12em; text-transform: uppercase;
+		color: var(--accent); white-space: nowrap; flex: none;
+	}
+	.pitch {
+		font-size: 0.85rem; color: var(--fg-dim); line-height: 1.3;
+		min-width: 0; flex: 1 1 auto;
+	}
+	.code {
+		display: inline-flex; align-items: baseline; gap: 8px; flex: none;
+		padding: 6px 11px; border-radius: 8px; cursor: pointer;
+		border: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent);
+		background: color-mix(in srgb, var(--accent) 7%, transparent);
+	}
+	.code:hover { background: color-mix(in srgb, var(--accent) 13%, transparent); }
+	.cl {
+		font-style: normal; font-family: var(--font-mono), monospace;
+		font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg-mute);
+	}
+	.code b {
+		font-family: var(--font-mono), monospace; font-size: 0.88rem;
+		font-weight: 700; color: var(--accent); letter-spacing: 0.04em;
+	}
+	.cp {
+		font-family: var(--font-mono), monospace; font-size: 0.62rem;
+		letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-mute);
+	}
+	.cta {
+		display: inline-flex; align-items: center; gap: 7px; flex: none;
+		background: var(--accent); color: #0a0c11;
+		font-weight: 650; font-size: 0.86rem; letter-spacing: -0.01em;
+		padding: 9px 15px; border-radius: 9px; text-decoration: none;
+		transition: filter 0.15s ease;
+	}
+	.cta:hover { filter: brightness(1.1); }
+	.cta svg {
+		width: 15px; height: 15px; fill: none; stroke: currentColor;
+		stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
+	}
+
+	/* the pitch is the first thing to go; the code and the button are the point */
+	@media (max-width: 900px) {
+		.pitch { display: none; }
+	}
+	@media (max-width: 560px) {
+		.refbar { height: var(--refbar, 52px); }
+		.in { gap: 10px; padding: 0 12px; }
+		.who { display: none; }
+		.code { flex: 1 1 auto; justify-content: center; }
+		.cp { display: none; }
+	}
+</style>
+
+<script>
+	for (const el of document.querySelectorAll<HTMLElement>('[data-refcode]')) {
+		el.addEventListener('click', async () => {
+			const code = el.dataset.refcode!;
+			try {
+				await navigator.clipboard.writeText(code);
+			} catch {
+				// clipboard is blocked without a secure context or permission;
+				// selecting the text at least leaves it one keystroke away
+				const r = document.createRange();
+				r.selectNodeContents(el.querySelector('b')!);
+				const sel = getSelection();
+				sel?.removeAllRanges();
+				sel?.addRange(r);
+				return;
+			}
+			const tag = el.querySelector<HTMLElement>('[data-refcopy]');
+			if (!tag) return;
+			const was = tag.textContent;
+			tag.textContent = 'copied';
+			setTimeout(() => { tag.textContent = was; }, 1400);
+		});
+	}
+</script>

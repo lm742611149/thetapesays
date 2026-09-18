@@ -7,7 +7,6 @@ import VolCone from '../../components/VolCone.astro';
 import DowBars from '../../components/DowBars.astro';
 import HeatMap from '../../components/HeatMap.astro';
 import CycleOverlay from '../../components/CycleOverlay.astro';
-import ReferralSlot from '../../components/ReferralSlot.astro';
 import shared from '../../data/btc.json';
 import btc from '../../data/coins/btc.json';
 import eth from '../../data/coins/eth.json';
@@ -75,8 +74,6 @@ const worstDay = [...d.dow].sort((a: any, b: any) => a.avg - b.avg)[0];
 			<div class="bh"><h2>Price</h2><span class="legend">daily close · hover for detail</span></div>
 			<ChartPro charts={charts} initial={SYM} />
 		</section>
-
-		<ReferralSlot />
 
 		<!-- ============ BTC-ONLY: CYCLES ============ -->
 		{d.cycles && (

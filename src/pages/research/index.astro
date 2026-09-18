@@ -1,7 +1,6 @@
 ---
 import Base from '../../layouts/Base.astro';
 import PostCard from '../../components/PostCard.astro';
-import ReferralSlot from '../../components/ReferralSlot.astro';
 import { allPosts } from '../../lib/posts';
 const posts = await allPosts();
 ---
@@ -25,7 +24,6 @@ const posts = await allPosts();
 		<div class="list">
 			{posts.slice(0, 2).map((p) => <PostCard post={p} />)}
 		</div>
-		<ReferralSlot />
 		<div class="list">
 			{posts.slice(2).map((p) => <PostCard post={p} />)}
 		</div>

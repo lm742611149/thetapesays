@@ -8,6 +8,7 @@ import Loader from '../components/Loader.astro';
 import Backdrop from '../components/Backdrop.astro';
 import Live from '../components/Live.astro';
 import NewsTicker from '../components/NewsTicker.astro';
+import ReferralBar from '../components/ReferralBar.astro';
 import CoinModal from '../components/CoinModal.astro';
 
 interface Props {
@@ -41,6 +42,7 @@ const { title, description, image, type, noindex, keywords, schema } = Astro.pro
 		<Footer />
 		<Motion />
 		<Live />
+		<ReferralBar />
 		<NewsTicker />
 		<CoinModal />
 	<script>
@@ -70,6 +72,10 @@ const { title, description, image, type, noindex, keywords, schema } = Astro.pro
 		z-index: 50;
 	}
 	/* Room for the fixed headline crawl at the bottom. */
-	body { padding-bottom: var(--newsbar, 36px); }
+	/* both fixed bars sit below the content, so the page has to end above them */
+	body { padding-bottom: calc(var(--newsbar, 36px) + var(--refbar, 58px)); }
+	@media (max-width: 560px) {
+		body { padding-bottom: calc(var(--newsbar, 36px) + 52px); }
+	}
 	@media (max-width: 620px) { body { padding-bottom: var(--newsbar, 32px); } }
 </style>

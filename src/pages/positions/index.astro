@@ -10,7 +10,6 @@
  * already been closed.
  */
 import Base from '../../layouts/Base.astro';
-import ReferralSlot from '../../components/ReferralSlot.astro';
 import EquityCurve from '../../components/EquityCurve.astro';
 import OpenPositions from '../../components/OpenPositions.astro';
 import log from '../../data/trades.json';
@@ -134,8 +133,6 @@ const bySym = [...new Set(closed.map((t: any) => t.sym))]
 				)}
 			</p>
 		</section>
-
-		<ReferralSlot />
 
 		<!-- RULES -->
 		<section class="block rules">

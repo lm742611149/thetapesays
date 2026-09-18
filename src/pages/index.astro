@@ -13,7 +13,6 @@ import AltSeason from '../components/AltSeason.astro';
 import EtfTape from '../components/EtfTape.astro';
 import ChartPro from '../components/ChartPro.astro';
 import CoinBoard from '../components/CoinBoard.astro';
-import ReferralSlot from '../components/ReferralSlot.astro';
 import EventFeed from '../components/EventFeed.astro';
 import Explain from '../components/Explain.astro';
 import TrackRecord from '../components/TrackRecord.astro';
@@ -260,8 +259,6 @@ const advancing = m.board.filter((r: any) => r.chg >= 0).length;
 			<FundingBoard />
 		</div>
 
-		<ReferralSlot />
-
 		<!-- open interest across venues -->
 		<div class="panel block" data-reveal>
 			<div class="bh">
@@ -381,7 +378,6 @@ const advancing = m.board.filter((r: any) => r.chg >= 0).length;
 		</div>
 	</section>
 
-	<div class="wrap"><ReferralSlot /></div>
 </Base>
 
 <style>

@@ -15,7 +15,6 @@
  */
 import Base from '../../layouts/Base.astro';
 import ShareLines from '../../components/ShareLines.astro';
-import ReferralSlot from '../../components/ReferralSlot.astro';
 import DcaLive from '../../components/DcaLive.astro';
 import dca from '../../data/dca.json';
 
@@ -179,8 +178,6 @@ const atWorkPct = Math.round((d.weightedDays / d.spanDays) * 100);
 		</section>
 
 		<DcaLive perSym={d.perSym} invested={d.invested} />
-
-		<ReferralSlot />
 
 		<section class="method">
 			<h3>What this does not prove</h3>

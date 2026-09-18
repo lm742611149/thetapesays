@@ -1,7 +1,6 @@
 ---
 import type { GetStaticPaths } from 'astro';
 import Base from '../../layouts/Base.astro';
-import ReferralSlot from '../../components/ReferralSlot.astro';
 import { render } from 'astro:content';
 import { allPosts, KIND_LABEL } from '../../lib/posts';
 import { X_URL } from '../../consts';
@@ -57,8 +56,6 @@ const d = pubDate.toISOString().slice(0, 10);
 		<div class="prose">
 			<Content />
 		</div>
-
-		<ReferralSlot />
 
 		<footer class="pf">
 			<div class="tags">
