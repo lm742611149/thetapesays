@@ -1,0 +1,162 @@
+---
+/**
+ * Two or more share-of-total series on one axis.
+ *
+ * LineChart draws a single series and is used by six panels; rather than grow a
+ * multi-series mode into all of them, this is the narrow case — percentages, so
+ * every series is already on the same scale and a second y-axis is never the
+ * answer.
+ *
+ * Identity never rests on colour alone: each line is labelled at its own end
+ * with the name and the latest value, and the colours match the ring above it
+ * so a reader moves between the two without a second legend.
+ */
+interface Pt { t: number; v: number }
+interface Series { name: string; points: Pt[]; color: string }
+interface Props { series: Series[]; height?: number; label?: string }
+const { series, height = 168, label } = Astro.props;
+
+const W = 900, PL = 4, PR = 132, PT = 12, PB = 18;
+const H = height;
+
+const all = series.flatMap((s) => s.points.map((p) => p.v));
+let hi = Math.max(...all), lo = Math.min(...all);
+const pad = (hi - lo) * 0.12 || 1;
+hi += pad; lo = Math.max(0, lo - pad);
+
+const n = Math.max(...series.map((s) => s.points.length));
+const X = (i: number) => PL + (i / (n - 1)) * (W - PL - PR);
+const Y = (v: number) => PT + (1 - (v - lo) / (hi - lo)) * (H - PT - PB);
+
+const drawn = series.map((s) => {
+	const d = s.points.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(p.v).toFixed(1)}`).join(' ');
+	const last = s.points.at(-1)!;
+	return { ...s, d, lastV: last.v, lx: X(s.points.length - 1), ly: Y(last.v) };
+});
+
+// end labels collide when two lines finish close together; push them apart
+const MIN_GAP = 15;
+const order = [...drawn].sort((a, b) => a.ly - b.ly);
+for (let i = 1; i < order.length; i++) {
+	const gap = order[i].ly - order[i - 1].ly;
+	if (gap < MIN_GAP) order[i].ly = order[i - 1].ly + MIN_GAP;
+}
+
+const ticks = 3;
+const grid = Array.from({ length: ticks + 1 }, (_, i) => lo + ((hi - lo) * i) / ticks);
+---
+
+<figure class="sl" data-sl
+	data-series={JSON.stringify(series.map((s) => ({ n: s.name, c: s.color, p: s.points.map((p) => [p.t, p.v]) })))}
+	data-geom={JSON.stringify({ W, H, PL, PR, PT, PB, lo, hi })}>
+	<svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img"
+		aria-label={label ?? `share over time: ${series.map((s) => s.name).join(', ')}`}>
+		{grid.map((v) => (
+			<>
+				<line class="g" x1={PL} y1={Y(v).toFixed(1)} x2={W - PR} y2={Y(v).toFixed(1)} />
+				<text class="ax" x={W - PR + 7} y={(Y(v) + 3.4).toFixed(1)}>{v.toFixed(0)}%</text>
+			</>
+		))}
+		{drawn.map((s) => (
+			<>
+				<path class="pl" d={s.d} fill="none" stroke={s.color} />
+				<circle cx={s.lx.toFixed(1)} cy={Y(s.lastV).toFixed(1)} r="3.5" fill={s.color} />
+			</>
+		))}
+		<g class="hov" hidden>
+			<line class="cross" y1={PT} y2={H - PB} />
+			{drawn.map((s) => <circle class="hd" data-for={s.name} r="3.5" fill="#fff" />)}
+		</g>
+	</svg>
+	<ul class="ends">
+		{drawn.map((s) => (
+			<li style={`top:${((s.ly - 7) / H) * 100}%`}>
+				<i style={`background:${s.color}`} />
+				<span class="nm">{s.name}</span>
+				<b>{s.lastV.toFixed(1)}%</b>
+			</li>
+		))}
+	</ul>
+	<div class="tip" hidden></div>
+</figure>
+
+<style>
+	.sl { margin: 0; position: relative; }
+	svg { width: 100%; height: auto; display: block; overflow: visible; }
+	.g { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
+	.ax { font-family: var(--font-mono), monospace; font-size: 9.5px; fill: #59606e; }
+	.pl {
+		stroke-width: 2; stroke-linejoin: round; stroke-linecap: round;
+		stroke-dasharray: 3000; animation: slDraw 1.1s cubic-bezier(0.3, 0.7, 0.3, 1) both;
+	}
+	@keyframes slDraw { from { stroke-dashoffset: 3000; } to { stroke-dashoffset: 0; } }
+	.cross { stroke: var(--line-bright); stroke-width: 1; stroke-dasharray: 3 3; }
+
+	/* end labels sit outside the plot, in text ink — the swatch carries identity */
+	.ends { position: absolute; inset: 0 0 0 auto; width: 128px; margin: 0; padding: 0; list-style: none; }
+	.ends li {
+		position: absolute; right: 0; display: flex; align-items: center; gap: 6px;
+		font-size: 0.72rem; white-space: nowrap;
+	}
+	.ends i { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+	.ends .nm { color: var(--fg-mute); }
+	.ends b { font-family: var(--font-mono), monospace; color: var(--fg); font-weight: 600; }
+
+	.tip {
+		position: absolute; pointer-events: none; z-index: 3;
+		background: #05060880; backdrop-filter: blur(8px);
+		border: 1px solid var(--line-bright); border-radius: 7px;
+		padding: 6px 9px; font-size: 0.72rem; line-height: 1.45;
+		transform: translate(-50%, -125%); white-space: nowrap;
+	}
+	.tip .r { display: flex; align-items: center; gap: 6px; }
+	.tip i { width: 7px; height: 7px; border-radius: 2px; flex: none; }
+	.tip .d { color: var(--fg-mute); margin-top: 2px; }
+	@media (max-width: 620px) {
+		.ends li { font-size: 0.66rem; }
+	}
+</style>
+
+<script>
+	for (const fig of document.querySelectorAll<HTMLElement>('[data-sl]')) {
+		const svg = fig.querySelector('svg')!;
+		const tip = fig.querySelector<HTMLElement>('.tip')!;
+		const hov = fig.querySelector<SVGGElement>('.hov')!;
+		const series: { n: string; c: string; p: [number, number][] }[] = JSON.parse(fig.dataset.series!);
+		const g = JSON.parse(fig.dataset.geom!);
+		const n = Math.max(...series.map((s) => s.p.length));
+		const X = (i: number) => g.PL + (i / (n - 1)) * (g.W - g.PL - g.PR);
+		const Y = (v: number) => g.PT + (1 - (v - g.lo) / (g.hi - g.lo)) * (g.H - g.PT - g.PB);
+
+		function move(e: PointerEvent) {
+			const r = svg.getBoundingClientRect();
+			const vx = ((e.clientX - r.left) / r.width) * g.W;
+			let best = 0, bd = Infinity;
+			for (let i = 0; i < n; i++) {
+				const d = Math.abs(X(i) - vx);
+				if (d < bd) { bd = d; best = i; }
+			}
+			hov.removeAttribute('hidden');
+			const cx = X(best);
+			for (const a of ['x1', 'x2']) hov.querySelector('.cross')!.setAttribute(a, String(cx));
+			const dots = hov.querySelectorAll<SVGCircleElement>('.hd');
+			let rows = '', when = '';
+			series.forEach((s, i) => {
+				const pt = s.p[Math.min(best, s.p.length - 1)];
+				if (!pt) return;
+				when = new Date(pt[0]).toISOString().slice(0, 10);
+				dots[i]?.setAttribute('cx', String(cx));
+				dots[i]?.setAttribute('cy', String(Y(pt[1])));
+				dots[i]?.setAttribute('fill', s.c);
+				rows += `<div class="r"><i style="background:${s.c}"></i>${s.n} <b>${pt[1].toFixed(1)}%</b></div>`;
+			});
+			tip.hidden = false;
+			tip.innerHTML = `${rows}<div class="d">${when}</div>`;
+			tip.style.left = `${(cx / g.W) * 100}%`;
+			tip.style.top = `${(g.PT + 4) / g.H * 100}%`;
+		}
+		svg.addEventListener('pointermove', move);
+		svg.addEventListener('pointerdown', (e) => move(e as PointerEvent));
+		svg.addEventListener('pointerleave', () => { hov.setAttribute('hidden', ''); tip.hidden = true; });
+	}
+</script>

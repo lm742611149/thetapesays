@@ -4,6 +4,8 @@ import PostCard from '../components/PostCard.astro';
 import Radial from '../components/Radial.astro';
 import Radar from '../components/Radar.astro';
 import Donut from '../components/Donut.astro';
+import ShareLines from '../components/ShareLines.astro';
+import LineChart from '../components/LineChart.astro';
 import FundingBoard from '../components/FundingBoard.astro';
 import OiBoard from '../components/OiBoard.astro';
 import OptionsBoard from '../components/OptionsBoard.astro';
@@ -59,7 +61,9 @@ const axes = [
 	{ key: 'dd', label: 'from ath', value: clamp(100 + m.ath.drawdown), raw: m.ath.drawdown.toFixed(0) + '%', note: 'drawdown' },
 	{ key: 'vol', label: 'volatility', value: volPct, raw: cone30.now.toFixed(0) + '%', note: '30d realised' },
 ];
-const stable = snaps.stablecoins;
+import stableLive from '../data/stablecoins.json';
+const stable: any = stableLive ?? snaps.stablecoins;
+const scHist = stable.history;
 const advancing = m.board.filter((r: any) => r.chg >= 0).length;
 ---
 
@@ -179,7 +183,7 @@ const advancing = m.board.filter((r: any) => r.chg >= 0).length;
 				</div>
 				<Radar axes={axes} />
 			</div>
-			<div class="panel block">
+			<div class="panel block sc">
 				<div class="bh">
 					<h3>Stablecoins by chain</h3>
 					<a href="/research/stablecoins-are-basically-two-chains/" class="more label">the write-up →</a>
@@ -193,6 +197,30 @@ const advancing = m.board.filter((r: any) => r.chg >= 0).length;
 					Ethereum and Tron hold {(stable.chains[0].pct + stable.chains[1].pct).toFixed(0)}% of every
 					stablecoin in existence. Source DefiLlama, {stable.asOf}.
 				</p>
+				{scHist && (
+					<div class="charts">
+						<div class="cw">
+							<div class="ch">
+								<h4>Total supply</h4>
+								<span class="legend">two years, weekly</span>
+							</div>
+							<LineChart points={scHist.total} fmt="usd" height={150} label="stablecoin supply" />
+						</div>
+						<div class="cw">
+							<div class="ch">
+								<h4>Share of supply</h4>
+								<span class="legend">both falling</span>
+							</div>
+							<ShareLines
+								series={[
+									{ name: 'Ethereum', points: scHist.shares[0].points, color: '#f0b90b' },
+									{ name: 'Tron', points: scHist.shares[1].points, color: '#7aa2ff' },
+								]}
+								label="Ethereum and Tron share of stablecoin supply"
+							/>
+						</div>
+					</div>
+				)}
 			</div>
 		</div>
 
@@ -396,6 +424,26 @@ const advancing = m.board.filter((r: any) => r.chg >= 0).length;
 	.bh h3 { margin: 0; font-size: 1.1rem; }
 	.legend { font-family: var(--font-mono), monospace; font-size: 0.72rem; color: var(--fg-mute); }
 	.pnote { margin: 14px 0 0; font-size: 0.82rem; line-height: 1.6; color: var(--fg-mute); }
+
+	/**
+	 * The composition panel used to run out of content halfway down and leave a
+	 * band of empty panel beside a full one. The charts take that space, and
+	 * they stretch rather than sit at a fixed height, so the two panels finish
+	 * level whatever the regime panel's height turns out to be.
+	 */
+	.sc { display: flex; flex-direction: column; }
+	.sc .charts { flex: 1; display: flex; flex-direction: column; gap: 16px; margin-top: 18px; }
+	.sc .cw { flex: 1; min-height: 132px; display: flex; flex-direction: column; }
+	.sc .cw :global(figure) { flex: 1; display: flex; flex-direction: column; }
+	.sc .cw :global(figure svg) { flex: 1; height: 100%; min-height: 0; }
+	.sc .ch {
+		display: flex; align-items: baseline; justify-content: space-between;
+		gap: 10px; margin-bottom: 7px;
+	}
+	.sc .ch h4 { margin: 0; font-size: 0.86rem; font-weight: 600; letter-spacing: 0.01em; }
+	@media (max-width: 860px) {
+		.sc .cw { min-height: 150px; }
+	}
 	.panel.g { padding: 22px 18px 20px; display: flex; justify-content: center; background: var(--bg-raised); }
 	.panel.chart { padding: 20px 22px 22px; margin-bottom: 14px; }
 	.bh {

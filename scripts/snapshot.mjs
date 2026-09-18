@@ -15,6 +15,7 @@ import {
 import { onchain } from '../functions/_lib/onchain.js';
 import { buildUpcoming } from '../functions/_lib/calendar.js';
 import { treasuries } from '../functions/_lib/treasuries.js';
+import { stablecoins } from '../functions/_lib/stablecoins.js';
 
 const J = async (u) => {
 	const r = await fetch(u);
@@ -175,6 +176,21 @@ try {
 		return undefined;
 	});
 	if (chain) data.onchain = chain;
+
+	// Stablecoin supply: the ring's current split and two years of history behind
+	// it. Was a hand-written snapshot dated 2026-09-17 that never refreshed, so
+	// the panel quietly aged; the chart underneath it would have disagreed with
+	// the ring within a day of shipping.
+	try {
+		const sc = await stablecoins();
+		writeFileSync('src/data/stablecoins.json', JSON.stringify(sc));
+		console.log(
+			`[snapshot] stablecoins $${sc.totalB}B · ${sc.chains[0].name} ${sc.chains[0].pct}% · ` +
+				`${sc.history.total.length} weeks`,
+		);
+	} catch (e) {
+		console.warn('[snapshot] stablecoins:', e.message);
+	}
 
 	// The "ahead" rail. Derived every run so a passed date drops out on its own
 	// rather than sitting on the page claiming to be this Friday. The calendar
