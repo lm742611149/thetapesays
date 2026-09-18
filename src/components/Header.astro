@@ -9,6 +9,9 @@ const nav = [
 	// the trade log leads: it is the only thing here nobody else can publish,
 	// and it stays hidden until its prices are reconciled (trades.json)
 	...((trades as any).verified ? [['/positions/', 'Positions']] : []),
+	// the standing order is a separate record from the trading system, and has
+	// its own entry for the same reason it has its own page
+	['/dca/', 'DCA'],
 	['/btc/', 'Markets'],
 	['/events/', 'News'],
 	['/research/', 'Research'],

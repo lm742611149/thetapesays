@@ -46,7 +46,7 @@ const ticks = 3;
 const grid = Array.from({ length: ticks + 1 }, (_, i) => lo + ((hi - lo) * i) / ticks);
 ---
 
-<figure class="sl" data-sl
+<figure class="sl" style={`--h:${H}px`} data-sl
 	data-series={JSON.stringify(series.map((s) => ({ n: s.name, c: s.color, p: s.points.map((p) => [p.t, p.v]) })))}
 	data-geom={JSON.stringify({ W, H, PL, PR, PT, PB, lo, hi })}>
 	<svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img"
@@ -82,7 +82,13 @@ const grid = Array.from({ length: ticks + 1 }, (_, i) => lo + ((hi - lo) * i) / 
 
 <style>
 	.sl { margin: 0; position: relative; }
-	svg { width: 100%; height: auto; display: block; overflow: visible; }
+	/**
+	 * Explicit height, not auto. With preserveAspectRatio="none" and
+	 * overflow: visible, an auto height leaves the box shorter than the drawing
+	 * and the curves render straight over whatever follows — on /dca that was
+	 * the per-coin table. The host can still stretch it by overriding --h.
+	 */
+	svg { width: 100%; height: var(--h); display: block; overflow: visible; }
 	.g { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
 	.ax { font-family: var(--font-mono), monospace; font-size: 9.5px; fill: #59606e; }
 	.pl {

@@ -19,6 +19,7 @@ import Explain from '../components/Explain.astro';
 import TrackRecord from '../components/TrackRecord.astro';
 import HeroCarousel from '../components/HeroCarousel.astro';
 import WhatMoved from '../components/WhatMoved.astro';
+import MyDca from '../components/MyDca.astro';
 import { SITE_TITLE, SITE_DESC } from '../consts';
 import { allPosts } from '../lib/posts';
 import m from '../data/btc.json';
@@ -136,6 +137,8 @@ const advancing = m.board.filter((r: any) => r.chg >= 0).length;
 			</div>
 			<TrackRecord />
 		</div>
+
+		<MyDca />
 
 		<!-- gauges -->
 		<div class="gauges">
@@ -440,6 +443,7 @@ const advancing = m.board.filter((r: any) => r.chg >= 0).length;
 	.sc .charts { flex: 1; display: flex; flex-direction: column; gap: 16px; margin-top: 18px; }
 	.sc .cw { flex: 1; min-height: 132px; display: flex; flex-direction: column; }
 	.sc .cw :global(figure) { flex: 1; display: flex; flex-direction: column; }
+	.sc .cw :global(figure) { --h: 100%; }
 	.sc .cw :global(figure svg) { flex: 1; height: 100%; min-height: 0; }
 	.sc .ch {
 		display: flex; align-items: baseline; justify-content: space-between;

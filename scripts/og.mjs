@@ -117,6 +117,8 @@ const PAGES = [
 	  stat: 'free, no signup', statLabel: 'every source named on the page' },
 	{ slug: 'positions', kicker: 'positions', title: 'Every closed trade, from the exchange record.',
 	  stat: 'losses included', statLabel: 'rules written down before the entry' },
+	{ slug: 'dca', kicker: 'dca', title: 'Buying on schedule, and the alternative it beat.',
+	  stat: '+25.0% vs +7.9%', statLabel: 'six months of weekly buying against day one' },
 	{ slug: 'research', kicker: 'research', title: 'Backtests that name their data and their window.',
 	  stat: 'rerunnable', statLabel: 'method stated, sample size stated' },
 	{ slug: 'events', kicker: 'news', title: 'What moved, and what the tape actually did about it.',

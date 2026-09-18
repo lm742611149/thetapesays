@@ -1,0 +1,223 @@
+---
+/**
+ * The DCA record.
+ *
+ * Deliberately not part of /positions. That page is a trading system with
+ * rules, stops and exits; this is a standing order. Win rate and profit factor
+ * are meaningless here, and folding the two records together would corrupt
+ * both — the trade stats diluted by something that isn't a trade, the DCA
+ * return borrowing credibility from rules it never followed.
+ *
+ * What this page can do that a return figure cannot: state the alternative.
+ * +25% over six months of crypto is beta wearing a track record's clothes.
+ * The same money, the same split, bought on day one is the number that makes
+ * it falsifiable, and it is on every screen of this page.
+ */
+import Base from '../../layouts/Base.astro';
+import ShareLines from '../../components/ShareLines.astro';
+import ReferralSlot from '../../components/ReferralSlot.astro';
+import dca from '../../data/dca.json';
+
+const d = dca as any;
+const pc = (v: number, dp = 2) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(dp)}%`;
+const num = (v: number, dp = 2) =>
+	v.toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp });
+const px = (v: number) => (v >= 1 ? num(v, 2) : num(v, 4));
+const atWorkPct = Math.round((d.weightedDays / d.spanDays) * 100);
+---
+
+<Base
+	title="DCA"
+	description={`${d.buys} scheduled buys across six coins over six months. ${pc(d.ret)} against ${pc(d.lumpRet)} for the same money bought on day one.`}
+	image="/og/dca.png"
+	keywords={['dollar cost averaging', 'DCA vs lump sum', 'bitcoin DCA', 'crypto DCA results']}
+	schema={{
+		'@type': 'Dataset',
+		name: 'Dollar-cost averaging record',
+		description: `${d.buys} spot buys from ${d.from} to ${d.to}, measured against buying the same amount on day one.`,
+		temporalCoverage: `${d.from}/${d.to}`,
+		creator: { '@id': 'https://thetapesays.com/#person' },
+		isAccessibleForFree: true,
+	}}
+>
+	<div class="wrap page">
+		<header class="ph">
+			<p class="label">{d.buys} fills · {d.from} → {d.to} · exchange export</p>
+			<h1>Buying on schedule, and the alternative</h1>
+			<p class="lede">
+				Six months of scheduled buying across six coins. The return on its own would be
+				worthless — the market rose over the window and anyone holding made money. So every
+				figure here sits next to the honest alternative: the same money, the same split, bought
+				on day one.
+			</p>
+		</header>
+
+		<section class="block">
+			<div class="dstats">
+				<div>
+					<i>Invested</i><b>${num(d.invested)}</b><em>{d.buys} buys, six coins</em>
+				</div>
+				<div>
+					<i>Worth now</i><b class="up">${num(d.value)}</b><em>{pc(d.ret)}</em>
+				</div>
+				<div>
+					<i>Bought on day one</i><b>${num(d.lumpValue)}</b><em>{pc(d.lumpRet)}</em>
+				</div>
+				<div>
+					<i>Difference</i><b class="up">{pc(d.edge).replace('%', 'pp')}</b
+					><em>in favour of buying through</em>
+				</div>
+			</div>
+		</section>
+
+		<section class="block">
+			<div class="bh">
+				<h2>Both curves, same capital</h2>
+				<span class="legend">return on the full amount, so one axis carries both</span>
+			</div>
+			<ShareLines
+				series={[
+					{ name: 'Weekly', points: d.curve.map((p: any) => ({ t: p.t, v: p.dca })), color: '#f0b90b' },
+					{ name: 'Day one', points: d.curve.map((p: any) => ({ t: p.t, v: p.lump })), color: '#7c8698' },
+				]}
+				height={230}
+				label="weekly buying versus buying it all on day one"
+			/>
+			<p class="pnote">
+				Both lines are returns on the same total, not on the money deployed so far — otherwise
+				the early weeks would swing wildly on a few hundred dollars and the comparison would
+				flatter whichever line had less capital behind it. The gap opens in June, when the
+				market fell 33% and the standing order kept buying.
+			</p>
+		</section>
+
+		<section class="block">
+			<div class="bh">
+				<h2>Per coin</h2>
+				<span class="legend">average cost against the current price</span>
+			</div>
+			<div class="tbl-wrap">
+				<table class="dtbl">
+					<thead>
+						<tr>
+							<th>Coin</th>
+							<th class="r">Buys</th>
+							<th class="r">Invested</th>
+							<th class="r">Average</th>
+							<th class="r">Now</th>
+							<th class="r">Return</th>
+						</tr>
+					</thead>
+					<tbody>
+						{d.perSym.map((c: any) => (
+							<tr>
+								<td>{c.sym}</td>
+								<td class="r mono">{c.buys}</td>
+								<td class="r mono">${num(c.invested)}</td>
+								<td class="r mono">{px(c.avg)}</td>
+								<td class="r mono">{px(c.spot)}</td>
+								<td class={`r mono ${c.ret >= 0 ? 'up' : 'down'}`}>{pc(c.ret, 1)}</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
+			</div>
+		</section>
+
+		<ReferralSlot />
+
+		<section class="method">
+			<h3>What this does not prove</h3>
+			<p>
+				<b>The money was only at work {d.weightedDays} of {d.spanDays} days</b> — {atWorkPct}% of
+				the window. Half the capital sat in cash earning nothing while it waited its turn, which
+				is the real cost of buying in instalments. That cost is already inside the return above;
+				it is not deducted twice, and it is not hidden either.
+			</p>
+			<p>
+				<b>The edge comes from the drawdown.</b> The market fell 33% in the middle of this window,
+				and that is precisely when a standing order collects its cheapest units. Run the same
+				comparison across a window that only rises and day one wins — I have measured that
+				version too, on an earlier stretch, and scheduled buying won every month but by under two
+				points. The method is not better than the alternative. It was better on this path, and
+				the path is the thing nobody knows in advance.
+			</p>
+			<p>
+				<b>Six months is not a sample.</b> One drawdown, one recovery, one set of coins. Nothing
+				here says what the next six months do, and a return this size on crypto is inside the
+				range of ordinary luck.
+			</p>
+		</section>
+
+		<section class="method">
+			<h3>How to check this</h3>
+			<p>
+				Every buy is a spot fill with a timestamp, a quantity and a price, taken from the
+				exchange's own order export. Pull the daily bars for any of these pairs and each fill
+				price has to sit inside that day's range. The comparison line is built from the same
+				fills: total the amount per coin, buy that amount at the first fill's price, and mark it
+				to the same closes. Prices refresh with the site's six-hourly snapshot, so both sides
+				move together and neither is frozen at a flattering moment.
+			</p>
+		</section>
+	</div>
+</Base>
+
+<style>
+	.page { padding-top: 34px; }
+	.ph { margin-bottom: 22px; }
+	.ph h1 { margin: 6px 0 10px; font-size: clamp(1.8rem, 4vw, 2.5rem); letter-spacing: -0.028em; }
+	.lede { margin: 0; color: var(--fg-dim); line-height: 1.65; max-width: 72ch; }
+	.block {
+		background: var(--bg-panel); backdrop-filter: blur(3px);
+		border: 1px solid var(--line); border-radius: var(--radius);
+		padding: 20px 22px 22px; margin-bottom: 14px;
+	}
+	.bh {
+		display: flex; align-items: baseline; justify-content: space-between;
+		gap: 14px; margin-bottom: 14px; flex-wrap: wrap;
+	}
+	.bh h2 { margin: 0; font-size: 1.16rem; }
+	.legend { font-family: var(--font-mono), monospace; font-size: 0.74rem; color: var(--fg-mute); }
+
+	.dstats {
+		display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 1px; background: var(--line); border-radius: 10px; overflow: hidden;
+	}
+	.dstats > div {
+		background: var(--bg-panel-solid); padding: 14px 16px 15px;
+		display: flex; flex-direction: column; gap: 4px;
+	}
+	.dstats i {
+		font-style: normal; font-size: 0.68rem; letter-spacing: 0.06em;
+		text-transform: uppercase; color: var(--fg-mute);
+	}
+	.dstats b { font-family: var(--font-mono), monospace; font-size: 1.3rem; font-weight: 600; }
+	.dstats em { font-style: normal; font-size: 0.74rem; color: var(--fg-mute); }
+
+	.pnote { margin: 16px 0 0; font-size: 0.84rem; line-height: 1.65; color: var(--fg-mute); max-width: 78ch; }
+	.tbl-wrap { overflow-x: auto; }
+	.dtbl { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+	.dtbl th, .dtbl td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: left; }
+	.dtbl th {
+		font-family: var(--font-mono), monospace; font-size: 0.68rem; letter-spacing: 0.06em;
+		text-transform: uppercase; color: var(--fg-mute); font-weight: 500;
+	}
+	.dtbl tbody tr:last-child td { border-bottom: 0; }
+	.dtbl .r { text-align: right; }
+	.mono { font-family: var(--font-mono), monospace; }
+	.up { color: #26d07c; }
+	.down { color: #f6465d; }
+
+	.method { margin-top: 26px; }
+	.method h3 { margin: 0 0 8px; font-size: 1rem; }
+	.method p {
+		margin: 0 0 12px; font-size: 0.88rem; line-height: 1.7;
+		color: var(--fg-mute); max-width: 80ch;
+	}
+	.method b { color: var(--fg-dim); font-weight: 600; }
+
+	@media (max-width: 720px) {
+		.dstats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	}
+</style>

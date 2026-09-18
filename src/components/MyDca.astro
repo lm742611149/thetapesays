@@ -1,0 +1,85 @@
+---
+/**
+ * The standing order, in brief.
+ *
+ * Sits under the trade log because it is the other half of what this account
+ * actually does, and stays a separate panel because it is a separate thing —
+ * no entry rule, no stop, no exit. The figure that earns the space is not the
+ * return but the gap: the same money bought on day one, which is what makes
+ * +25% mean something rather than just describing a market that went up.
+ */
+import ShareLines from './ShareLines.astro';
+import dca from '../data/dca.json';
+
+const d = dca as any;
+const pc = (v: number, dp = 1) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(dp)}%`;
+const num = (v: number) =>
+	v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const has = Array.isArray(d?.curve) && d.curve.length > 5;
+---
+
+{has && (
+	<div class="panel block mydca" data-reveal>
+		<div class="bh">
+			<h3>My DCA</h3>
+			<a href="/dca/" class="more label">the full record →</a>
+		</div>
+
+		<div class="head">
+			<div class="lead">
+				<i class="label">Six months, {d.buys} buys</i>
+				<b class="up">{pc(d.ret)}</b>
+				<span class="vs">against {pc(d.lumpRet)} buying it all on day one</span>
+			</div>
+			<div class="side">
+				<span><i>Invested</i><b>${num(d.invested)}</b></span>
+				<span><i>Worth now</i><b class="up">${num(d.value)}</b></span>
+				<span><i>Difference</i><b class="up">{pc(d.edge).replace('%', 'pp')}</b></span>
+			</div>
+		</div>
+
+		<ShareLines
+			series={[
+				{ name: 'Weekly', points: d.curve.map((p: any) => ({ t: p.t, v: p.dca })), color: '#f0b90b' },
+				{ name: 'Day one', points: d.curve.map((p: any) => ({ t: p.t, v: p.lump })), color: '#7c8698' },
+			]}
+			height={170}
+			label="weekly buying versus buying it all on day one"
+		/>
+
+		<p class="fine">
+			Both lines are returns on the same total capital. The gap opens in June, when the market
+			fell 33% and the standing order kept buying — and the money was only at work
+			{' '}{d.weightedDays} of {d.spanDays} days.
+		</p>
+	</div>
+)}
+
+<style>
+	.head {
+		display: flex; align-items: flex-end; justify-content: space-between;
+		gap: 22px; flex-wrap: wrap; margin-bottom: 16px;
+	}
+	.lead { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+	.lead .label { font-size: 0.68rem; letter-spacing: 0.06em; color: var(--fg-mute); }
+	.lead b {
+		font-family: var(--font-mono), monospace; font-size: 2.3rem;
+		font-weight: 700; letter-spacing: -0.03em; line-height: 1;
+	}
+	/* the comparison is the claim, so it sits with the headline figure rather
+	   than being filed away in the footnote row */
+	.vs { font-size: 0.84rem; color: var(--fg-dim); }
+	.side { display: flex; gap: 26px; flex-wrap: wrap; }
+	.side span { display: flex; flex-direction: column; gap: 3px; }
+	.side i {
+		font-style: normal; font-size: 0.66rem; letter-spacing: 0.06em;
+		text-transform: uppercase; color: var(--fg-mute);
+	}
+	.side b { font-family: var(--font-mono), monospace; font-size: 1.04rem; font-weight: 600; }
+	.up { color: #26d07c; }
+	.fine { margin: 14px 0 0; font-size: 0.78rem; line-height: 1.6; color: var(--fg-mute); }
+	@media (max-width: 720px) {
+		.lead b { font-size: 1.9rem; }
+		.side { gap: 18px; }
+	}
+</style>

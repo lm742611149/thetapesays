@@ -14,8 +14,6 @@ import ReferralSlot from '../../components/ReferralSlot.astro';
 import EquityCurve from '../../components/EquityCurve.astro';
 import OpenPositions from '../../components/OpenPositions.astro';
 import log from '../../data/trades.json';
-import ShareLines from '../../components/ShareLines.astro';
-import dca from '../../data/dca.json';
 
 const { rules, open, closed, curve, stats, verified, source, since, through } = log as any;
 
@@ -214,66 +212,6 @@ const bySym = [...new Set(closed.map((t: any) => t.sym))]
 			</div>
 		</section>
 
-		<section class="block dca">
-			<div class="bh">
-				<h2>The other account: six months of buying</h2>
-				<span class="legend">{(dca as any).buys} fills · not a trading system</span>
-			</div>
-			<p class="note">
-				This is dollar-cost averaging, and it is kept apart from the trades above on purpose.
-				There is no entry rule, no stop and no exit — the rule is "buy on schedule", so win rate
-				and profit factor mean nothing here and mixing the two records would make both of them
-				lies. What it can be measured against is the alternative: the same money, the same split,
-				bought on day one.
-			</p>
-
-			<div class="dstats">
-				<div><i>Invested</i><b>${num((dca as any).invested)}</b><em>{(dca as any).buys} buys, six coins</em></div>
-				<div><i>Worth now</i><b class="up">${num((dca as any).value)}</b><em>{pc((dca as any).ret)}</em></div>
-				<div><i>Bought on day one</i><b>${num((dca as any).lumpValue)}</b><em>{pc((dca as any).lumpRet)}</em></div>
-				<div><i>Difference</i><b class="up">{pc((dca as any).edge).replace('%', 'pp')}</b><em>in favour of buying through</em></div>
-			</div>
-
-			<ShareLines
-				series={[
-					{ name: 'Weekly', points: (dca as any).curve.map((p: any) => ({ t: p.t, v: p.dca })), color: '#f0b90b' },
-					{ name: 'Day one', points: (dca as any).curve.map((p: any) => ({ t: p.t, v: p.lump })), color: '#7c8698' },
-				]}
-				height={190}
-				label="weekly buying versus buying it all on day one"
-			/>
-
-			<div class="tbl-wrap">
-				<table class="dtbl">
-					<thead>
-						<tr><th>Coin</th><th class="r">Buys</th><th class="r">Invested</th><th class="r">Average</th><th class="r">Now</th><th class="r">Return</th></tr>
-					</thead>
-					<tbody>
-						{(dca as any).perSym.map((c: any) => (
-							<tr>
-								<td>{c.sym}</td>
-								<td class="r mono">{c.buys}</td>
-								<td class="r mono">${num(c.invested)}</td>
-								<td class="r mono">{px(c.avg)}</td>
-								<td class="r mono">{px(c.spot)}</td>
-								<td class={`r mono ${c.ret >= 0 ? 'up' : 'down'}`}>{pc(c.ret, 1)}</td>
-							</tr>
-						))}
-					</tbody>
-				</table>
-			</div>
-
-			<p class="fine">
-				Two things this does not prove. The money was only at work {(dca as any).weightedDays} of
-				{' '}{(dca as any).spanDays} days — half the capital sat in cash, which is the cost of
-				buying in instalments and it is already inside the number above. And the edge comes from
-				the drawdown: the market fell 33% in the middle of this window, which is exactly when
-				buying on schedule collects its cheapest units. Run the same comparison across a window
-				that only goes up and day one wins. The method is not better than the alternative; it was
-				better on this path.
-			</p>
-		</section>
-
 		<section class="method">
 			<h3>How to check this</h3>
 			<p>
@@ -395,34 +333,6 @@ const bySym = [...new Set(closed.map((t: any) => t.sym))]
 	.sy i { font-size: 0.58rem; }
 	.sy b { font-family: var(--font-mono), monospace; font-size: 1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 	.sy span { font-family: var(--font-mono), monospace; font-size: 0.6rem; color: var(--fg-mute); }
-
-	/* the DCA block is visually a sibling of the trade sections but must never
-	   read as part of the same record — the note says so, the stat row is laid
-	   out differently from the trade stats so the eye agrees */
-	.dca .note { margin: 0 0 18px; font-size: 0.88rem; line-height: 1.65; color: var(--fg-dim); max-width: 76ch; }
-	.dstats {
-		display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
-		gap: 1px; background: var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 20px;
-	}
-	.dstats > div {
-		background: var(--bg-panel-solid); padding: 13px 15px 14px;
-		display: flex; flex-direction: column; gap: 4px;
-	}
-	.dstats i {
-		font-style: normal; font-size: 0.68rem; letter-spacing: 0.06em;
-		text-transform: uppercase; color: var(--fg-mute);
-	}
-	.dstats b { font-family: var(--font-mono), monospace; font-size: 1.24rem; font-weight: 600; }
-	.dstats em { font-style: normal; font-size: 0.74rem; color: var(--fg-mute); }
-	.dtbl { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.86rem; }
-	.dtbl th, .dtbl td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; }
-	.dtbl th {
-		font-family: var(--font-mono), monospace; font-size: 0.68rem; letter-spacing: 0.06em;
-		text-transform: uppercase; color: var(--fg-mute); font-weight: 500;
-	}
-	.dtbl .r { text-align: right; }
-	.dca .fine { margin: 16px 0 0; font-size: 0.8rem; line-height: 1.65; color: var(--fg-mute); max-width: 82ch; }
-	@media (max-width: 720px) { .dstats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 	.method { margin-top: 14px; padding: 20px 22px; border: 1px dashed var(--line-bright); border-radius: var(--radius); }
 	.method h3 { margin: 0 0 10px; font-size: 1rem; }
