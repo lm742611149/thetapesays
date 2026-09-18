@@ -421,7 +421,9 @@ const advancing = m.board.filter((r: any) => r.chg >= 0).length;
 		font-size: 0.72rem; color: var(--fg-mute);
 	}
 
-	.gauges { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 14px; }
+	/* it used to sit inside the market panel and lean on that panel's bottom
+	   padding; as a block of its own it owns both sides of its gap */
+	.gauges { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 14px 0; }
 	.two { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 14px; }
 	.two .panel.block { margin-bottom: 0; }
 	.bh h3 { margin: 0; font-size: 1.1rem; }
