@@ -121,7 +121,7 @@ const advancing = m.board.filter((r: any) => r.chg >= 0).length;
 		</div>
 
 		<!-- the trade log, in brief -->
-		<div class="panel block" data-reveal>
+		<div class="panel block feature" data-reveal>
 			<div class="bh">
 				<h3>My positions</h3>
 				<span class="legend">every fill, losers included</span>
@@ -363,6 +363,9 @@ const advancing = m.board.filter((r: any) => r.chg >= 0).length;
 
 	.mkt { padding-top: 34px; }
 	.panel.block { padding: 20px 22px 22px; margin-bottom: 14px; }
+	/* the trade log is the one panel here that isn't aggregated data; give it
+	   room rather than letting it read as another row in the stack */
+	.panel.block.feature { margin-top: 30px; }
 	.bh h2 { margin: 0; font-size: 1.32rem; }
 	.live { display: inline-flex; align-items: center; gap: 6px; }
 	.more { text-decoration: none; color: var(--fg-mute); }
