@@ -8,6 +8,7 @@
  * the kind of thing this log exists to not do.
  */
 import data from '../data/events.json';
+import ahead from '../data/upcoming.json';
 interface Props {
 	limit?: number;
 	showUpcoming?: boolean;
@@ -78,15 +79,15 @@ const dcls = (d: string) => (d === 'up' ? 'u' : d === 'down' ? 'd' : '');
 	}
 
 	{
-		showUpcoming && (
+		showUpcoming && ahead.upcoming.length > 0 && (
 			<section class="grp">
 				<div class="sep ahead"><span>ahead · scheduled, not predicted</span></div>
-				{data.upcoming.map((u: any) => (
-					<div class="ln static">
+				{ahead.upcoming.map((u: any) => (
+					<div class="ln static" data-ahead data-at={u.at} data-precision={u.precision}>
 						<div class="summary">
 							<span class="car ghost" aria-hidden="true"></span>
 							<span class="dt">—</span>
-							<span class="tg" data-tag="ahead">{u.when}</span>
+							<span class="tg" data-tag="ahead" data-when>{u.when}</span>
 							<span class="tt">{u.what}</span>
 							<span class="mm" />
 						</div>
@@ -316,6 +317,32 @@ const dcls = (d: string) => (d === 'up' ? 'u' : d === 'down' ? 'd' : '');
 </style>
 
 <script>
+	import { relativeWhen } from '../../functions/_lib/calendar.js';
+
+	/**
+	 * The rail is baked at snapshot time, which is up to six hours stale and
+	 * unboundedly stale if a scheduled run fails. Recompute against the reader's
+	 * actual clock: a date that has passed leaves rather than sitting there
+	 * saying Tomorrow, and the wording self-corrects without a deploy.
+	 */
+	function refreshAhead() {
+		for (const row of document.querySelectorAll<HTMLElement>('[data-ahead]')) {
+			const at = row.dataset.at;
+			if (!at) continue;
+			const when = relativeWhen(at, Date.now(), row.dataset.precision || 'day');
+			if (!when) { row.remove(); continue; }
+			const slot = row.querySelector<HTMLElement>('[data-when]');
+			if (slot && slot.textContent !== when) slot.textContent = when;
+		}
+		// the whole group goes if nothing is left ahead
+		for (const sep of document.querySelectorAll<HTMLElement>('.sep.ahead')) {
+			const grp = sep.closest('.grp');
+			if (grp && !grp.querySelector('[data-ahead]')) grp.remove();
+		}
+	}
+
+	refreshAhead();
+
 	function initLog(wrap: HTMLElement) {
 		const track = wrap.querySelector<HTMLElement>('[data-logtrack]');
 		if (!track || wrap.dataset.ready === '1') return;

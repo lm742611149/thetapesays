@@ -13,6 +13,7 @@ import {
 	fullDaily, btcAnalytics, monthlyMatrix, coinAnalytics, chainTvl, CHAIN_SLUG,
 } from '../functions/_lib/btc-analytics.js';
 import { onchain } from '../functions/_lib/onchain.js';
+import { buildUpcoming } from '../functions/_lib/calendar.js';
 import { treasuries } from '../functions/_lib/treasuries.js';
 
 const J = async (u) => {
@@ -174,6 +175,22 @@ try {
 		return undefined;
 	});
 	if (chain) data.onchain = chain;
+
+	// The "ahead" rail. Derived every run so a passed date drops out on its own
+	// rather than sitting on the page claiming to be this Friday. The calendar
+	// file holds dates only; the halving and the retarget come off chain state,
+	// so they cannot be typed in wrong.
+	try {
+		const cal = JSON.parse(readFileSync('src/data/calendar.json', 'utf8'));
+		const upcoming = buildUpcoming({ entries: cal.entries, chain: chain?.chain });
+		writeFileSync(
+			'src/data/upcoming.json',
+			JSON.stringify({ updated: Date.now(), upcoming }, null, '\t') + '\n',
+		);
+		console.log(`[snapshot] ahead ${upcoming.map((u) => u.when).join(' · ') || 'none'}`);
+	} catch (e) {
+		console.warn('[snapshot] upcoming:', e.message);
+	}
 	const books = {};
 	for (const coin of ['BTC', 'ETH']) {
 		try {

@@ -194,22 +194,5 @@
 				}
 			]
 		}
-	],
-	"upcoming": [
-		{
-			"when": "This Friday",
-			"what": "Bank of Japan decision",
-			"why": "97% of surveyed economists expect 1.25%, a 31-year high. Watch USDJPY and the 10-year together, not either alone."
-		},
-		{
-			"when": "November 2026",
-			"what": "US midterms",
-			"why": "CLARITY restarts from introduction in the next Congress, so this is the gate on market-structure law."
-		},
-		{
-			"when": "2028-04-13",
-			"what": "Fourth halving, block 1,050,000",
-			"why": "Subsidy drops to 1.5625 BTC. 82,661 blocks out at the time of writing."
-		}
 	]
 }

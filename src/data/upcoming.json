@@ -1,0 +1,45 @@
+{
+	"updated": 1789722147530,
+	"upcoming": [
+		{
+			"at": "2026-09-18T00:00:00.000Z",
+			"precision": "day",
+			"what": "Bank of Japan decision",
+			"why": "97% of surveyed economists expect 1.25%, a 31-year high. Watch USDJPY and the 10-year together, not either alone.",
+			"source": "BOJ published meeting calendar",
+			"when": "Today"
+		},
+		{
+			"at": "2026-09-19T08:29:53.000Z",
+			"precision": "day",
+			"what": "Difficulty retarget",
+			"why": "Estimated +2.4%, which moves every miner's shutdown price by the same amount in the opposite direction.",
+			"derived": "retarget",
+			"when": "Tomorrow"
+		},
+		{
+			"at": "2026-09-25T08:00:00.000Z",
+			"precision": "day",
+			"what": "Quarterly options expiry",
+			"why": "Deribit settles the quarterlies 08:00 UTC on the last Friday. This is where the open interest sits, so it is the one date that reliably concentrates flow.",
+			"derived": "expiry",
+			"when": "in 7 days"
+		},
+		{
+			"at": "2026-11-03T00:00:00.000Z",
+			"precision": "day",
+			"what": "US midterms",
+			"why": "CLARITY restarts from introduction in the next Congress, so this is the gate on market-structure law.",
+			"source": "Fixed by statute — Tuesday after the first Monday in November",
+			"when": "Nov 3"
+		},
+		{
+			"at": "2028-04-13T01:02:27.503Z",
+			"precision": "month",
+			"what": "Fourth halving, block 1,050,000",
+			"why": "Subsidy drops to 1.5625 BTC. 82,464 blocks out, dated off ten minutes a block — the real date moves with hashrate.",
+			"derived": "halving",
+			"when": "April 2028"
+		}
+	]
+}

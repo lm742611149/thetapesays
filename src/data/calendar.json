@@ -1,0 +1,26 @@
+{
+	"_note": "Dates only, no prose timing. Everything here is either a published official schedule or a date fixed by law — never an estimate, and never something I worked out from memory. The halving, the difficulty retarget and the quarterly options expiry are NOT in this file: they are derived from chain state in functions/_lib/calendar.js. Entries expire on their own, so a passed date costs nothing; a wrong date costs the whole page's credibility.",
+	"fields": {
+		"at": "ISO instant, UTC. Use 00:00Z when only the day is published.",
+		"precision": "'day' when the date is exact, 'month' when only the month is known — a month-precision entry never renders as a day count.",
+		"what": "The line itself.",
+		"why": "What a reader should watch, not a prediction.",
+		"source": "Where the date came from. Required — if there isn't one, the entry doesn't go in."
+	},
+	"entries": [
+		{
+			"at": "2026-09-18T00:00:00Z",
+			"precision": "day",
+			"what": "Bank of Japan decision",
+			"why": "97% of surveyed economists expect 1.25%, a 31-year high. Watch USDJPY and the 10-year together, not either alone.",
+			"source": "BOJ published meeting calendar"
+		},
+		{
+			"at": "2026-11-03T00:00:00Z",
+			"precision": "day",
+			"what": "US midterms",
+			"why": "CLARITY restarts from introduction in the next Congress, so this is the gate on market-structure law.",
+			"source": "Fixed by statute — Tuesday after the first Monday in November"
+		}
+	]
+}
