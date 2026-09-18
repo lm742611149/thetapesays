@@ -13,7 +13,7 @@ export async function onRequest() {
 		return new Response(body, {
 			headers: {
 				'content-type': 'application/json; charset=utf-8',
-				'cache-control': 'public, max-age=300, s-maxage=300',
+				'cache-control': 'public, max-age=30, s-maxage=30, stale-while-revalidate=30',
 				'access-control-allow-origin': '*',
 			},
 		});

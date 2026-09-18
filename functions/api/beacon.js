@@ -28,6 +28,16 @@ export async function onRequestPost({ request, env }) {
 	const cf = request.cf ?? {};
 	const path = clip(body.path || '/', 160);
 	const ua = request.headers.get('user-agent') ?? '';
+	/**
+	 * Headless browsers are dropped. Screenshotting the site during development
+	 * executes its JavaScript and fires this endpoint, and a few dozen of those
+	 * in an afternoon swamps the handful of real visits a new site gets — which
+	 * is exactly what happened on 2026-09-18. A metric that counts its own
+	 * author's test runs measures nothing.
+	 */
+	if (/HeadlessChrome|Puppeteer|Playwright|bot|crawler|spider|curl|wget/i.test(ua)) {
+		return new Response(null, { status: 204 });
+	}
 	// device class, not a fingerprint
 	const device = /iPhone|Android.*Mobile|Windows Phone/i.test(ua)
 		? 'mobile'

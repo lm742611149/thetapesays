@@ -31,7 +31,7 @@ export async function onRequest() {
 	return new Response(JSON.stringify({ rows, ts: Date.now() }), {
 		headers: {
 			'content-type': 'application/json; charset=utf-8',
-			'cache-control': 'public, max-age=60, s-maxage=60',
+			'cache-control': 'public, max-age=5, s-maxage=5, stale-while-revalidate=30',
 			'access-control-allow-origin': '*',
 		},
 	});

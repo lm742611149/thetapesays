@@ -63,7 +63,7 @@ export async function onRequest() {
 	return new Response(body, {
 		headers: {
 			'content-type': 'application/json; charset=utf-8',
-			'cache-control': 'public, max-age=15, s-maxage=15',
+			'cache-control': 'public, max-age=3, s-maxage=3, stale-while-revalidate=30',
 			'access-control-allow-origin': '*',
 		},
 	});

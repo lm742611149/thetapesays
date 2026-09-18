@@ -6,7 +6,7 @@ export async function onRequest() {
 		return new Response(JSON.stringify(data), {
 			headers: {
 				'content-type': 'application/json; charset=utf-8',
-				'cache-control': 'public, max-age=120, s-maxage=120',
+				'cache-control': 'public, max-age=10, s-maxage=10, stale-while-revalidate=30',
 				'access-control-allow-origin': '*',
 			},
 		});

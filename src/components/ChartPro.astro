@@ -419,5 +419,26 @@ const RANGES = [
 		);
 
 		render();
+
+		/**
+		 * The last bar is today, and today has not closed. The snapshot's value
+		 * for it is whatever the price was when the snapshot ran, so the chart
+		 * showed a stale close — 76,400 against a live 81,000 — with the OHLC
+		 * readout repeating it. Extend that bar with the tape: close follows the
+		 * price, high and low only ever widen.
+		 */
+		(window as any).__live?.subscribe?.((s: string, t: { price: number }) => {
+			if (s !== sym || !Number.isFinite(t?.price)) return;
+			const bars = DATA[sym];
+			const last = bars?.[bars.length - 1];
+			if (!last) return;
+			const today = new Date().setUTCHours(0, 0, 0, 0);
+			// only the in-progress session moves; a finished bar is history
+			if (last[0] < today) return;
+			last[4] = t.price;
+			if (t.price > last[2]) last[2] = t.price;
+			if (t.price < last[3]) last[3] = t.price;
+			render();
+		});
 	}
 </script>

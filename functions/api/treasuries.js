@@ -9,7 +9,7 @@ export async function onRequest({ request }) {
 			headers: {
 				'content-type': 'application/json; charset=utf-8',
 				// filings move quarterly; the upstream is rate-limited, so cache hard
-				'cache-control': 'public, max-age=900, s-maxage=900',
+				'cache-control': 'public, max-age=60, s-maxage=60, stale-while-revalidate=30',
 				'access-control-allow-origin': '*',
 			},
 		});
