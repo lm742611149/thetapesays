@@ -10,7 +10,7 @@ export async function onRequest() {
 	try {
 		const r = await fetch('https://fapi.binance.com/fapi/v1/premiumIndex', {
 			headers: { 'user-agent': UA },
-			cf: { cacheTtl: 60, cacheEverything: true },
+			cf: { cacheTtl: 5, cacheEverything: true },
 		});
 		const all = await r.json();
 		rows = all

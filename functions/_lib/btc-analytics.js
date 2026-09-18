@@ -7,7 +7,7 @@ const UA = 'Mozilla/5.0 (compatible; thetapesays/1.0; +https://thetapesays.com)'
 const J = async (url) => {
 	const r = await fetch(url, {
 		headers: { 'user-agent': UA, accept: 'application/json' },
-		cf: { cacheTtl: 180, cacheEverything: true },
+		cf: { cacheTtl: 30, cacheEverything: true },
 	});
 	if (!r.ok) throw new Error(`${url} -> ${r.status}`);
 	return r.json();

@@ -352,14 +352,14 @@ const advancing = m.board.filter((r: any) => r.chg >= 0).length;
 			<div class="findings">
 			{
 				[
-					{ n: '0.29x', l: 'covered calls vs 7.90x holding', h: '/research/covered-calls-sell-the-only-part-that-pays/' },
-					{ n: '49%', l: 'FOMC bounce vs 57% ordinary', h: '/research/the-fomc-reversal-is-a-drop-thing/' },
-					{ n: '79%', l: 'of stablecoins on two chains', h: '/research/stablecoins-are-basically-two-chains/' },
-					{ n: '2.82%', l: 'funding carry, down from 30.6%', h: '/research/funding-rate-carry-is-mostly-gone/' },
+					{ l: 'Covered calls against holding', n: '0.29x vs 7.90x', h: '/research/covered-calls-sell-the-only-part-that-pays/' },
+					{ l: 'Bouncing after an FOMC drop', n: '49% vs 57%', h: '/research/the-fomc-reversal-is-a-drop-thing/' },
+					{ l: 'Stablecoin float on two chains', n: '79%', h: '/research/stablecoins-are-basically-two-chains/' },
+					{ l: 'Funding carry, 2021 to 2026', n: '30.6% → 2.82%', h: '/research/funding-rate-carry-is-mostly-gone/' },
 				].map((f) => (
 					<a href={f.h} class="fnd">
-						<span class="fn">{f.n}</span>
 						<span class="fl">{f.l}</span>
+						<span class="fn">{f.n}</span>
 					</a>
 				))
 			}
@@ -486,12 +486,14 @@ const advancing = m.board.filter((r: any) => r.chg >= 0).length;
 		display: flex; flex-direction: column; gap: 6px; transition: background 0.15s ease;
 	}
 	.fnd:hover { background: var(--bg-hover); }
+	/* the label leads and the figure answers it — a number alone says nothing
+	   about what was compared */
 	.fn {
-		font-family: var(--font-mono), monospace; font-size: 2.1rem; font-weight: 700;
-		color: #fff; letter-spacing: -0.03em; line-height: 1;
+		font-family: var(--font-mono), monospace; font-size: 1.7rem; font-weight: 700;
+		color: var(--accent); letter-spacing: -0.03em; line-height: 1;
 	}
-	.fnd:hover .fn { color: var(--accent); }
-	.fl { font-size: 0.84rem; color: var(--fg-mute); line-height: 1.45; }
+	.fnd:hover .fn { color: #fff; }
+	.fl { font-size: 0.88rem; color: var(--fg); line-height: 1.4; font-weight: 500; }
 
 	section.wrap { margin-bottom: 38px; }
 	.grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 12px; }

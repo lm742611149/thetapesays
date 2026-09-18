@@ -25,7 +25,7 @@ const J = async (url, init, tries = 3) => {
 			const r = await fetch(url, {
 				...init,
 				headers: { 'user-agent': UA, accept: 'application/json', ...(init?.headers ?? {}) },
-				cf: { cacheTtl: 600, cacheEverything: true },
+				cf: { cacheTtl: 30, cacheEverything: true },
 			});
 			if (!r.ok) throw new Error(`${url.slice(0, 60)} -> ${r.status}`);
 			return r.json();

@@ -12,7 +12,7 @@ const J = async (url, init) => {
 	const r = await fetch(url, {
 		...init,
 		headers: { 'user-agent': UA, accept: 'application/json', ...(init?.headers ?? {}) },
-		cf: { cacheTtl: 120, cacheEverything: true },
+		cf: { cacheTtl: 5, cacheEverything: true },
 	});
 	if (!r.ok) throw new Error(`${url} -> ${r.status}`);
 	return r.json();

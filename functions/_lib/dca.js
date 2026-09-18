@@ -13,7 +13,7 @@
  * claim about the method.
  */
 const UA = 'Mozilla/5.0 (compatible; thetapesays/1.0; +https://thetapesays.com)';
-const opts = { headers: { 'user-agent': UA, accept: 'application/json' }, cf: { cacheTtl: 900, cacheEverything: true } };
+const opts = { headers: { 'user-agent': UA, accept: 'application/json' }, cf: { cacheTtl: 30, cacheEverything: true } };
 const DAY = 86400000;
 
 export const KLINE_URL = (sym, start) =>

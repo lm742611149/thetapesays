@@ -15,6 +15,8 @@ const d = pubDate.toISOString().slice(0, 10);
 		<span class="label kind" data-kind={kind}>{KIND_LABEL[kind]}</span>
 		<time class="label" datetime={d}>{d}</time>
 	</div>
+	<h3>{title}</h3>
+	<p>{description}</p>
 	{
 		stat && (
 			<div class="stat">
@@ -23,8 +25,6 @@ const d = pubDate.toISOString().slice(0, 10);
 			</div>
 		)
 	}
-	<h3>{title}</h3>
-	<p>{description}</p>
 	{
 		tags.length > 0 && (
 			<div class="tags">
@@ -74,8 +74,11 @@ const d = pubDate.toISOString().slice(0, 10);
 		margin-left: auto;
 		color: #4f5766;
 	}
+	/* the finding sits under the piece it came from: a card is read to decide
+	   what to open, and "0.29x vs 7.90x" answers nothing until you know what
+	   was compared */
 	.stat {
-		margin-bottom: 9px;
+		margin-top: 12px;
 		display: flex;
 		flex-direction: column;
 		gap: 2px;

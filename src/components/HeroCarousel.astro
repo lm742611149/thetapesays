@@ -89,8 +89,8 @@ const slides = [
 		tab: 'Positions',
 		tint: '#26d07c',
 		kicker: 'the trade log · every fill',
-		title: `${money(stats.netPnl)} across ${stats.trades} trades.`,
-		sub: `${stats.wins} won, ${stats.losses} lost, profit factor ${stats.profitFactor}, worst drawdown ${money(stats.drawdown.abs)}. Entry, exit and fee on every one of them, straight off the exchange record.`,
+		title: 'Every trade I have closed, losers included.',
+		sub: `${money(stats.netPnl)} across ${stats.trades} trades — ${stats.wins} won, ${stats.losses} lost, profit factor ${stats.profitFactor}, worst drawdown ${money(stats.drawdown.abs)}. Entry, exit and fee on every one of them, straight off the exchange record.`,
 		cta: 'See the positions',
 		href: '/positions/',
 	},
@@ -99,10 +99,10 @@ const slides = [
 		tab: 'Data',
 		tint: '#f7931a',
 		kicker: 'bitcoin network · funding · treasuries',
-		title: chain
-			? `${Math.round(chain.chain.hashrateEh)} EH/s. $${chain.miner.hashprice.toFixed(0)} a petahash.`
-			: 'Funding, open interest, miner costs.',
-		sub: 'Perpetual funding across six venues, open interest normalised to coins, Bitcoin network state, the BTC price each rig stops paying for its own power, and which listed companies hold what.',
+		title: 'What it costs to run the network right now.',
+		sub: chain
+			? `${Math.round(chain.chain.hashrateEh)} EH/s at $${chain.miner.hashprice.toFixed(0)} a petahash. Perpetual funding across six venues, open interest normalised to coins, the BTC price each rig stops paying for its own power, and which listed companies hold what.`
+			: 'Perpetual funding across six venues, open interest normalised to coins, Bitcoin network state, the BTC price each rig stops paying for its own power, and which listed companies hold what.',
 		cta: 'Open the data',
 		href: '/data/',
 	},

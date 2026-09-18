@@ -7,7 +7,7 @@
  *     *current* period in fundingTime with nextFundingTime one cycle further out.
  */
 const UA = 'Mozilla/5.0 (compatible; thetapesays/1.0; +https://thetapesays.com)';
-const opts = { headers: { 'user-agent': UA, accept: 'application/json' }, cf: { cacheTtl: 30, cacheEverything: true } };
+const opts = { headers: { 'user-agent': UA, accept: 'application/json' }, cf: { cacheTtl: 5, cacheEverything: true } };
 
 const J = async (url, init) => {
 	const r = await fetch(url, { ...opts, ...init });

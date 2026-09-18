@@ -17,7 +17,7 @@
 const UA = 'Mozilla/5.0 (compatible; thetapesays/1.0; +https://thetapesays.com)';
 const opts = {
 	headers: { 'user-agent': UA, accept: 'application/json' },
-	cf: { cacheTtl: 3600, cacheEverything: true },
+	cf: { cacheTtl: 30, cacheEverything: true },
 };
 
 const BASE = 'https://stablecoins.llama.fi';

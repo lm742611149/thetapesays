@@ -57,7 +57,7 @@ export async function fetchNews(limit = 120) {
 		FEEDS.map(async ([name, url]) => {
 			const r = await fetch(url, {
 				headers: { 'user-agent': UA, accept: 'application/rss+xml, application/xml, text/xml' },
-				cf: { cacheTtl: 300, cacheEverything: true },
+				cf: { cacheTtl: 60, cacheEverything: true },
 			});
 			if (!r.ok) throw new Error(`${name} ${r.status}`);
 			return parse(await r.text(), name);

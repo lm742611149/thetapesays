@@ -14,7 +14,7 @@ async function fromBinance() {
 	const q = encodeURIComponent(JSON.stringify(SYMBOLS));
 	const r = await fetch(`https://data-api.binance.vision/api/v3/ticker/24hr?symbols=${q}`, {
 		headers: { 'user-agent': UA },
-		cf: { cacheTtl: 20, cacheEverything: true },
+		cf: { cacheTtl: 3, cacheEverything: true },
 	});
 	if (!r.ok) throw new Error(`binance ${r.status}`);
 	const rows = await r.json();
@@ -32,7 +32,7 @@ async function fromCoinbase() {
 		const r = await fetch(`https://api.exchange.coinbase.com/products/${pair}/stats`, {
 			headers: { 'user-agent': UA },
 			headers: { 'user-agent': UA },
-		cf: { cacheTtl: 20, cacheEverything: true },
+		cf: { cacheTtl: 3, cacheEverything: true },
 		});
 		if (!r.ok) continue;
 		const d = await r.json();
