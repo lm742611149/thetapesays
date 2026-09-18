@@ -206,7 +206,24 @@ try {
 		const point = readPoint(data, stable);
 		const rows = appendHistory(prev, point);
 		writeFileSync(HIST, JSON.stringify({ updated: point.t, rows }));
-		const moved = buildMoved(rows, point, { priors: readPriors(data) });
+		// Ranges for the metrics that publish none. The stablecoin float has two
+		// years of history beside it; the rest need the record to be long enough
+		// that a min and a max mean something, which is why they stay bare at
+		// first — a track drawn between two readings taken an hour apart would
+		// put every level at 0% or 100%.
+		const scales = {};
+		const tot = stable?.history?.total?.map((p) => p.v) ?? [];
+		if (tot.length > 8) {
+			scales.stableB = { min: Math.min(...tot), max: Math.max(...tot), note: 'two-year range' };
+		}
+		for (const k of ['dominance', 'hashrate']) {
+			const vals = rows.map((r) => r[k]).filter(Number.isFinite);
+			if (vals.length >= 28) {
+				const min = Math.min(...vals), max = Math.max(...vals);
+				if (max > min) scales[k] = { min, max, note: 'range since this record began' };
+			}
+		}
+		const moved = buildMoved(rows, point, { priors: readPriors(data), scales });
 		writeFileSync('src/data/moved.json', JSON.stringify(moved));
 		const withDelta = moved.rows.filter((r) => r.delta !== undefined).length;
 		console.log(`[snapshot] moved ${withDelta}/${moved.rows.length} with a 24h baseline · ${rows.length} rows kept`);

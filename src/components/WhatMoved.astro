@@ -58,13 +58,27 @@ const since = moved?.since
 							{r.notable && <span class="flag" title="a 2-sigma move against its own last 30 days">·2σ</span>}
 						</em>
 					)}
+					<div class="track" title={r.scale?.note ?? 'no published range for this one yet'}>
+						{r.pos !== undefined && (
+							<>
+								<span class="fill" style={`width:${(r.pos * 100).toFixed(1)}%`} />
+								<span class="pin" style={`left:${(r.pos * 100).toFixed(1)}%`} />
+								{(r.scale?.marks ?? []).map((mk: number) => (
+									<i
+										class="mk"
+										style={`left:${(((mk - r.scale.min) / (r.scale.max - r.scale.min)) * 100).toFixed(1)}%`}
+									/>
+								))}
+							</>
+						)}
+					</div>
 				</div>
 			))}
 		</div>
 		<p class="fine">
 			{since
-				? `Measured against the reading from ${since}.`
-				: 'Baselines start filling in as the record builds; a dash means there is no reading from 24h ago yet.'}
+				? `Measured against the reading from ${since}. Tracks show where each level sits on its published range.`
+				: 'Baselines fill in as the record builds; a dash means no reading from 24h ago yet. Tracks show where each level sits on its published range.'}
 		</p>
 	</section>
 )}
@@ -112,6 +126,33 @@ const since = moved?.since
 	em.d { color: #f6465d; }
 	em.none { color: #4a5160; }
 	.flag { margin-left: 5px; color: var(--accent); font-size: 0.7rem; }
+
+	/**
+	 * Where the level sits on its range. A figure alone does not say whether
+	 * 1.19x is high — the track does, and the ticks are the bands that matter
+	 * (the accumulation line, the level that has marked tops).
+	 *
+	 * The track is always rendered, even with nothing on it, so the cells stay
+	 * the same height while three of them wait for a range.
+	 */
+	.track {
+		position: relative; height: 3px; margin-top: 9px;
+		background: var(--line); border-radius: 2px; overflow: hidden;
+	}
+	.fill {
+		position: absolute; left: 0; top: 0; bottom: 0;
+		background: linear-gradient(90deg, rgba(240, 185, 11, 0.35), var(--accent));
+		border-radius: 2px;
+	}
+	.pin {
+		position: absolute; top: -2px; bottom: -2px; width: 2px;
+		background: var(--fg); transform: translateX(-1px); border-radius: 1px;
+	}
+	/* band edges — recessive, they are context and not the reading */
+	.mk {
+		position: absolute; top: 0; bottom: 0; width: 1px;
+		background: var(--bg-panel-solid); opacity: 0.9;
+	}
 	.fine { margin: 9px 0 0; font-size: 0.74rem; color: var(--fg-mute); }
 	@media (max-width: 860px) {
 		.grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

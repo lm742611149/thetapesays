@@ -27,15 +27,31 @@ export const KEEP_MS = 30 * 86400000;
  * carries its 24h change, and that one is driven by the live socket. Printing a
  * build-time copy beside it would show two different numbers for one thing.
  */
+/**
+ * `scale` puts the level on a track, which a bare figure cannot do: 1.19x means
+ * nothing until you know the thing runs 0 to 3 and turns expensive above 2.
+ *
+ * Every range here is either the metric's definition (sentiment is 0-100,
+ * drawdown cannot pass -100%) or the banding the gauges on this page already
+ * use. None of them is a range invented to make a bar look full. A metric with
+ * no published range gets `scale: null` and shows no track until the rolling
+ * record can supply its own min and max — which is why three of these are bare
+ * on the first day.
+ */
 export const TRACKED = [
-	{ key: 'ahr999',    label: 'AHR999',         fmt: 'n3',   dp: 1, bigger: 'up' },
-	{ key: 'mayer',     label: 'Mayer',          fmt: 'n3',   dp: 1, bigger: 'up' },
-	{ key: 'ma200w',    label: '200W mult',      fmt: 'x2',   dp: 1, bigger: 'up' },
-	{ key: 'ath',       label: 'From ATH',       fmt: 'pct1', dp: 1, bigger: 'up' },
-	{ key: 'fng',       label: 'Fear & greed',   fmt: 'n0',   dp: 0, bigger: 'up' },
-	{ key: 'dominance', label: 'BTC dominance',  fmt: 'pct2', dp: 1, bigger: 'up' },
-	{ key: 'hashrate',  label: 'Hashrate',       fmt: 'eh',   dp: 1, bigger: 'up' },
-	{ key: 'stableB',   label: 'Stablecoins',    fmt: 'usdB', dp: 1, bigger: 'up' },
+	{ key: 'ahr999',    label: 'AHR999',         fmt: 'n3',   dp: 1, bigger: 'up',
+	  scale: { min: 0, max: 3, marks: [0.45, 1.2], note: 'under 0.45 is the accumulation band' } },
+	{ key: 'mayer',     label: 'Mayer',          fmt: 'n3',   dp: 1, bigger: 'up',
+	  scale: { min: 0, max: 3, marks: [1, 2.4], note: '1.0 is the 200-day average; 2.4 has marked tops' } },
+	{ key: 'ma200w',    label: '200W mult',      fmt: 'x2',   dp: 1, bigger: 'up',
+	  scale: { min: 0, max: 3, marks: [1, 2], note: 'under 1 has only happened in deep bears' } },
+	{ key: 'ath',       label: 'From ATH',       fmt: 'pct1', dp: 1, bigger: 'up',
+	  scale: { min: -100, max: 0, marks: [-50], note: 'drawdown from the all-time high' } },
+	{ key: 'fng',       label: 'Fear & greed',   fmt: 'n0',   dp: 0, bigger: 'up',
+	  scale: { min: 0, max: 100, marks: [25, 75], note: 'index definition, 0 to 100' } },
+	{ key: 'dominance', label: 'BTC dominance',  fmt: 'pct2', dp: 1, bigger: 'up', scale: null },
+	{ key: 'hashrate',  label: 'Hashrate',       fmt: 'eh',   dp: 1, bigger: 'up', scale: null },
+	{ key: 'stableB',   label: 'Stablecoins',    fmt: 'usdB', dp: 1, bigger: 'up', scale: null },
 ];
 
 /** Pull the tracked numbers out of a snapshot document. */
@@ -106,7 +122,7 @@ function baselineAt(rows, now, agoMs, toleranceMs) {
  * to say "this one is worth your attention today", which a raw percentage
  * cannot do across metrics on different scales.
  */
-export function buildMoved(rows, current, { now = Date.now(), priors = {} } = {}) {
+export function buildMoved(rows, current, { now = Date.now(), priors = {}, scales = {} } = {}) {
 	const base = baselineAt(rows, now, 86400000, 8 * 3600000);
 	const out = [];
 
@@ -134,7 +150,16 @@ export function buildMoved(rows, current, { now = Date.now(), priors = {} } = {}
 				if (sd > 0) sigma = Math.abs(pct - mean) / sd;
 			}
 		}
-		out.push({ ...m, value: v, delta, pct, sigma, notable: (sigma ?? 0) >= 2 });
+		// where the level sits on its track, 0..1 — from the published range, or
+		// from the record's own span once there is one worth calling a range
+		let scale = m.scale;
+		if (!scale && scales?.[m.key]) scale = scales[m.key];
+		let pos;
+		if (scale && scale.max > scale.min) {
+			pos = Math.min(1, Math.max(0, (v - scale.min) / (scale.max - scale.min)));
+		}
+
+		out.push({ ...m, scale: scale ?? null, pos, value: v, delta, pct, sigma, notable: (sigma ?? 0) >= 2 });
 	}
 	return { asOf: now, since: base?.t, rows: out };
 }
