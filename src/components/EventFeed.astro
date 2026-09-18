@@ -19,14 +19,6 @@ interface Props {
 }
 const { limit, showUpcoming = true, scroll = false, height = 330, heading = false } = Astro.props;
 
-/**
- * The "today" marker used to read data.updated — a field typed into the JSON by
- * hand. It said Sep 17 on the 18th, which is the same failure the ahead rail
- * had: a date that a person wrote down cannot stay true on its own. Build time
- * is the server's best guess; the browser corrects it below against the
- * reader's own clock, so a snapshot that sat for a day does not mislabel a day.
- */
-const today = new Date().toISOString().slice(0, 10);
 const byDay = new Map<string, any[]>();
 for (const e of data.events) {
 	if (!byDay.has(e.date)) byDay.set(e.date, []);
@@ -39,10 +31,6 @@ const days = [...byDay.entries()].filter(([, evs]) => {
 	shown += evs.length;
 	return true;
 });
-const dayLabel = (d: string) =>
-	d === today
-		? `today · ${new Date(d + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}`
-		: new Date(d + 'T00:00:00Z').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
 const dcls = (d: string) => (d === 'up' ? 'u' : d === 'down' ? 'd' : '');
 ---
 
@@ -57,7 +45,6 @@ const dcls = (d: string) => (d === 'up' ? 'u' : d === 'down' ? 'd' : '');
 	{
 		days.map(([date, evs]) => (
 			<section class="grp">
-				<div class="sep"><span data-day={date}>{dayLabel(date)}</span></div>
 				{evs.map((e: any) => (
 					<details class:list={['ln', { key: e.weight === 3 }]}>
 						<summary>
@@ -90,16 +77,16 @@ const dcls = (d: string) => (d === 'up' ? 'u' : d === 'down' ? 'd' : '');
 			<section class="grp">
 				<div class="sep ahead"><span>ahead · scheduled, not predicted</span></div>
 				{ahead.upcoming.map((u: any) => (
-					<div class="ln static" data-ahead data-at={u.at} data-precision={u.precision}>
-						<div class="summary">
-							<span class="car ghost" aria-hidden="true"></span>
-							<span class="dt">—</span>
-							<span class="tg" data-tag="ahead" data-when>{u.when}</span>
+					<details class="ln" data-ahead data-at={u.at} data-precision={u.precision}>
+						<summary>
+							<span class="car" aria-hidden="true"></span>
+							<span class="dt">{u.at.slice(5, 10)}</span>
+							<span class="tg" data-tag="ahead">ahead</span>
 							<span class="tt">{u.what}</span>
 							<span class="mm" />
-						</div>
-						<div class="body open"><p class="det">{u.why}</p></div>
-					</div>
+						</summary>
+						<div class="body"><p class="det">{u.why}</p></div>
+					</details>
 				))}
 			</section>
 		)
@@ -333,13 +320,12 @@ const dcls = (d: string) => (d === 'up' ? 'u' : d === 'down' ? 'd' : '');
 	 * saying Tomorrow, and the wording self-corrects without a deploy.
 	 */
 	function refreshAhead() {
+		// the row shows a real date, so nothing needs rewording — it only has to
+		// disappear once it is in the past
 		for (const row of document.querySelectorAll<HTMLElement>('[data-ahead]')) {
 			const at = row.dataset.at;
 			if (!at) continue;
-			const when = relativeWhen(at, Date.now(), row.dataset.precision || 'day');
-			if (!when) { row.remove(); continue; }
-			const slot = row.querySelector<HTMLElement>('[data-when]');
-			if (slot && slot.textContent !== when) slot.textContent = when;
+			if (!relativeWhen(at, Date.now(), row.dataset.precision || 'day')) row.remove();
 		}
 		// the whole group goes if nothing is left ahead
 		for (const sep of document.querySelectorAll<HTMLElement>('.sep.ahead')) {
@@ -352,20 +338,7 @@ const dcls = (d: string) => (d === 'up' ? 'u' : d === 'down' ? 'd' : '');
 	 * Same correction for the logged side: which group is "today" depends on when
 	 * the page is read, not when it was built.
 	 */
-	function refreshDays() {
-		const now = new Date().toISOString().slice(0, 10);
-		for (const el of document.querySelectorAll<HTMLElement>('[data-day]')) {
-			const d = el.dataset.day!;
-			const dt = new Date(d + 'T00:00:00Z');
-			const label = d === now
-				? `today · ${dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}`
-				: dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
-			if (el.textContent !== label) el.textContent = label;
-		}
-	}
-
 	refreshAhead();
-	refreshDays();
 
 	function initLog(wrap: HTMLElement) {
 		const track = wrap.querySelector<HTMLElement>('[data-logtrack]');
