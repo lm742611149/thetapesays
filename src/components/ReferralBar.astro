@@ -7,10 +7,11 @@
  * A permanent bar below the content costs no attention mid-article and is on
  * every page instead of some of them.
  *
- * Deliberately not a yellow slab. On a dark terminal-style site a saturated
- * block reads as an ad unit, and the only asset here is not looking like a
- * promo account. The yellow is in the top edge, the code and the button; the
- * bar itself stays the site's own dark.
+ * Yellow, and loud. I built the restrained version first — dark bar, yellow
+ * edge — and it disappeared into a dark site, which is the one thing a bar
+ * whose whole job is to be seen cannot do. It is one strip at the bottom of
+ * the page, below everything, so it can afford to be the brightest thing on
+ * screen without touching the reading above it.
  */
 import { REFERRAL } from '../consts';
 
@@ -51,9 +52,9 @@ const live = REFERRAL?.live && REFERRAL.href && REFERRAL.code;
 		bottom: var(--newsbar, 36px);
 		height: var(--refbar, 58px);
 		z-index: 40;
-		background: linear-gradient(180deg, #0d1016 0%, #0a0c11 100%);
-		border-top: 1px solid color-mix(in srgb, var(--accent) 38%, transparent);
-		box-shadow: 0 -10px 26px rgba(0, 0, 0, 0.5);
+		background: linear-gradient(100deg, #f0b90b 0%, #ffcf3d 46%, #f0b90b 100%);
+		box-shadow: 0 -10px 30px rgba(240, 185, 11, 0.16), 0 -1px 0 rgba(255, 255, 255, 0.22) inset;
+		color: #120d02;
 	}
 	/**
 	 * Full-bleed on purpose: the bar has the whole width, so the parts spread to
@@ -68,46 +69,49 @@ const live = REFERRAL?.live && REFERRAL.href && REFERRAL.code;
 		padding: 0 18px;
 	}
 	.mark {
-		width: 9px; height: 9px; border-radius: 50%; flex: none;
-		background: var(--accent);
-		box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 70%, transparent);
+		width: 8px; height: 8px; border-radius: 50%; flex: none;
+		background: #120d02;
+		animation: refpulse 2.4s ease-in-out infinite;
 	}
+	@keyframes refpulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+	@media (prefers-reduced-motion: reduce) { .mark { animation: none; } }
 	.who {
 		font-family: var(--font-mono), monospace;
-		font-size: 0.74rem; letter-spacing: 0.12em; text-transform: uppercase;
-		color: var(--accent); white-space: nowrap; flex: none;
+		font-size: 0.74rem; letter-spacing: 0.13em; text-transform: uppercase;
+		color: #120d02; font-weight: 700; white-space: nowrap; flex: none;
 	}
 	.pitch {
-		font-size: 0.85rem; color: var(--fg-dim); line-height: 1.3;
+		font-size: 0.88rem; color: #2a1f02; font-weight: 500; line-height: 1.3;
 		min-width: 0; flex: 1 1 auto;
 	}
 	.code {
 		display: inline-flex; align-items: baseline; gap: 8px; flex: none;
-		padding: 6px 11px; border-radius: 8px; cursor: pointer;
-		border: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent);
-		background: color-mix(in srgb, var(--accent) 7%, transparent);
+		padding: 6px 12px; border-radius: 8px; cursor: pointer;
+		border: 1px dashed rgba(18, 13, 2, 0.45);
+		background: rgba(18, 13, 2, 0.08);
 	}
-	.code:hover { background: color-mix(in srgb, var(--accent) 13%, transparent); }
+	.code:hover { background: rgba(18, 13, 2, 0.16); }
 	.cl {
 		font-style: normal; font-family: var(--font-mono), monospace;
-		font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg-mute);
+		font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(18, 13, 2, 0.62);
 	}
 	.code b {
-		font-family: var(--font-mono), monospace; font-size: 0.88rem;
-		font-weight: 700; color: var(--accent); letter-spacing: 0.04em;
+		font-family: var(--font-mono), monospace; font-size: 0.9rem;
+		font-weight: 700; color: #120d02; letter-spacing: 0.05em;
 	}
 	.cp {
 		font-family: var(--font-mono), monospace; font-size: 0.62rem;
-		letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-mute);
+		letter-spacing: 0.08em; text-transform: uppercase; color: rgba(18, 13, 2, 0.62);
 	}
 	.cta {
 		display: inline-flex; align-items: center; gap: 7px; flex: none;
-		background: var(--accent); color: #0a0c11;
-		font-weight: 650; font-size: 0.86rem; letter-spacing: -0.01em;
-		padding: 9px 15px; border-radius: 9px; text-decoration: none;
-		transition: filter 0.15s ease;
+		background: #120d02; color: #ffd24a;
+		font-weight: 700; font-size: 0.87rem; letter-spacing: -0.01em;
+		padding: 10px 16px; border-radius: 9px; text-decoration: none;
+		transition: transform 0.15s ease, box-shadow 0.15s ease;
+		box-shadow: 0 2px 0 rgba(18, 13, 2, 0.25);
 	}
-	.cta:hover { filter: brightness(1.1); }
+	.cta:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(18, 13, 2, 0.3); }
 	.cta .short { display: none; }
 	.cta svg {
 		width: 15px; height: 15px; fill: none; stroke: currentColor;
