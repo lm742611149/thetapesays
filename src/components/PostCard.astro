@@ -96,11 +96,17 @@ const d = pubDate.toISOString().slice(0, 10);
 		font-size: 1.12rem;
 		font-weight: 600;
 		letter-spacing: -0.01em;
-		/* the same yellow, lightened — it belongs to the title above it and must
-		   not compete with it */
-		color: color-mix(in srgb, var(--accent) 58%, #f3f5f8);
+		/**
+		 * The card's one yellow. With the title yellow too the whole card went
+		 * the same colour, which left hover nowhere to go but white — and the
+		 * figure staying put while the title changed read as two unrelated
+		 * things. The title is ink, this is the accent, and hover moves both.
+		 */
+		color: color-mix(in srgb, var(--accent) 72%, #f3f5f8);
 		line-height: 1.1;
+		transition: color 0.15s ease;
 	}
+	.card:hover .num { color: var(--accent); }
 	.feat .num {
 		font-size: 1.28rem;
 	}
@@ -115,15 +121,14 @@ const d = pubDate.toISOString().slice(0, 10);
 		letter-spacing: -0.017em;
 		margin: 0 0 8px;
 		line-height: 1.25;
-		color: var(--accent);
+		color: var(--fg);
 	}
 	.feat h3 {
 		font-size: 1.72rem;
 		letter-spacing: -0.024em;
 	}
-	/* the title is already the accent, so hover has to move the other way */
 	.card:hover h3 {
-		color: #fff;
+		color: var(--accent);
 	}
 	p {
 		margin: 0;
