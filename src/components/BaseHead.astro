@@ -17,7 +17,7 @@ interface Props {
 	schema?: Record<string, any>;
 }
 const {
-	title, description, image = '/og-default.png', type = 'website',
+	title, description, image = '/og/default.png', type = 'website',
 	noindex = false, keywords = [], schema,
 } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site);

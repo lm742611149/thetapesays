@@ -41,6 +41,7 @@ const bySym = [...new Set(closed.map((t: any) => t.sym))]
 ---
 
 <Base
+	image="/og/positions.png"
 	title="Positions"
 	description={`Every closed trade from the exchange record — ${stats.trades} trades, ${stats.winRate}% win rate, ${money(stats.netPnl)} net. Rules written down first, losers included.`}
 	noindex={!verified}

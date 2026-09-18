@@ -10,7 +10,8 @@
 		"preview": "astro preview",
 		"snap": "node scripts/snap.mjs",
 		"snapshot": "NODE_USE_ENV_PROXY=1 node scripts/snapshot.mjs",
-		"build:full": "npm run snapshot && astro build"
+		"build:full": "npm run snapshot && astro build",
+		"og": "node scripts/og.mjs"
 	},
 	"dependencies": {
 		"@astrojs/mdx": "^7.0.5",
