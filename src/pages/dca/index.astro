@@ -16,6 +16,7 @@
 import Base from '../../layouts/Base.astro';
 import ShareLines from '../../components/ShareLines.astro';
 import ReferralSlot from '../../components/ReferralSlot.astro';
+import DcaLive from '../../components/DcaLive.astro';
 import dca from '../../data/dca.json';
 
 const d = dca as any;
@@ -58,13 +59,15 @@ const atWorkPct = Math.round((d.weightedDays / d.spanDays) * 100);
 					<i>Invested</i><b>${num(d.invested)}</b><em>{d.buys} buys, six coins</em>
 				</div>
 				<div>
-					<i>Worth now</i><b class="up">${num(d.value)}</b><em>{pc(d.ret)}</em>
+					<i>Worth now</i><b class="up" data-dca-total="value">${num(d.value)}</b
+					><em data-dca-total="ret">{pc(d.ret)}</em>
 				</div>
 				<div>
-					<i>Bought on day one</i><b>${num(d.lumpValue)}</b><em>{pc(d.lumpRet)}</em>
+					<i>Bought on day one</i><b data-dca-total="lumpValue">${num(d.lumpValue)}</b
+					><em data-dca-total="lumpRet">{pc(d.lumpRet)}</em>
 				</div>
 				<div>
-					<i>Difference</i><b class="up">{pc(d.edge).replace('%', 'pp')}</b
+					<i>Difference</i><b class="up" data-dca-total="edge">{pc(d.edge).replace('%', 'pp')}</b
 					><em>in favour of buying through</em>
 				</div>
 			</div>
@@ -112,15 +115,15 @@ const atWorkPct = Math.round((d.weightedDays / d.spanDays) * 100);
 					</thead>
 					<tbody>
 						{d.perSym.map((c: any) => (
-							<tr>
+							<tr data-dca-row data-sym={c.sym} data-qty={c.qty} data-cost={c.invested} data-base={c.avg} data-spot={c.spot}>
 								<td>{c.sym}</td>
 								<td class="r mono">{c.buys}</td>
 								<td class="r mono">${num(c.invested)}</td>
 								<td class="r mono">{px(c.avg)}</td>
-								<td class="r mono">{px(c.spot)}</td>
-								<td class="r mono">${num(c.value)}</td>
-								<td class={`r mono ${c.pnl >= 0 ? 'up' : 'down'}`}>{c.pnl >= 0 ? '+' : '−'}${num(Math.abs(c.pnl))}</td>
-								<td class={`r mono ${c.ret >= 0 ? 'up' : 'down'}`}>{pc(c.ret, 1)}</td>
+								<td class="r mono" data-f="spot">{px(c.spot)}</td>
+								<td class="r mono" data-f="worth">${num(c.value)}</td>
+								<td class={`r mono ${c.pnl >= 0 ? 'up' : 'down'}`} data-f="pnl">{c.pnl >= 0 ? '+' : '−'}${num(Math.abs(c.pnl))}</td>
+								<td class={`r mono ${c.ret >= 0 ? 'up' : 'down'}`} data-f="ret">{pc(c.ret, 1)}</td>
 							</tr>
 						))}
 					</tbody>
@@ -138,8 +141,8 @@ const atWorkPct = Math.round((d.weightedDays / d.spanDays) * 100);
 			<p class="pnote top">
 				The last {d.recent.length} fills. Each row is what the exchange filled, what it is worth
 				at the current price, and the difference — so the average above is not a number you have
-				to take on faith, it is the column on the left averaged out. Prices refresh with the
-				site's six-hourly snapshot, which is also when every figure on this page is recomputed.
+				to take on faith, it is the column on the left averaged out. Prices are live — the
+				P&L and change columns recompute on every tick, so "now" means now.
 			</p>
 			<div class="tbl-wrap">
 				<table class="dtbl fills">
@@ -156,14 +159,14 @@ const atWorkPct = Math.round((d.weightedDays / d.spanDays) * 100);
 					</thead>
 					<tbody>
 						{d.recent.map((f: any) => (
-							<tr>
+							<tr data-dca-row data-sym={f.sym} data-qty={f.qty} data-cost={f.usdt} data-base={f.px} data-spot={(d.perSym.find((c: any) => c.sym === f.sym) ?? {}).spot}>
 								<td class="mono dim">{new Date(f.t).toISOString().slice(0, 16).replace('T', ' ')}</td>
 								<td>{f.sym}</td>
-								<td class="r mono">{f.qty}</td>
+								<td class="r mono">{px(f.qty)}</td>
 								<td class="r mono">{px(f.px)}</td>
 								<td class="r mono">${num(f.usdt)}</td>
-								<td class={`r mono ${f.pnl >= 0 ? 'up' : 'down'}`}>{f.pnl >= 0 ? '+' : '−'}${num(Math.abs(f.pnl))}</td>
-								<td class={`r mono ${f.ret >= 0 ? 'up' : 'down'}`}>{pc(f.ret, 1)}</td>
+								<td class={`r mono ${f.pnl >= 0 ? 'up' : 'down'}`} data-f="pnl">{f.pnl >= 0 ? '+' : '−'}${num(Math.abs(f.pnl))}</td>
+								<td class={`r mono ${f.ret >= 0 ? 'up' : 'down'}`} data-f="ret">{pc(f.ret, 1)}</td>
 							</tr>
 						))}
 					</tbody>
@@ -174,6 +177,8 @@ const atWorkPct = Math.round((d.weightedDays / d.spanDays) * 100);
 				same file this page reads, and the averages above use all of them.
 			</p>
 		</section>
+
+		<DcaLive perSym={d.perSym} invested={d.invested} />
 
 		<ReferralSlot />
 

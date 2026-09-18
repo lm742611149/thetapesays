@@ -83,6 +83,9 @@ export async function buildDca(fills, { recent = 30 } = {}) {
 			return {
 				sym: s, buys: count[s],
 				invested: +weight[s].toFixed(2),
+				// what day-one buying would hold in this coin — the browser needs it
+				// to reprice the comparison, not just the actual position
+				lumpQty: +lumpQty[s].toFixed(8),
 				// full precision: this is multiplied by a live price in the browser
 				qty: +held[s].toFixed(8),
 				avg: +avg.toFixed(dp(avg)),

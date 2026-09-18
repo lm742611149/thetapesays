@@ -74,12 +74,12 @@ const slides = [
 		tab: 'DCA',
 		tint: '#f0b90b',
 		kicker: `${(dca as any).buys} buys · six months · every fill`,
-		title: `${pc((dca as any).ret, 1)} buying weekly. ${pc((dca as any).lumpRet, 1)} buying it all at once.`,
+		title: 'Buy every week, or all at once?',
 		sub:
-			`${(dca as any).buys} buys across six coins from ${(dca as any).from} to ${(dca as any).to}, ` +
-			`$${(dca as any).invested.toLocaleString('en-US')} in. The same money and the same split bought on ` +
-			`day one is worth $${(dca as any).lumpValue.toLocaleString('en-US')} today; buying through the ` +
-			`drawdown is worth $${(dca as any).value.toLocaleString('en-US')}. And the money was only at work ` +
+			`Six months, ${(dca as any).buys} buys, $${(dca as any).invested.toLocaleString('en-US')} in. ` +
+			`Buying on schedule returned ${pc((dca as any).ret, 1)}; the same money and the same split bought ` +
+			`on day one returned ${pc((dca as any).lumpRet, 1)}. The gap is the June drawdown, which is when a ` +
+			`standing order collects its cheapest units — and the money was only at work ` +
 			`${(dca as any).weightedDays} of ${(dca as any).spanDays} days.`,
 		cta: 'See the record',
 		href: '/dca/',
@@ -111,9 +111,12 @@ const slides = [
 		tab: 'Research',
 		tint: '#ffd24a',
 		kicker: 'latest research',
-		title: lead?.data?.stat ? `${lead.data.stat}` : 'Backtests you can rerun.',
-		sub: lead?.data?.statLabel
-			? `${lead.data.statLabel[0].toUpperCase()}${lead.data.statLabel.slice(1)} — from "${lead.data.title}". Every piece names its dataset and its window, so you can run it again and disagree with the same numbers.`
+		// the headline is the piece, not its number. "0.29x vs 7.90x" on its own
+		// is a figure with no question attached to it.
+		title: lead?.data?.title ?? 'Backtests you can rerun.',
+		sub: lead?.data?.stat
+			? `${lead.data.stat}${lead.data.statLabel ? ` — ${lead.data.statLabel}` : ''}. ` +
+				`Every piece names its dataset and its window, so you can run it again and disagree with the same numbers.`
 			: 'Every piece names its dataset and its window, so you can run it again and disagree with the same numbers.',
 		cta: 'Read the research',
 		href: '/research/',

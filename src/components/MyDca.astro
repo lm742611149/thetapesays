@@ -10,6 +10,7 @@
  */
 import ShareLines from './ShareLines.astro';
 import dca from '../data/dca.json';
+import DcaLive from './DcaLive.astro';
 
 const d = dca as any;
 const pc = (v: number, dp = 1) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(dp)}%`;
@@ -28,13 +29,15 @@ const has = Array.isArray(d?.curve) && d.curve.length > 5;
 		<div class="head">
 			<div class="lead">
 				<i class="label">Six months, {d.buys} buys</i>
-				<b class="up">{pc(d.ret)}</b>
-				<span class="vs">against {pc(d.lumpRet)} buying it all on day one</span>
+				<b class="up" data-dca-total="ret" data-dp="1">{pc(d.ret)}</b>
+				<span class="vs">
+					against <span data-dca-total="lumpRet" data-dp="1">{pc(d.lumpRet)}</span> buying it all on day one
+				</span>
 			</div>
 			<div class="side">
 				<span><i>Invested</i><b>${num(d.invested)}</b></span>
-				<span><i>Worth now</i><b class="up">${num(d.value)}</b></span>
-				<span><i>Difference</i><b class="up">{pc(d.edge).replace('%', 'pp')}</b></span>
+				<span><i>Worth now</i><b class="up" data-dca-total="value">${num(d.value)}</b></span>
+				<span><i>Difference</i><b class="up" data-dca-total="edge" data-dp="1">{pc(d.edge).replace('%', 'pp')}</b></span>
 			</div>
 		</div>
 
@@ -46,6 +49,8 @@ const has = Array.isArray(d?.curve) && d.curve.length > 5;
 			height={170}
 			label="weekly buying versus buying it all on day one"
 		/>
+
+		<DcaLive perSym={d.perSym} invested={d.invested} />
 
 		<p class="fine">
 			Both lines are returns on the same total capital. The gap opens in June, when the market

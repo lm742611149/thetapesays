@@ -1,0 +1,115 @@
+---
+/**
+ * Reprices the DCA figures in the browser.
+ *
+ * The snapshot computes everything every six hours, which is right for the
+ * curves — they are daily closes — and wrong for a column headed "now". A
+ * current price that is four hours old is not a current price, and the P&L
+ * beside it inherits the staleness.
+ *
+ * So the server ships positions (quantity, cost, the price each fill paid) and
+ * the browser multiplies them by the live tape. One socket already feeds the
+ * whole site; this just subscribes to it. Without it — socket blocked, JS off —
+ * the server-rendered figures stay exactly as they were, which is why they are
+ * rendered rather than left blank.
+ */
+interface Props {
+	/** perSym rows: needed for the totals, which no single row can carry. */
+	perSym: any[];
+	invested: number;
+}
+const { perSym, invested } = Astro.props;
+const payload = {
+	invested,
+	perSym: perSym.map((c: any) => ({ sym: c.sym, qty: c.qty, lumpQty: c.lumpQty, invested: c.invested })),
+};
+---
+
+<script type="application/json" data-dca-config set:html={JSON.stringify(payload)} />
+
+<script>
+	type Cfg = { invested: number; perSym: { sym: string; qty: number; lumpQty: number; invested: number }[] };
+
+	const el = document.querySelector('[data-dca-config]');
+	const cfg: Cfg | null = el ? JSON.parse(el.textContent || 'null') : null;
+
+	const money = (v: number) =>
+		v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+	const signed = (v: number) => `${v >= 0 ? '+' : '−'}$${money(Math.abs(v))}`;
+	const pct = (v: number, dp = 2) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(dp)}%`;
+	const price = (v: number) =>
+		v >= 1
+			? v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+			: v.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+
+	/** Colour follows the sign, so a row that flips does not keep the old class. */
+	function tone(node: HTMLElement, v: number) {
+		node.classList.toggle('up', v >= 0);
+		node.classList.toggle('down', v < 0);
+	}
+
+	function write(node: HTMLElement | null, text: string) {
+		if (node && node.textContent !== text) node.textContent = text;
+	}
+
+	function recalc() {
+		const live = (window as any).__live?.all?.() ?? {};
+		const spot = (sym: string, fallback: number) => {
+			const p = live[sym]?.price;
+			return Number.isFinite(p) && p > 0 ? p : fallback;
+		};
+
+		// per-row: a fill or a coin, whichever the page rendered
+		for (const row of document.querySelectorAll<HTMLElement>('[data-dca-row]')) {
+			const sym = row.dataset.sym!;
+			const qty = +row.dataset.qty!;
+			const cost = +row.dataset.cost!;
+			const base = +row.dataset.base!; // avg cost for a coin, fill price for a buy
+			const fallback = +row.dataset.spot!;
+			const p = spot(sym, fallback);
+			const worth = qty * p;
+			const pnl = worth - cost;
+			const ret = base > 0 ? (p / base - 1) * 100 : 0;
+
+			write(row.querySelector('[data-f="spot"]'), price(p));
+			write(row.querySelector('[data-f="worth"]'), `$${money(worth)}`);
+			const pnlNode = row.querySelector<HTMLElement>('[data-f="pnl"]');
+			if (pnlNode) { write(pnlNode, signed(pnl)); tone(pnlNode, pnl); }
+			const retNode = row.querySelector<HTMLElement>('[data-f="ret"]');
+			if (retNode) { write(retNode, pct(ret, 1)); tone(retNode, ret); }
+		}
+
+		if (!cfg) return;
+		let value = 0, lump = 0;
+		for (const c of cfg.perSym) {
+			const p = spot(c.sym, 0);
+			if (!p) return; // one missing price would make the total wrong, so leave it
+			value += c.qty * p;
+			lump += c.lumpQty * p;
+		}
+		const ret = (value / cfg.invested - 1) * 100;
+		const lumpRet = (lump / cfg.invested - 1) * 100;
+		const edge = ret - lumpRet;
+
+		for (const node of document.querySelectorAll<HTMLElement>('[data-dca-total]')) {
+			const k = node.dataset.dcaTotal;
+			const dp = node.dataset.dp ? +node.dataset.dp : 2;
+			if (k === 'value') write(node, `$${money(value)}`);
+			else if (k === 'lumpValue') write(node, `$${money(lump)}`);
+			else if (k === 'ret') { write(node, pct(ret, dp)); tone(node, ret); }
+			else if (k === 'lumpRet') write(node, pct(lumpRet, dp));
+			else if (k === 'edge') { write(node, `${pct(edge, dp).replace('%', 'pp')}`); tone(node, edge); }
+		}
+	}
+
+	/**
+	 * Live.astro publishes window.__live at the end of the body; this script can
+	 * run first, so wait for it rather than missing the subscription entirely.
+	 */
+	function attach(tries = 0) {
+		const live = (window as any).__live;
+		if (live?.subscribe) { live.subscribe(recalc); recalc(); return; }
+		if (tries < 40) setTimeout(() => attach(tries + 1), 150);
+	}
+	attach();
+</script>
