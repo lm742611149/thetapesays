@@ -27,11 +27,16 @@ SINCE="toDateTime(now() - INTERVAL '${DAYS}' DAY)"
 # blob6 country · blob7 device · double1 dwell(s) · double2 depth(%) · double3 width
 case "$REPORT" in
 pages)
+	# Analytics Engine speaks a subset of ClickHouse: no NULLIF, and avg() over a
+	# null branch is not safe either. Divide by hand and guard the empty case, so
+	# a page with views but no completed visit reports 0 rather than erroring.
+	V="sum(if(blob1='visit',1,0))"
 	SQL="SELECT blob2 AS page,
 	        sum(if(blob1='view',1,0)) AS views,
-	        round(avg(if(blob1='visit',double1,null)),1) AS avg_seconds,
-	        round(avg(if(blob1='visit',double2,null)),0) AS avg_depth_pct,
-	        round(100*sum(if(blob1='visit' AND double1<10,1,0))/nullif(sum(if(blob1='visit',1,0)),0),0) AS bounce_pct
+	        $V AS visits,
+	        round(sum(if(blob1='visit',double1,0.0))/if($V=0,1,$V),1) AS avg_seconds,
+	        round(sum(if(blob1='visit',double2,0.0))/if($V=0,1,$V),0) AS avg_depth_pct,
+	        round(100*sum(if(blob1='visit' AND double1<10,1,0))/if($V=0,1,$V),0) AS bounce_pct
 	      FROM tapesays_events WHERE timestamp > $SINCE
 	      GROUP BY page ORDER BY views DESC LIMIT 30" ;;
 referral)
