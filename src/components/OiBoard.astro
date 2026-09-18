@@ -68,7 +68,8 @@ const COINS = ['BTC', 'ETH', 'SOL', 'BNB'];
 	tbody :global(.v) { font-family: var(--font-mono), monospace; font-weight: 700; color: #fff; }
 	tbody :global(.m) { font-family: var(--font-mono), monospace; font-variant-numeric: tabular-nums; }
 	tbody :global(.dim) { color: var(--fg-mute); }
-	tbody :global(.lead td) { box-shadow: inset 2px 0 0 var(--accent); }
+	tbody :global(.lead td:first-child) { box-shadow: inset 2px 0 0 var(--accent); }
+	tbody :global(.lead td) { background: rgba(240, 185, 11, 0.05); }
 
 	/* share cell: a bar that reads left-to-right at the venue's own weight */
 	tbody :global(.shr) { display: flex; align-items: center; gap: 8px; min-width: 150px; }

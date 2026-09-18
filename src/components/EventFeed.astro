@@ -112,7 +112,9 @@ const dcls = (d: string) => (d === 'up' ? 'u' : d === 'down' ? 'd' : '');
 	/* Auto-scrolling viewport. The track is duplicated in the client script so
 	   the loop has no seam; hovering, focusing or opening a row pauses it. */
 	.logwrap.scroll {
-		height: var(--h);
+		/* a cap, not a fixed height — a short log would otherwise leave a band of
+		   empty panel under it */
+		max-height: var(--h);
 		overflow: hidden;
 		position: relative;
 		mask-image: linear-gradient(180deg, transparent, #000 18px, #000 calc(100% - 26px), transparent);

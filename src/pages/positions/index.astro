@@ -12,6 +12,7 @@
 import Base from '../../layouts/Base.astro';
 import ReferralSlot from '../../components/ReferralSlot.astro';
 import EquityCurve from '../../components/EquityCurve.astro';
+import OpenPositions from '../../components/OpenPositions.astro';
 import log from '../../data/trades.json';
 
 const { rules, open, closed, curve, stats, verified, source, since, through } = log as any;
@@ -148,36 +149,17 @@ const bySym = [...new Set(closed.map((t: any) => t.sym))]
 		</section>
 
 		<!-- OPEN -->
-		{open.length > 0 && (
-			<section class="block">
-				<div class="bh">
-					<h2>Open</h2>
-					<span class="live"><span class="pulse"></span><span class="label">live</span></span>
-				</div>
-				<div class="tw">
-					<table>
-						<thead>
-							<tr>
-								<th>Position</th><th class="r">Opened</th><th class="r">Entry</th>
-								<th class="r">Size</th><th class="r">Last</th><th class="r">Unrealised</th>
-							</tr>
-						</thead>
-						<tbody>
-							{open.map((t: any) => (
-								<tr data-open={t.sym} data-entry={t.entry} data-qty={t.qty}>
-									<td><b class="mono">{t.sym}</b></td>
-									<td class="r mono dim">{t.opened}</td>
-									<td class="r mono">{px(t.entry)}</td>
-									<td class="r mono dim">${num(t.size, 0)}</td>
-									<td class="r mono" data-live={t.sym} data-live-field="price" data-live-fmt="plain">—</td>
-									<td class="r mono res" data-unreal>—</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
-				</div>
-			</section>
-		)}
+		<section class="block">
+			<div class="bh">
+				<h2>Where the book is now</h2>
+				<span class="live"><span class="pulse"></span><span class="legend">live</span></span>
+			</div>
+			<p class="note">
+				One tab per instrument. Open positions price off the tape; a flat tab shows what that
+				instrument last did and what it has paid overall.
+			</p>
+			<OpenPositions />
+		</section>
 
 		<!-- CLOSED -->
 		<section class="block">

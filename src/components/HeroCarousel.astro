@@ -23,6 +23,7 @@ const charts: Record<string, number[][]> = (market as any).charts ?? {};
 const posts = await allPosts();
 const lead = posts[0];
 const latestEvent = (events as any).events?.[0];
+const chain = (market as any).onchain ?? null;
 
 const money = (v: number) => `${v >= 0 ? '+' : '−'}$${Math.abs(v).toFixed(2)}`;
 const pc = (v: number, d = 2) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(d)}%`;
@@ -45,41 +46,53 @@ const btcSpark = (charts.BTC ?? []).slice(-45).map((b) => b[4]);
 const date = (s: string) =>
 	new Date(s + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 
-/** Slide copy. `tab` is the switcher label; `cta` is the promise being made. */
+/**
+ * Each headline is a number this site holds, not a claim about how it was made.
+ * "Pulled myself, source named" tells a reader nothing they can check; a
+ * hashrate and a hashprice do, and they change on their own.
+ */
 const slides = [
 	verified && {
 		key: 'positions',
 		tab: 'Positions',
-		kicker: 'every fill, including the losers',
-		title: 'My trades, on the record.',
-		sub: `Rules written down first, stop written at entry, and every closed position published — the ${stats.losses} that lost alongside the ${stats.wins} that didn't.`,
+		kicker: 'the trade log · every fill',
+		title: `${money(stats.netPnl)} across ${stats.trades} trades.`,
+		sub: `${stats.wins} won, ${stats.losses} lost, profit factor ${stats.profitFactor}, worst drawdown ${money(stats.drawdown.abs)}. Entry, exit and fee on every one of them, straight off the exchange record.`,
 		cta: 'See the positions',
 		href: '/positions/',
 	},
 	{
 		key: 'data',
 		tab: 'Data',
-		kicker: 'first-hand market data',
-		title: 'Pulled myself. Source named.',
-		sub: 'Funding across six venues, open interest, the Bitcoin network, miner shutdown prices and who else is holding it. Every figure says where it came from and over what window.',
+		kicker: 'bitcoin network · funding · treasuries',
+		title: chain
+			? `${Math.round(chain.chain.hashrateEh)} EH/s. $${chain.miner.hashprice.toFixed(0)} a petahash.`
+			: 'Funding, open interest, miner costs.',
+		sub: 'Perpetual funding across six venues, open interest normalised to coins, Bitcoin network state, the BTC price each rig stops paying for its own power, and which listed companies hold what.',
 		cta: 'Open the data',
 		href: '/data/',
 	},
 	{
 		key: 'research',
 		tab: 'Research',
-		kicker: 'backtests you can rerun',
-		title: 'Measured, not asserted.',
-		sub: 'Each piece names its dataset and its window, so the finding can be checked rather than taken on trust. When one turns out wrong, that goes up too.',
+		kicker: 'latest research',
+		title: lead?.data?.stat ? `${lead.data.stat}` : 'Backtests you can rerun.',
+		sub: lead?.data?.statLabel
+			? `${lead.data.statLabel[0].toUpperCase()}${lead.data.statLabel.slice(1)} — from "${lead.data.title}". Every piece names its dataset and its window, so you can run it again and disagree with the same numbers.`
+			: 'Every piece names its dataset and its window, so you can run it again and disagree with the same numbers.',
 		cta: 'Read the research',
 		href: '/research/',
 	},
 	{
 		key: 'news',
 		tab: 'News',
-		kicker: 'what the tape actually did',
-		title: 'The reaction, not the headline.',
-		sub: 'Every entry read off a primary source and paired with the measured move against exchange data. If an event moved nothing, it says so.',
+		kicker: 'event log · measured reaction',
+		title: latestEvent?.title
+			? `${latestEvent.title.length > 52 ? latestEvent.title.slice(0, 50).trim() + '…' : latestEvent.title}`
+			: 'What the tape did, measured.',
+		sub: latestEvent?.impact
+			? latestEvent.impact
+			: 'Every entry read off a primary source and paired with the measured move against exchange data.',
 		cta: 'See the log',
 		href: '/events/',
 	},

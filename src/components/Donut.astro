@@ -44,6 +44,7 @@ const arcs = parts.map((p, i) => {
 			<li>
 				<i style={`background:${a.color}`} />
 				<span class="n">{a.name}</span>
+				<span class="bar"><b style={`width:${Math.max(1.5, a.pct).toFixed(1)}%;background:${a.color}`} /></span>
 				<span class="p">{a.pct.toFixed(1)}%</span>
 			</li>
 		))}
@@ -52,6 +53,10 @@ const arcs = parts.map((p, i) => {
 
 <style>
 	.donut { margin: 0; display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 20px; align-items: center; }
+	@media (max-width: 620px) {
+		.key li { grid-template-columns: 10px minmax(0, 1fr) 54px; }
+		.bar { display: none; }
+	}
 	.ringwrap { position: relative; width: 160px; height: 160px; }
 	svg { width: 160px; height: 160px; transform: rotate(-90deg); display: block; }
 	.seg {
@@ -71,10 +76,19 @@ const arcs = parts.map((p, i) => {
 
 	.key { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 	.key li {
-		display: grid; grid-template-columns: 10px minmax(0, 1fr) 54px;
+		display: grid; grid-template-columns: 10px minmax(72px, auto) minmax(0, 1fr) 54px;
 		align-items: center; gap: 9px;
 		font-family: var(--font-mono), monospace; font-size: 0.74rem;
 	}
+	.bar {
+		height: 5px; border-radius: 3px; background: #0a0c10;
+		border: 1px solid var(--line); overflow: hidden; min-width: 40px;
+	}
+	.bar b {
+		display: block; height: 100%; border-radius: 2px; opacity: 0.85;
+		animation: barGrow 0.8s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+	}
+	@keyframes barGrow { from { width: 0 !important; } }
 	.key i { width: 9px; height: 9px; border-radius: 2px; }
 	.n { color: var(--fg-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 	.p { text-align: right; color: #fff; font-weight: 700; font-variant-numeric: tabular-nums; }

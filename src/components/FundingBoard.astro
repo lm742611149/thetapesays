@@ -74,8 +74,10 @@ const COINS = ['BTC', 'ETH', 'SOL', 'BNB'];
 	tbody :global(.dim) { color: var(--fg-mute); }
 	tbody :global(.cd) { font-variant-numeric: tabular-nums; }
 	tbody :global(.soon) { color: var(--accent); }
-	tbody :global(.best td) { box-shadow: inset 2px 0 0 var(--up); }
-	tbody :global(.worst td) { box-shadow: inset 2px 0 0 var(--down); }
+	tbody :global(.best td:first-child) { box-shadow: inset 2px 0 0 var(--up); }
+	tbody :global(.worst td:first-child) { box-shadow: inset 2px 0 0 var(--down); }
+	tbody :global(.best td) { background: rgba(38, 208, 124, 0.045); }
+	tbody :global(.worst td) { background: rgba(246, 70, 93, 0.045); }
 
 	.note { margin: 13px 0 0; font-size: 0.82rem; line-height: 1.62; color: var(--fg-mute); max-width: 78ch; }
 	.note b { color: var(--fg-dim); }

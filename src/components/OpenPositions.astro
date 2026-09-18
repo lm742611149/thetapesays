@@ -1,0 +1,234 @@
+---
+/**
+ * Where the book stands right now, per instrument.
+ *
+ * Flat is a position too, and the honest default: most of the time this shows
+ * nothing open, which is exactly what a rules-based system looks like between
+ * signals. So a flat tab still carries something worth reading — when it was
+ * closed, what that trade did, and what the instrument has paid overall —
+ * rather than an empty panel that reads as missing data.
+ *
+ * Open rows price off the live socket, so the P&L moves while you watch.
+ */
+import log from '../data/trades.json';
+
+const { open, closed } = log as any;
+
+const SYMS = ['BTC', 'ETH', 'SOL'];
+
+const num = (v: number, d = 2) =>
+	v.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+const px = (v: number) => (v >= 1 ? num(v, 2) : num(v, 4));
+const money = (v: number) => `${v >= 0 ? '+' : '−'}$${Math.abs(v).toFixed(2)}`;
+const pc = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(2)}%`;
+
+const books = SYMS.map((sym) => {
+	const lot = open.find((o: any) => o.sym === sym) ?? null;
+	const done = closed.filter((t: any) => t.sym === sym);
+	const last = done.length ? done[done.length - 1] : null;
+	return {
+		sym,
+		lot,
+		last,
+		n: done.length,
+		pnl: done.reduce((s: number, t: any) => s + t.pnl, 0),
+		wins: done.filter((t: any) => t.pnl > 0).length,
+	};
+});
+const liveCount = books.filter((b) => b.lot).length;
+---
+
+<div class="op" data-open-positions>
+	<div class="head">
+		<div class="tabs" role="tablist" aria-label="Instrument">
+			{books.map((b, i) => (
+				<button class:list={['tab', { on: i === 0 }]} data-osym={b.sym} role="tab"
+					aria-selected={i === 0 ? 'true' : 'false'}>
+					{b.sym}
+					<span class:list={['pip', b.lot ? 'live' : 'flat']} aria-hidden="true"></span>
+				</button>
+			))}
+		</div>
+		<span class="state">
+			{liveCount > 0
+				? `${liveCount} position${liveCount > 1 ? 's' : ''} open`
+				: 'Flat — nothing open'}
+		</span>
+	</div>
+
+	{books.map((b, i) => (
+		<div class:list={['book', { on: i === 0 }]} data-book={b.sym}>
+			{b.lot ? (
+				<div class="live-pos" data-pos={b.sym} data-entry={b.lot.entry} data-qty={b.lot.qty}>
+					<div class="row top">
+						<div>
+							<i class="label">Unrealised</i>
+							<b class="pnl" data-pnl>—</b>
+						</div>
+						<div class="r">
+							<i class="label">Last</i>
+							<b class="mono" data-live={b.sym} data-live-field="price" data-live-fmt="plain">—</b>
+						</div>
+					</div>
+					<dl class="grid">
+						<div><dt>Opened</dt><dd>{b.lot.opened}</dd></div>
+						<div><dt>Entry</dt><dd>{px(b.lot.entry)}</dd></div>
+						<div><dt>Size</dt><dd>${num(b.lot.size, 0)}</dd></div>
+						<div><dt>Stop</dt><dd>{b.lot.stop ? px(b.lot.stop) : <span class="dim">—</span>}</dd></div>
+					</dl>
+				</div>
+			) : (
+				<div class="flat">
+					<div class="row top">
+						<div>
+							<i class="label">Position</i>
+							<b class="none">Flat</b>
+						</div>
+						<div class="r">
+							<i class="label">{b.sym} last</i>
+							<b class="mono" data-live={b.sym} data-live-field="price" data-live-fmt="plain">—</b>
+						</div>
+					</div>
+					{b.last ? (
+						<dl class="grid">
+							<div><dt>Closed</dt><dd>{b.last.closed}</dd></div>
+							<div>
+								<dt>That trade</dt>
+								<dd class={b.last.pnl >= 0 ? 'up' : 'down'}>{pc(b.last.pnlPct)}</dd>
+							</div>
+							<div><dt>{b.sym} total</dt><dd class={b.pnl >= 0 ? 'up' : 'down'}>{money(b.pnl)}</dd></div>
+							<div><dt>Record</dt><dd>{b.wins}/{b.n} won</dd></div>
+						</dl>
+					) : (
+						<p class="never">No {b.sym} trade has closed yet.</p>
+					)}
+				</div>
+			)}
+		</div>
+	))}
+
+	<p class="fine">
+		{liveCount > 0
+			? 'Unrealised P&L prices off the live tape and moves while this page is open. Nothing here is a recommendation.'
+			: 'Flat is the normal state between signals — the system trades on daily closes, not continuously.'}
+	</p>
+</div>
+
+<style>
+	.op { display: block; }
+	.head {
+		display: flex; align-items: center; justify-content: space-between;
+		gap: 14px; flex-wrap: wrap; margin-bottom: 14px;
+	}
+	.tabs {
+		display: inline-flex; gap: 2px; background: #0b0e13;
+		border: 1px solid var(--line); border-radius: 8px; padding: 3px;
+	}
+	.tab {
+		appearance: none; border: 0; background: none; cursor: pointer;
+		display: inline-flex; align-items: center; gap: 6px;
+		padding: 5px 13px; border-radius: 6px;
+		font-family: var(--font-mono), monospace; font-size: 0.72rem; font-weight: 700;
+		letter-spacing: 0.06em; color: var(--fg-mute);
+		transition: background 0.15s, color 0.15s;
+	}
+	.tab:hover { color: var(--fg-dim); }
+	.tab.on { background: var(--accent-dim); color: var(--accent); }
+	/* a dot per tab so the state is visible without opening each one */
+	.pip { width: 5px; height: 5px; border-radius: 50%; flex: none; }
+	.pip.live { background: var(--up); box-shadow: 0 0 0 0 rgba(38, 208, 124, 0.55); animation: pip 1.9s ease-out infinite; }
+	.pip.flat { background: #2a2f3a; }
+	@keyframes pip {
+		0% { box-shadow: 0 0 0 0 rgba(38, 208, 124, 0.5); }
+		70%, 100% { box-shadow: 0 0 0 7px rgba(38, 208, 124, 0); }
+	}
+	.state {
+		font-family: var(--font-mono), monospace; font-size: 0.66rem;
+		text-transform: uppercase; letter-spacing: 0.09em; color: var(--fg-mute);
+	}
+
+	.book { display: none; }
+	.book.on { display: block; }
+
+	.row.top {
+		display: flex; align-items: flex-start; justify-content: space-between;
+		gap: 16px; margin-bottom: 14px;
+	}
+	.row.top .r { text-align: right; }
+	.row.top i { display: block; font-size: 0.6rem; margin-bottom: 4px; }
+	.row.top b {
+		font-family: var(--font-mono), monospace; font-size: 1.9rem; font-weight: 700;
+		line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; color: #fff;
+	}
+	.row.top b.none { color: var(--fg-mute); letter-spacing: -0.01em; }
+	.pnl.up { color: var(--up); }
+	.pnl.down { color: var(--down); }
+
+	.grid {
+		display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 1px; margin: 0;
+		background: var(--line); border: 1px solid var(--line);
+		border-radius: 9px; overflow: hidden;
+	}
+	.grid div { background: var(--bg-panel); padding: 11px 13px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+	.grid dt {
+		font-family: var(--font-mono), monospace; font-size: 0.58rem;
+		text-transform: uppercase; letter-spacing: 0.09em; color: var(--fg-mute);
+	}
+	.grid dd {
+		margin: 0; font-family: var(--font-mono), monospace; font-size: 0.95rem;
+		font-weight: 700; color: #fff; font-variant-numeric: tabular-nums;
+	}
+	.grid .dim { color: var(--fg-mute); font-weight: 400; }
+
+	.never { margin: 0; font-family: var(--font-mono), monospace; font-size: 0.8rem; color: var(--fg-mute); }
+	.fine {
+		margin: 13px 0 0; font-family: var(--font-mono), monospace;
+		font-size: 0.64rem; line-height: 1.6; color: var(--fg-mute);
+	}
+
+	@media (max-width: 620px) {
+		.grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+		.row.top b { font-size: 1.55rem; }
+	}
+</style>
+
+<script>
+	const root = document.querySelector<HTMLElement>('[data-open-positions]');
+	if (root) {
+		root.querySelectorAll<HTMLElement>('[data-osym]').forEach((btn) =>
+			btn.addEventListener('click', () => {
+				const sym = btn.dataset.osym!;
+				root.querySelectorAll('[data-osym]').forEach((o) => {
+					o.classList.toggle('on', o === btn);
+					o.setAttribute('aria-selected', String(o === btn));
+				});
+				root.querySelectorAll<HTMLElement>('[data-book]').forEach((bk) =>
+					bk.classList.toggle('on', bk.dataset.book === sym),
+				);
+			}),
+		);
+
+		/** Unrealised P&L off the live tape, recomputed on every tick. */
+		for (const pos of root.querySelectorAll<HTMLElement>('[data-pos]')) {
+			const entry = Number(pos.dataset.entry);
+			const qty = Number(pos.dataset.qty);
+			const cell = pos.querySelector<HTMLElement>('[data-pnl]');
+			if (!cell || !Number.isFinite(entry) || !Number.isFinite(qty)) continue;
+
+			const paint = (price?: number) => {
+				if (!price || !Number.isFinite(price)) return;
+				const pnl = (price - entry) * qty;
+				const pct = (price / entry - 1) * 100;
+				cell.textContent =
+					`${pnl >= 0 ? '+' : '−'}$${Math.abs(pnl).toFixed(2)}  ${pct >= 0 ? '+' : '−'}${Math.abs(pct).toFixed(2)}%`;
+				cell.className = `pnl ${pnl >= 0 ? 'up' : 'down'}`;
+			};
+			const live = (window as any).__live;
+			paint(live?.get(pos.dataset.pos!)?.price);
+			live?.subscribe?.((sym: string) => {
+				if (sym === pos.dataset.pos) paint(live.get(sym)?.price);
+			});
+		}
+	}
+</script>
