@@ -132,6 +132,23 @@ const d = pubDate.toISOString().slice(0, 10);
 		font-size: 0.9rem;
 		margin: 1.8em 0;
 	}
+	/**
+	 * Charts carry more per pixel than the prose does, so they are allowed out
+	 * of the 760px measure on a wide screen and pull back inside it on a narrow
+	 * one. The bleed is what is left of the viewport after the column and a
+	 * gutter, capped so the image never outgrows its own rendered width.
+	 */
+	.prose :global(img) {
+		--bleed: clamp(0px, calc((100vw - 760px) / 2 - 26px), 140px);
+		display: block;
+		width: calc(100% + var(--bleed) * 2);
+		max-width: calc(100vw - 32px);
+		margin: 2.1em 0 2.1em calc(var(--bleed) * -1);
+		height: auto;
+		border: 1px solid var(--line, #1C2330);
+		border-radius: 10px;
+		background: #10151F;
+	}
 	.prose :global(em) {
 		color: var(--fg-dim);
 	}
