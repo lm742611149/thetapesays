@@ -76,13 +76,17 @@ const live = REFERRAL?.live && REFERRAL.href && REFERRAL.code;
 	 * The venue's own mark, not a generic dot. It reads as the logo before the
 	 * word next to it is read, and on phones — where the BINANCE label is
 	 * hidden for width — it is the only thing naming who the offer is with.
-	 * Dark on the yellow rather than Binance yellow, which would vanish into
-	 * the bar. No pulse: a blinking logo reads as a broken asset, and the bar
-	 * is already the brightest thing on the page.
+	 * Brand yellow on a dark disc, not painted straight onto the bar: on the
+	 * yellow the mark has no edge of its own and its cut-outs read as part of
+	 * the background. The disc gives it one and lets the mark keep Binance's
+	 * own colour. No pulse: a blinking logo reads as a broken asset, and the
+	 * bar is already the brightest thing on the page.
 	 */
 	.mark {
-		width: 21px; height: 21px; flex: none;
-		fill: #120d02;
+		width: 19px; height: 19px; flex: none;
+		padding: 6px; box-sizing: content-box;
+		background: #120d02; border-radius: 50%;
+		fill: #f0b90b;
 	}
 	.who {
 		font-family: var(--font-mono), monospace;
