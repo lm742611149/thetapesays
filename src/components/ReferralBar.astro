@@ -21,7 +21,7 @@ const live = REFERRAL?.live && REFERRAL.href && REFERRAL.code;
 {live && (
 	<aside class="refbar" data-refbar>
 		<div class="in">
-			<span class="mark" aria-hidden="true"></span>
+			<svg class="mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M16.624 13.9202l2.7175 2.7154-7.353 7.3539-7.3684-7.3695 2.7175-2.7164 4.6509 4.6668 4.6355-4.6502zm4.6373-4.6529L24 12.0025l-2.7186 2.7185-2.7166-2.7174L21.2613 9.2673zM16.624 9.2695l2.7192 2.7177-.0006.0007-7.353 7.3547-.0023-.0023-.0026.0029-7.3675-7.3708 2.7175-2.7164 4.6509 4.6668 4.6355-4.6502zM2.7186 9.2673l2.7175 2.7166-2.7175 2.7175L0 11.9848l2.7186-2.7175zm8.6479-8.6295l7.353 7.3547-2.7174 2.7165-4.6356-4.6501-4.651 4.6667-2.7174-2.7163 7.3684-7.3715z"/></svg>
 
 			<span class="who">{REFERRAL.name}</span>
 
@@ -72,13 +72,18 @@ const live = REFERRAL?.live && REFERRAL.href && REFERRAL.code;
 		min-width: 0;
 		flex-wrap: nowrap;
 	}
+	/**
+	 * The venue's own mark, not a generic dot. It reads as the logo before the
+	 * word next to it is read, and on phones — where the BINANCE label is
+	 * hidden for width — it is the only thing naming who the offer is with.
+	 * Dark on the yellow rather than Binance yellow, which would vanish into
+	 * the bar. No pulse: a blinking logo reads as a broken asset, and the bar
+	 * is already the brightest thing on the page.
+	 */
 	.mark {
-		width: 8px; height: 8px; border-radius: 50%; flex: none;
-		background: #120d02;
-		animation: refpulse 2.4s ease-in-out infinite;
+		width: 21px; height: 21px; flex: none;
+		fill: #120d02;
 	}
-	@keyframes refpulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
-	@media (prefers-reduced-motion: reduce) { .mark { animation: none; } }
 	.who {
 		font-family: var(--font-mono), monospace;
 		font-size: clamp(0.7rem, 1.2vw, 0.84rem); letter-spacing: 0.13em; text-transform: uppercase;
