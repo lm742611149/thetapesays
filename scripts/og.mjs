@@ -89,8 +89,9 @@ function candles(h = 296, n = BAND_BARS) {
  * short ones.
  */
 function html({ kicker, title, stat, statLabel }) {
-	const n = title.length;
+	const n = Math.max(...title.split('\n').map((l) => l.length)) * title.split('\n').length;
 	const size = n > 54 ? 62 : n > 38 ? 72 : 84;
+	const wrap = title.includes('\n') ? '100%' : '17ch';
 	return `<!doctype html><html><head><meta charset="utf-8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -100,7 +101,7 @@ function html({ kicker, title, stat, statLabel }) {
 	body {
 		width: ${W}px; height: ${H}px; background: #08090b; color: #e9ecf1;
 		font-family: Archivo, system-ui, sans-serif; position: relative; overflow: hidden;
-		padding: 66px 72px; display: flex; flex-direction: column;
+		padding: 66px 72px 104px; display: flex; flex-direction: column;
 	}
 	.bg { position: absolute; inset: 0; opacity: 0.5;
 		background:
@@ -126,7 +127,8 @@ function html({ kicker, title, stat, statLabel }) {
 	/* headline sits with the figure, not floating midway: the kicker holds the top,
 	   everything that carries meaning groups against the bottom edge */
 	h1 { position: relative; font-size: ${size}px; font-weight: 700; line-height: 1.1;
-		letter-spacing: -0.032em; margin-top: auto; max-width: 17ch; }
+		white-space: pre-line;
+		letter-spacing: -0.032em; margin-top: auto; max-width: ${wrap}; }
 	.foot { position: relative; margin-top: 46px; display: flex; align-items: flex-end;
 		justify-content: space-between; gap: 30px; }
 	.statwrap { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
@@ -169,7 +171,7 @@ const PAGES = [
 	// site that a stranger can check against their own account in about a minute.
 	// Read from the snapshot, never typed: the hand-typed pair went stale in a week.
 	{ slug: 'default', kicker: 'numbers first',
-	  title: `Buying weekly beat buying it all on day one, by ${DCA.edge.toFixed(1)} points.`,
+	  title: 'Every fill. Every loss.\nEvery trade is on the site.',
 	  stat: `+${DCA.ret.toFixed(1)}% vs +${DCA.lumpRet.toFixed(1)}%`,
 	  statLabel: `${DCA.spanDays} days, ${DCA.buys} fills, and every trade and backtest behind it` },
 	{ slug: 'data', kicker: 'data', title: 'Chain state, miner economics, funding across six venues.',
