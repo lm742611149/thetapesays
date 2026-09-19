@@ -14,11 +14,23 @@
  * it was generated and there is no way to refresh what X has already cached — so
  * the figure on the card is the finding, which does not move. Run it by hand
  * when a post is added:  npm run og
+ *
+ * The figures on the default and dca cards are read from src/data/dca.json rather
+ * than typed in, because they were typed in once and went stale the next snapshot.
+ * The candles behind every card are real BTC daily bars from
+ * src/data/og-candles.json, not a decorative squiggle: this site does not draw
+ * price shapes it did not fetch. Refresh them with  npm run og:candles
  */
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+const DCA = JSON.parse(readFileSync('src/data/dca.json', 'utf8'));
+const CANDLES = JSON.parse(readFileSync('src/data/og-candles.json', 'utf8')).bars;
+const BAND_BARS = 96;
+const BAND_NOTE = `BTC/USDT  ${BAND_BARS} daily bars to ${new Date(CANDLES[CANDLES.length - 1].t)
+	.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}`;
 
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const OUT = 'public/og';
@@ -40,6 +52,38 @@ function fm(src) {
 const esc = (s = '') => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 /**
+ * The candle field behind the card. Real BTC daily bars, scaled into the top
+ * band so the headline and the figure below it keep a quiet background. Drawn as
+ * SVG inside the template so a card is still one screenshot and the colours
+ * track the site's own up/down pair.
+ */
+function candles(h = 296, n = BAND_BARS) {
+	const bars = CANDLES.slice(-n);
+	const hi = Math.max(...bars.map((b) => b.h));
+	const lo = Math.min(...bars.map((b) => b.l));
+	const pad = (hi - lo) * 0.07;
+	const top = hi + pad, bot = lo - pad;
+	const y = (v) => (((top - v) / (top - bot)) * h).toFixed(1);
+	const step = W / bars.length;
+	const bw = Math.max(3, step * 0.6);
+	let out = '';
+	for (let i = 0; i < bars.length; i++) {
+		const b = bars[i];
+		const x = i * step + step / 2;
+		// one hue, two values: the card reads as the site's amber at a glance and an
+		// up bar is still distinguishable from a down bar at timeline size
+		const col = b.c >= b.o ? '#f0b90b' : '#7d5f14';
+		const yo = ((top - b.o) / (top - bot)) * h;
+		const yc = ((top - b.c) / (top - bot)) * h;
+		// a doji still needs a visible body, or the field reads as gaps
+		const bodyH = Math.max(1.6, Math.abs(yc - yo));
+		out += `<line x1="${x.toFixed(1)}" y1="${y(b.h)}" x2="${x.toFixed(1)}" y2="${y(b.l)}" stroke="${col}" stroke-width="1.5"/>`;
+		out += `<rect x="${(x - bw / 2).toFixed(1)}" y="${Math.min(yo, yc).toFixed(1)}" width="${bw.toFixed(1)}" height="${bodyH.toFixed(1)}" fill="${col}"/>`;
+	}
+	return `<svg class="candles" width="${W}" height="${h}" viewBox="0 0 ${W} ${h}">${out}</svg>`;
+}
+
+/**
  * One template. The headline sizes itself down as it gets longer — a fixed size
  * either wraps to four lines on the long titles or wastes half the card on the
  * short ones.
@@ -58,14 +102,23 @@ function html({ kicker, title, stat, statLabel }) {
 		font-family: Archivo, system-ui, sans-serif; position: relative; overflow: hidden;
 		padding: 66px 72px; display: flex; flex-direction: column;
 	}
-	/* the faint candle field the site carries behind its panels */
 	.bg { position: absolute; inset: 0; opacity: 0.5;
 		background:
-			radial-gradient(900px 420px at 78% 8%, rgba(240,185,11,0.10), transparent 60%),
-			radial-gradient(700px 400px at 8% 100%, rgba(122,162,255,0.08), transparent 62%);
+			radial-gradient(900px 420px at 78% 8%, rgba(240,185,11,0.16), transparent 60%),
+			radial-gradient(700px 400px at 8% 100%, rgba(240,185,11,0.06), transparent 62%);
 	}
+	/* real BTC daily bars, faded out before they reach the headline */
+	.candles { position: absolute; top: 4px; left: 0; opacity: 0.72;
+		-webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,1) 58%, rgba(0,0,0,0) 100%);
+		mask-image: linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,1) 58%, rgba(0,0,0,0) 100%); }
+	/* the band is real data, so it gets an axis note like every chart on the site */
+	.srcline { position: absolute; right: 72px; top: 268px; font-family: 'Roboto Mono', monospace;
+		font-size: 15px; letter-spacing: 0.06em; color: #4d5462; }
+	/* the text sits on this, not on the candles */
+	.scrim { position: absolute; inset: 0;
+		background: linear-gradient(to top, #08090b 24%, rgba(8,9,11,0.92) 41%, rgba(8,9,11,0) 70%); }
 	.rule { position: absolute; left: 0; top: 0; width: 100%; height: 5px;
-		background: linear-gradient(90deg, #f0b90b 0%, #f0b90b 34%, #7aa2ff 34%, #7aa2ff 52%, #1d2128 52%); }
+		background: linear-gradient(90deg, #f0b90b 0%, #f0b90b 46%, #7d5f14 46%, #7d5f14 62%, #1d2128 62%); }
 	.top { position: relative; display: flex; align-items: center; gap: 13px;
 		font-family: 'Roboto Mono', monospace; font-size: 20px; letter-spacing: 0.16em;
 		text-transform: uppercase; color: #8a93a3; }
@@ -84,7 +137,8 @@ function html({ kicker, title, stat, statLabel }) {
 	.dom { font-family: 'Roboto Mono', monospace; font-size: 21px; color: #59606e;
 		white-space: nowrap; padding-bottom: 4px; }
 </style></head><body>
-<div class="bg"></div><div class="rule"></div>
+<div class="bg"></div>${candles()}<div class="scrim"></div><div class="rule"></div>
+<div class="srcline">${esc(BAND_NOTE)}</div>
 <div class="top"><span class="dot"></span><span>${esc(kicker)}</span></div>
 <h1>${esc(title)}</h1>
 <div class="foot">
@@ -111,14 +165,20 @@ function shoot(doc, outPath) {
 
 // ---- pages without a post behind them ----
 const PAGES = [
-	{ slug: 'default', kicker: 'numbers first', title: 'First-hand market data on crypto and macro.',
-	  stat: 'no signals', statLabel: 'backtests you can rerun, positions posted before the move' },
+	// The home card carries the DCA comparison because it is the one finding on the
+	// site that a stranger can check against their own account in about a minute.
+	// Read from the snapshot, never typed: the hand-typed pair went stale in a week.
+	{ slug: 'default', kicker: 'numbers first',
+	  title: `Buying weekly beat buying it all on day one, by ${DCA.edge.toFixed(1)} points.`,
+	  stat: `+${DCA.ret.toFixed(1)}% vs +${DCA.lumpRet.toFixed(1)}%`,
+	  statLabel: `${DCA.spanDays} days, ${DCA.buys} fills, and every trade and backtest behind it` },
 	{ slug: 'data', kicker: 'data', title: 'Chain state, miner economics, funding across six venues.',
 	  stat: 'free, no signup', statLabel: 'every source named on the page' },
 	{ slug: 'positions', kicker: 'positions', title: 'Every closed trade, from the exchange record.',
 	  stat: 'losses included', statLabel: 'rules written down before the entry' },
 	{ slug: 'dca', kicker: 'dca', title: 'Buying on schedule, and the alternative it beat.',
-	  stat: '+25.0% vs +7.9%', statLabel: 'six months of weekly buying against day one' },
+	  stat: `+${DCA.ret.toFixed(1)}% vs +${DCA.lumpRet.toFixed(1)}%`,
+	  statLabel: `${DCA.buys} weekly buys against one purchase on day one` },
 	{ slug: 'research', kicker: 'research', title: 'Backtests that name their data and their window.',
 	  stat: 'rerunnable', statLabel: 'method stated, sample size stated' },
 	{ slug: 'events', kicker: 'news', title: 'What moved, and what the tape actually did about it.',
