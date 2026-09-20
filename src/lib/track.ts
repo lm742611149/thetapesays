@@ -14,12 +14,44 @@
 type Payload = Record<string, string | number | undefined>;
 
 const ENDPOINT = '/api/beacon';
+
+/**
+ * Opting a browser out of its own numbers.
+ *
+ * The author is the site's heaviest visitor by far, and with no id in the
+ * payload there is no way to subtract him afterwards: a check-the-deploy visit
+ * is indistinguishable from a reader's. Filtering by country in the query was
+ * the alternative, and it would throw away real traffic from wherever the proxy
+ * happens to exit that week.
+ *
+ * So the opt-out happens before anything is sent. Visit /?optout=1 once per
+ * browser and this one stops reporting entirely; /?optout=0 turns it back on.
+ * The flag is a single localStorage key, which is exactly the kind of
+ * per-viewer preference that storage is for, and it is read in a try/catch
+ * because private windows throw on access.
+ */
+const OPTOUT_KEY = 'tts:optout';
+
+function optedOut(): boolean {
+	try {
+		const p = new URLSearchParams(location.search).get('optout');
+		if (p === '1' || p === '0') {
+			if (p === '1') localStorage.setItem(OPTOUT_KEY, '1');
+			else localStorage.removeItem(OPTOUT_KEY);
+		}
+		return localStorage.getItem(OPTOUT_KEY) === '1';
+	} catch {
+		return false;
+	}
+}
+
+let muted = false;
 /** Events queue until idle so tracking never competes with rendering. */
 let queue: Payload[] = [];
 let flushing = false;
 
 function post(batch: Payload[]) {
-	if (!batch.length) return;
+	if (muted || !batch.length) return;
 	const body = JSON.stringify({ events: batch, path: location.pathname });
 	// sendBeacon survives the page being closed; fetch is the fallback for the
 	// (rare) engines without it, and must be keepalive for the same reason
@@ -88,6 +120,9 @@ function endVisit() {
 }
 
 export function initTracking() {
+	muted = optedOut();
+	if (muted) return;
+
 	const ref = document.referrer;
 	let refHost = '';
 	try {
