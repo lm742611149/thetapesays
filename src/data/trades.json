@@ -104,6 +104,15 @@
 			"size": 299.89,
 			"stop": 96.89,
 			"venue": "binance"
+		},
+		{
+			"sym": "BTC",
+			"opened": "2026-09-20",
+			"entry": 81264.46,
+			"qty": 0.00369,
+			"size": 299.87,
+			"stop": 75641,
+			"venue": "binance"
 		}
 	],
 	"closed": [
