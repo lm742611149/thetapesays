@@ -1,6 +1,6 @@
 ---
-title: 'Three boxes, one line'
-description: 'All three coins left their thirty-day range in a single session. The odds of coming back to the old ceiling, of reaching the 100-week average, and of closing above either, rerun on today price.'
+title: 'Bitcoin, Ether and Solana all left their range. The odds for the week ahead'
+description: 'The odds each one comes back to the ceiling it just cleared, reaches its 100-week average, and closes above either, rerun on today price.'
 pubDate: 2026-09-21
 kind: research
 stat: '34% to 67%'
