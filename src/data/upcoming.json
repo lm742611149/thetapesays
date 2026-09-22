@@ -1,5 +1,5 @@
 {
-	"updated": 1790027839297,
+	"updated": 1790052688687,
 	"upcoming": [
 		{
 			"at": "2026-09-25T08:00:00.000Z",
@@ -10,12 +10,12 @@
 			"when": "This Friday"
 		},
 		{
-			"at": "2026-10-03T13:26:37.000Z",
+			"at": "2026-10-03T06:12:37.000Z",
 			"precision": "day",
 			"what": "Difficulty retarget",
-			"why": "Estimated -5.7%, which moves every miner's shutdown price by the same amount in the opposite direction.",
+			"why": "Estimated -3.7%, which moves every miner's shutdown price by the same amount in the opposite direction.",
 			"derived": "retarget",
-			"when": "in 12 days"
+			"when": "in 11 days"
 		},
 		{
 			"at": "2026-11-03T00:00:00.000Z",
@@ -26,10 +26,10 @@
 			"when": "Nov 3"
 		},
 		{
-			"at": "2028-04-13T00:07:17.508Z",
+			"at": "2028-04-12T23:01:27.414Z",
 			"precision": "month",
 			"what": "Fourth halving, block 1,050,000",
-			"why": "Subsidy drops to 1.5625 BTC. 81,949 blocks out, dated off ten minutes a block — the real date moves with hashrate.",
+			"why": "Subsidy drops to 1.5625 BTC. 81,901 blocks out, dated off ten minutes a block — the real date moves with hashrate.",
 			"derived": "halving",
 			"when": "April 2028"
 		}
