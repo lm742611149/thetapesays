@@ -1,5 +1,5 @@
 {
-	"updated": 1790198917978,
+	"updated": 1790225150572,
 	"upcoming": [
 		{
 			"at": "2026-09-25T08:00:00.000Z",
@@ -7,15 +7,15 @@
 			"what": "Quarterly options expiry",
 			"why": "Deribit settles the quarterlies 08:00 UTC on the last Friday. This is where the open interest sits, so it is the one date that reliably concentrates flow.",
 			"derived": "expiry",
-			"when": "This Friday"
+			"when": "Tomorrow"
 		},
 		{
-			"at": "2026-10-03T17:02:38.000Z",
+			"at": "2026-10-03T22:47:06.000Z",
 			"precision": "day",
 			"what": "Difficulty retarget",
-			"why": "Estimated -6.7%, which moves every miner's shutdown price by the same amount in the opposite direction.",
+			"why": "Estimated -8.2%, which moves every miner's shutdown price by the same amount in the opposite direction.",
 			"derived": "retarget",
-			"when": "in 10 days"
+			"when": "in 9 days"
 		},
 		{
 			"at": "2026-11-03T00:00:00.000Z",
@@ -26,10 +26,10 @@
 			"when": "Nov 3"
 		},
 		{
-			"at": "2028-04-13T02:18:36.711Z",
+			"at": "2028-04-13T04:25:49.011Z",
 			"precision": "month",
 			"what": "Fourth halving, block 1,050,000",
-			"why": "Subsidy drops to 1.5625 BTC. 81,677 blocks out, dated off ten minutes a block — the real date moves with hashrate.",
+			"why": "Subsidy drops to 1.5625 BTC. 81,646 blocks out, dated off ten minutes a block — the real date moves with hashrate.",
 			"derived": "halving",
 			"when": "April 2028"
 		}
