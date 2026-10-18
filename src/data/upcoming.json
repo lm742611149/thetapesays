@@ -1,13 +1,13 @@
 {
-	"updated": 1792269216768,
+	"updated": 1792297644901,
 	"upcoming": [
 		{
-			"at": "2026-10-30T10:34:01.000Z",
+			"at": "2026-10-30T21:22:50.000Z",
 			"precision": "day",
 			"what": "Difficulty retarget",
-			"why": "Estimated -5.0%, which moves every miner's shutdown price by the same amount in the opposite direction.",
+			"why": "Estimated -8.0%, which moves every miner's shutdown price by the same amount in the opposite direction.",
 			"derived": "retarget",
-			"when": "in 13 days"
+			"when": "in 12 days"
 		},
 		{
 			"at": "2026-11-03T00:00:00.000Z",
@@ -15,7 +15,7 @@
 			"what": "US midterms",
 			"why": "CLARITY restarts from introduction in the next Congress, so this is the gate on market-structure law.",
 			"source": "Fixed by statute — Tuesday after the first Monday in November",
-			"when": "in 17 days"
+			"when": "in 16 days"
 		},
 		{
 			"at": "2026-12-25T08:00:00.000Z",
@@ -26,10 +26,10 @@
 			"when": "Dec 25"
 		},
 		{
-			"at": "2028-04-12T04:33:35.414Z",
+			"at": "2028-04-12T05:37:23.307Z",
 			"precision": "month",
 			"what": "Fourth halving, block 1,050,000",
-			"why": "Subsidy drops to 1.5625 BTC. 78,096 blocks out, dated off ten minutes a block — the real date moves with hashrate.",
+			"why": "Subsidy drops to 1.5625 BTC. 78,055 blocks out, dated off ten minutes a block — the real date moves with hashrate.",
 			"derived": "halving",
 			"when": "April 2028"
 		}
